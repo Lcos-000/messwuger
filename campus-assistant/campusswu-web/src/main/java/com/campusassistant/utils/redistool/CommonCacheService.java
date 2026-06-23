@@ -1,4 +1,4 @@
-package com.campusassistant.utils;
+package com.campusassistant.utils.redistool;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,6 +25,9 @@ public class CommonCacheService {
 
     // 默认空值(防穿透)过期时长及单位（5秒）
     private static final long DEFAULT_NULL_TIMEOUT = 5;
+    // 默认空值(防穿透)值
+    private static final String DEFAULT_NULL_VALUE = "null";
+
 
     // =======================  普通对象 (Class 类型) =======================
 
@@ -84,13 +87,14 @@ public class CommonCacheService {
 
         // 2. 命中缓存
         if (jsonValue != null) {
-            if ("null".equals(jsonValue)) {
+            if (DEFAULT_NULL_VALUE.equals(jsonValue)) {
                 return null;
             }
             try {
                 return deserializer.deserialize(jsonValue);
             } catch (Exception e) {
                 log.warn("反序列化失败，重新查询数据库...", e);
+                stringRedisTemplate.delete(redisKey);
             }
         }
 
@@ -99,7 +103,7 @@ public class CommonCacheService {
 
         // 4. 回填缓存
         if (result == null) {
-            stringRedisTemplate.opsForValue().set(redisKey, "null", nullTimeout, TimeUnit.SECONDS);
+            stringRedisTemplate.opsForValue().set(redisKey, DEFAULT_NULL_VALUE, nullTimeout, TimeUnit.SECONDS);
         } else {
             try {
                 String json = objectMapper.writeValueAsString(result);

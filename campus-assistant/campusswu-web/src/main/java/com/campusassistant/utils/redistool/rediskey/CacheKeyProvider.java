@@ -1,4 +1,4 @@
-package com.campusassistant.utils.rediskey;
+package com.campusassistant.utils.redistool.rediskey;
 
 public interface CacheKeyProvider<T> {
     /**

@@ -1,3 +1,6 @@
+
+
+#暂时，后续从nacos获取
 logging:
   file:
     name: logs/${spring.application.name}.log

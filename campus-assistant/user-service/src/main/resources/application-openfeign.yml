@@ -5,12 +5,12 @@ spring:
         config:
           default:
             logger-level: full
-            connect-timeout: 50000
-            read-timeout: 50000
+            connect-timeout: 3000
+            read-timeout: 5000
           order-service:
             logger-level: full
-            connect-timeout: 50000
-            read-timeout: 50000
+            connect-timeout: 3000
+            read-timeout: 5000
             retryable: true #开启重试机制
 
 feign:

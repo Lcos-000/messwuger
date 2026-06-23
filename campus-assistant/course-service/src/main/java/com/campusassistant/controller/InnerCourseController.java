@@ -1,12 +1,10 @@
 // 路径：controller/InnerCourseController.java (对内部微服务暴露)
 package com.campusassistant.controller;
 
-import com.campusassistant.common.UserContext;
 import com.campusassistant.pojo.CourseDTO;
 import com.campusassistant.pojo.CourseVO;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.service.UserCourseService;
-import com.campusassistant.utils.ThreadLocalUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

@@ -11,10 +11,10 @@ spring:
 
   profiles:
     include:
-      - datasource
       - mybatis
       - jwt
       - weblog
+      - userweblog
       - nacos
       - openfeign
       - sentinel
