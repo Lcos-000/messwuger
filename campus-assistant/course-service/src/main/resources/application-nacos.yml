@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: campus-course-service
+  cloud:
+    nacos:
+
+      config:
+        import-check:
+          enabled: false # 关闭 Nacos 配置导入检查
+
+      server-addr: localhost:8848
+      discovery:
+        enabled: true
+        namespace: dev
+
+#      config:
+#        namespace: dev
+#        group: DEFAULT_GROUP
+#        file-extension: yaml
+#  config:
+#    import:
+#      - nacos:datasource-mysql.yaml?group=DATASOURCE_GROUP
+#      - nacos:datasource-redis.yaml?group=DATASOURCE_GROUP
+#      - nacos:gateway-auth.yaml?group=GATEWAY_GROUP
+#      - nacos:common-log.yaml

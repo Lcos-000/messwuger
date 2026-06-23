@@ -1,0 +1,47 @@
+version: '3.8'
+services:
+  # 1. 底层数据库：BanyanDB
+  banyandb:
+    image: apache/skywalking-banyandb:0.6.0
+    container_name: banyandb
+    networks:
+      - sw
+    ports:
+      - 17912:17912
+    command: standalone
+
+  # 2. 核心服务端：OAP
+  oap:
+    image: apache/skywalking-oap-server:10.0.1
+    container_name: skywalking-oap
+    depends_on:
+      - banyandb
+    networks:
+      - sw
+    ports:
+      - 11800:11800
+      - 12800:12800
+    environment:
+      SW_STORAGE: banyandb
+      # 告诉 OAP 去连上面那个 banyandb 容器
+      SW_STORAGE_BANYANDB_TARGETS: banyandb:17912
+      TZ: Asia/Shanghai
+
+  # 3. 前端界面：UI
+  ui:
+    image: apache/skywalking-ui:10.0.1
+    container_name: skywalking-ui
+    depends_on:
+      - oap
+    networks:
+      - sw
+    ports:
+      - 8080:8080
+    environment:
+      # 告诉 UI 去连上面那个 oap 容器
+      SW_OAP_ADDRESS: http://oap:12800
+      TZ: Asia/Shanghai
+
+networks:
+  sw:
+    driver: bridge

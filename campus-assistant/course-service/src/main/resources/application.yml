@@ -1,0 +1,17 @@
+server:
+  port: 9000
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+  profiles:
+    include:
+      - datasource
+      - mybatis
+      - jwt
+      - nacos
+#      - sentinel
+      - weblog
+      - aes

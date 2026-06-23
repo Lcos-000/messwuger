@@ -1,0 +1,9 @@
+gatewaylist:
+  whitelist:
+    - /gateway/auth/login
+    - /gateway/auth/register
+  adminlist:
+    - /gateway/admin/**
+
+security:
+  gatewaySecret: hadgonesthroughgateway

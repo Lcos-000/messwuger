@@ -1,0 +1,13 @@
+logging:
+  file:
+    name: logs/${spring.application.name}.log
+  level:
+    campusswuweb.client: debug
+    campus: info
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [%X{traceId}] %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${PID:- } --- [%t] %-40.40logger{39} : [%X{traceId}] %msg%n"
+  logback:
+    rolling-policy:
+      max-file-size: 10MB
+      max-history: 7

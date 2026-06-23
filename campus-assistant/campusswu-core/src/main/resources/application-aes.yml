@@ -1,0 +1,2 @@
+aes:
+  secret-key: "@aes-secret-key#"  # 必须16个字符或32个字符

@@ -1,0 +1,16 @@
+[Unit]
+Description=Campus Assistant Gateway
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/campus-assistant
+ExecStart=/usr/bin/java -jar /opt/campus-assistant/campus-assistant/campusswu-gateway/target/campusswu-gateway-1.0-SNAPSHOT.jar --server.port=8080
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/campus-assistant/logs/gateway.log
+StandardError=append:/opt/campus-assistant/logs/gateway.log
+
+[Install]
+WantedBy=multi-user.target
