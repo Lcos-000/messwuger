@@ -1,0 +1,21 @@
+# ==========================================
+# 核心主配置 (总闸)
+# ==========================================
+server:
+  port: 8000
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+  profiles:
+    include:
+      - datasource
+      - mybatis
+      - jwt
+      - weblog
+      - nacos
+      - openfeign
+      - sentinel
+      - aes

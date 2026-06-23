@@ -1,0 +1,28 @@
+[Unit]
+Description=Campus Assistant Spider Service (Go)
+After=network.target campus-user.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/campus-assistant/campus-spider-service
+ExecStart=/opt/campus-assistant/campus-spider-service/server
+Environment="REDIS_ADDR=127.0.0.1:6379"
+Environment="REDIS_PASSWORD=CampusRedis@1234"
+Environment="REDIS_DB=0"
+Environment="HTTP_ADDR=:8082"
+Environment="JAVA_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/student-data"
+Environment="PUNCH_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/punch-result"
+Environment="JAVA_INTERNAL_TOKEN=campus-internal-token"
+Environment="PYTHON_PATH=/usr/bin/python3"
+Environment="SPIDER_SCRIPT=./scripts/spider_cli.py"
+Environment="CHECKIN_SCRIPT=./scripts/checkin_cli.py"
+Environment="SESSION_DIR=./data/sessions"
+Environment="WORKER_CONCURRENCY=4"
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/campus-assistant/logs/spider-service.log
+StandardError=append:/opt/campus-assistant/logs/spider-service.log
+
+[Install]
+WantedBy=multi-user.target

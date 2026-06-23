@@ -1,0 +1,68 @@
+﻿/* ===== Global Reset & Variables ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+
+
+html, body, #app { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; border: none; outline: none; }
+
+/* ===== Utility ===== */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ===== Loading Spinner ===== */
+.spinner {
+  display: inline-block;
+  width: 36px; height: 36px;
+  border: 3px solid var(--primary-light);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; padding: 48px 0;
+  color: var(--text-muted); font-size: 14px;
+}
+
+/* ===== Toast ===== */
+.toast-container {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: #1f2937; color: #fff;
+  padding: 10px 20px; border-radius: 24px;
+  font-size: 14px; white-space: nowrap;
+  animation: toast-in .25s ease, toast-out .3s ease 2.7s forwards;
+  pointer-events: none;
+}
+.toast.error { background: #dc2626; }
+.toast.success { background: #16a34a; }
+@keyframes toast-in  { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes toast-out { to { opacity:0; transform: translateY(-10px); } }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 20px; border-radius: 8px;
+  font-size: 15px; font-weight: 500; transition: filter .15s;
+}
+.btn:active { filter: brightness(.9); }
+.btn-primary { background: var(--primary-color); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-ghost { background: transparent; color: var(--primary-color); border: 1.5px solid var(--primary-color); }
+.btn-danger { background: #fee2e2; color: #dc2626; }
+.btn-danger:hover { background: #fecaca; }
+.btn-block { width: 100%; }
+

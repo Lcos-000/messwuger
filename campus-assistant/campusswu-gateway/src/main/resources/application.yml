@@ -1,0 +1,16 @@
+server:
+  port: 80
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false #控制json转换，将日期时间转换成可读字符串而不是时间戳
+
+  profiles:
+    include:
+      - gateway
+      - nacos
+      - jwt
+      - weblog
+      - security
+      - aes

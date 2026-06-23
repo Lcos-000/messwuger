@@ -1,0 +1,16 @@
+spring:
+  cloud:
+    nacos:
+      config: #表明接下来拉取配置
+
+        import-check:
+          enabled: false # 关闭 Nacos 配置导入检查
+
+        refresh-enabled: true # 默认是 true，但建议显式声明
+        namespace: dev
+        group: GATEWAY_GROUP
+        file-extension: yaml
+#  config:
+#    import:
+#      - nacos:gateway-auth.yaml
+#      - nacos:common-log.yaml?group=DEFAULT_GROUP

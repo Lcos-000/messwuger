@@ -1,0 +1,83 @@
+version: "3.8"
+
+# 中间件统一部署：MySQL + Redis + Nacos
+# 云服务器上只把这些基础组件放到 Docker 里跑
+# Java / Go / 前端 程序仍用 systemd / 脚本直接运行在宿主机
+
+services:
+  mysql:
+    image: mysql:8.0.33
+    container_name: campus-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: campus_db
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/conf:/etc/mysql/conf.d
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pCampusDb@1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: campus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: campus-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: ip
+      SPRING_DATASOURCE_PLATFORM: ""        # 使用内嵌 Derby，单机足够
+      NACOS_AUTH_ENABLE: "false"            # 单机内网可关闭鉴权，公网建议开启
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      - "9848:9848"   # Nacos 2.x gRPC 端口
+      - "9849:9849"   # Nacos 2.x gRPC 端口
+    volumes:
+      - ./nacos/logs:/home/nacos/logs
+      - ./nacos/data:/home/nacos/data
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+networks:
+  campus-net:
+    driver: bridge

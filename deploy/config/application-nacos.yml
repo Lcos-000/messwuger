@@ -1,0 +1,11 @@
+# 生产环境 Nacos 配置
+
+spring:
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      discovery:
+        namespace: dev
+        # 注册时使用宿主机 IP，避免 Docker 网卡 IP 导致外网无法访问
+        # 启动时可替换为真实公网/内网 IP
+        ip: 127.0.0.1

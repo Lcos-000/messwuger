@@ -1,0 +1,16 @@
+[Unit]
+Description=Campus Assistant Course Service
+After=network.target campus-gateway.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/campus-assistant
+ExecStart=/usr/bin/java -jar /opt/campus-assistant/campus-assistant/course-service/target/course-service-1.0-SNAPSHOT.jar
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/campus-assistant/logs/course-service.log
+StandardError=append:/opt/campus-assistant/logs/course-service.log
+
+[Install]
+WantedBy=multi-user.target
