@@ -1,0 +1,53 @@
+### IDE ###
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+### Java / Maven ###
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+logs/
+HELP.md
+
+### Go ###
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+data/sessions/
+
+### Python ###
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+
+### Node.js ###
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Sensitive ###
+*.pem
+*.key
+*.env.local
+*.env.production
