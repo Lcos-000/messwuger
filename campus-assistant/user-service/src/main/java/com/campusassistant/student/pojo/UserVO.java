@@ -1,6 +1,6 @@
 package com.campusassistant.student.pojo;
 
-import com.campusassistant.pojo.BaseEntity;
+import com.campusassistant.pojo.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -19,6 +19,6 @@ public class UserVO extends BaseEntity {
 
     private Integer punchStatus;
 
-    private String role;      // 角色权限
+//    private String role;      // 角色权限
 
 }

@@ -1,6 +1,6 @@
 package com.campusassistant.utils.rediskey;
 
-import com.campusassistant.utils.rediskey.AbstractCacheKeyProvider;
+import com.campusassistant.utils.redistool.rediskey.AbstractCacheKeyProvider;
 import org.springframework.stereotype.Component;
 
 /**

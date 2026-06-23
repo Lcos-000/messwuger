@@ -84,14 +84,14 @@ public class TokenGlobalFilter implements GlobalFilter {
         // 解析 token 拿到 userId,userName,userRole，塞入请求头传给下游
         try {
             Map<String, Object> claims = jwtUtil.parseToken(token);
-            String userId = String.valueOf(claims.get(USERID));
-            String studentId = String.valueOf(claims.get(STUDENTID));
+            String userId = String.valueOf(claims.get(USER_ID));
+            String studentId = String.valueOf(claims.get(STUDENT_ID));
             String userRole = String.valueOf(claims.get(USER_ROLE));
             ServerHttpRequest finalRequest = request.mutate()
                     .header(SystemConstants.TRACE_ID_HEADER, traceId)
                     .header(SystemConstants.GATEWAY_TOKEN_HEADER, gatewaySecretProperties.getGatewaySecret())
                     .header(HEADER_USER_ID, userId)
-                    .header(HEADER_STUDENTID, studentId)
+                    .header(HEADER_STUDENT_ID, studentId)
                     .header(HEADER_USER_ROLE, userRole)
                     .build();
             log.info("Token 验证成功，提取用户身份: id={}, name={}, role={}", userId, studentId, userRole);

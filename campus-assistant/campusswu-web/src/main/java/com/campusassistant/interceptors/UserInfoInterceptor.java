@@ -38,7 +38,7 @@ public class UserInfoInterceptor implements HandlerInterceptor {
         MDC.put(SystemConstants.TRACE_ID_MDC, traceId);
 
         String userId = request.getHeader(HEADER_USER_ID);
-        String studentId = request.getHeader(HEADER_STUDENTID);
+        String studentId = request.getHeader(HEADER_STUDENT_ID);
         String userRole = request.getHeader(HEADER_USER_ROLE);
         UserContext userContext = new UserContext();
         if (userId!=null){

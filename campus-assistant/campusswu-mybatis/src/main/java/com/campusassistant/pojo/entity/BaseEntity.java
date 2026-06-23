@@ -1,4 +1,4 @@
-package com.campusassistant.pojo;
+package com.campusassistant.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;

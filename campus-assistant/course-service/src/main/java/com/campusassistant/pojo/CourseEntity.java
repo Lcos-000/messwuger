@@ -2,6 +2,7 @@
 package com.campusassistant.pojo;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.campusassistant.pojo.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

@@ -17,6 +17,11 @@
             <artifactId>campusswu-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github</groupId>
+            <artifactId>campusswu-mybatis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Web 核心 (提供 Tomcat、@RestControllerAdvice、HttpServletRequest) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
