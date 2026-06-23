@@ -47,8 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final SpiderService spiderService;
     private final UserPwdCacheKey userPwdCacheKey;
     private final CommonCacheService commonCacheService;
-    private final UsernameCacheKey usernameCacheKey;
-    private final StudentIdCacheKey studentIdCacheKey;
+    private final UserStatusCacheKey userStatusCacheKey;
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final AesUtil aesUtil;
 
@@ -139,8 +138,7 @@ public class AuthServiceImpl implements AuthService {
             // 从 Redis 删除 Token
             stringRedisTemplate.delete(tokenCacheKey.getKey(token));
             commonCacheService.deleteCache(userPwdCacheKey.getKey(userContext.getStudentId()));
-            commonCacheService.deleteCache(usernameCacheKey.getKey(studentId));
-            commonCacheService.deleteCache(studentIdCacheKey.getKey(studentId));
+            commonCacheService.deleteCache(userStatusCacheKey.getKey(studentId));
             commonCacheService.deleteCache(userPersonalCacheKey.getKey(userContext.getStudentId()));
         }
     }

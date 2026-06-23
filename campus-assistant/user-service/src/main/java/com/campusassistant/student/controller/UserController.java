@@ -2,26 +2,33 @@ package com.campusassistant.student.controller;
 
 import com.campusassistant.common.UserContext;
 import com.campusassistant.pojo.Result;
-import com.campusassistant.student.pojo.UserVO;
+import com.campusassistant.student.pojo.UserStatusVO;
+import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.student.service.CurrentUserService;
 import com.campusassistant.utils.ThreadLocalUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 
-@RestController //@RestController = @Controller + @ResponseBody (代表此类所有接口均返回 JSON 格式数据)
+@RestController
 @RequiredArgsConstructor
 @RequestMapping("/user")
 public class UserController {
 
-
     private final CurrentUserService currentUserService;
 
-    @GetMapping("/search")
-    public Result<UserVO> searchById() {
+    @GetMapping("/status")
+    public Result<UserStatusVO> getStatus() {
         UserContext userContext = ThreadLocalUtil.get();
-        UserVO data = currentUserService.getPersonalByStudentId(userContext.getStudentId());
-        return Result.success(data);
+        UserStatusVO statusVO = currentUserService.getStatusByStudentId(userContext.getStudentId());
+        return Result.success(statusVO);
+    }
+
+    @GetMapping("/personal")
+    public Result<PersonalInfoVO> getPersonal() {
+        UserContext userContext = ThreadLocalUtil.get();
+        PersonalInfoVO personalVO = currentUserService.getPersonalByStudentId(userContext.getStudentId());
+        return Result.success(personalVO);
     }
 
     @DeleteMapping("/delete")
@@ -29,7 +36,5 @@ public class UserController {
         currentUserService.self_unsubscribe();
         return Result.success();
     }
-
-    
 
 }

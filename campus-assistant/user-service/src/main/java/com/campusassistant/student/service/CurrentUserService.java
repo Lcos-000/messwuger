@@ -1,19 +1,15 @@
 package com.campusassistant.student.service;
 
-
-
-
-import com.campusassistant.student.pojo.UserVO;
+import com.campusassistant.student.pojo.UserStatusVO;
+import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 
 public interface CurrentUserService {
 
     void self_unsubscribe();
 
-    UserVO getBasicById(Long id);
-
-    UserVO getBasicByStudentId(String studentId);
+    UserStatusVO getStatusByStudentId(String studentId);
 
     void refreshData();
 
-    UserVO getPersonalByStudentId(String studentId);
+    PersonalInfoVO getPersonalByStudentId(String studentId);
 }
