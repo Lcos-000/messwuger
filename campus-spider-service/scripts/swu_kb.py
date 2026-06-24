@@ -142,14 +142,20 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "Accept-Language": "zh-CN,zh;q=0.9",
         })
 
+    def _delete_session_file(self):
+        if self.session_file and os.path.exists(self.session_file):
+            os.remove(self.session_file)
+
     def login(self, username: str, password: str) -> bool:
         session_file = self.session_file or os.path.join(self.session_dir, f"session_{username}.json")
         self.session_file = session_file
 
-        if self.load_session() and self.is_session_valid():
-            return True
+        if self.load_session():
+            if self.is_session_valid():
+                return True
+            # Session 已过期，删除旧文件
+            self._delete_session_file()
 
-        # Session 已过期，重建 Session 避免旧 cookies 污染 CAS 登录流程
         self._reset_session()
 
         cas_entry = (
