@@ -6,8 +6,8 @@
       <div class="avatar-ring">
         <div class="avatar">{{ firstChar }}</div>
       </div>
-      <h2 class="user-name">{{ personalInfo.name || '暂未同步' }}</h2>
-      <p class="user-sub">{{ personalInfo.studentId || tokenInfo?.studentID || '学号未知' }}</p>
+      <h2 class="user-name">{{ personalInfo.name || APP_CONFIG.DEFAULT_USER_NAME }}</h2>
+      <p class="user-sub">{{ personalInfo.studentId || tokenInfo?.studentID || APP_CONFIG.UNKNOWN_STUDENT_ID }}</p>
     </div>
 
     <!-- 信息卡片 -->
@@ -18,7 +18,7 @@
         </div>
         <div class="info-content">
           <span class="info-label">学校/学院</span>
-          <span class="info-value">{{ personalInfo.college || '西南大学' }}</span>
+          <span class="info-value">{{ personalInfo.college || APP_CONFIG.DEFAULT_COLLEGE }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -27,7 +27,7 @@
         </div>
         <div class="info-content">
           <span class="info-label">专业</span>
-          <span class="info-value">{{ personalInfo.major || '暂未同步' }}</span>
+          <span class="info-value">{{ personalInfo.major || APP_CONFIG.DEFAULT_USER_NAME }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -36,7 +36,7 @@
         </div>
         <div class="info-content">
           <span class="info-label">班级</span>
-          <span class="info-value">{{ personalInfo.className || '暂未同步' }}</span>
+          <span class="info-value">{{ personalInfo.className || APP_CONFIG.DEFAULT_USER_NAME }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -80,11 +80,11 @@
         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <div class="divider"></div>
-      <button class="action-row" @click="handleDeleteAccount">
+      <button class="action-row" :disabled="deletingAccount" @click="handleDeleteAccount">
         <div class="action-icon" style="background:#fee2e2; color:#ef4444">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </div>
-        <span class="action-label" style="color:#ef4444">注销账号</span>
+        <span class="action-label" style="color:#ef4444">{{ deletingAccount ? '注销中...' : '注销账号' }}</span>
         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
@@ -97,16 +97,31 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { logout, deleteAccount, getPersonalInfo, getUserStatus } from '@/api/index'
+import {
+  APP_CONFIG,
+  HTTP_STATUS,
+  POLLING_CONFIG,
+  PUNCH_STATUS,
+  PUNCH_STATUS_TEXT,
+  ROUTE_PATHS,
+  STATUS_CLASS,
+  STATUS_ICON_STYLE,
+  STORAGE_KEYS,
+  SYNC_STATUS,
+  SYNC_STATUS_TEXT,
+  isUserStatusProcessing
+} from '@/config'
 
 const router = useRouter()
 const personalInfo = ref({})
 const userStatus = ref({})
 const tokenInfo = ref(null)
 const userInfoLoaded = ref(false)
+const deletingAccount = ref(false)
 let statusTimer = null
 
 const getUserInfoFromToken = () => {
-  const token = localStorage.getItem('campus_token')
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
   if (!token) return null
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -119,7 +134,7 @@ const getUserInfoFromToken = () => {
 const fetchPersonalInfo = async () => {
   try {
     const res = await getPersonalInfo()
-    if (res.code === 200 && res.data) {
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
       personalInfo.value = res.data
     }
   } catch (error) {
@@ -132,11 +147,11 @@ const fetchPersonalInfo = async () => {
 const fetchUserStatus = async () => {
   try {
     const res = await getUserStatus()
-    if (res.code === 200 && res.data) {
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
       userStatus.value = res.data
       
       // 如果处于进行中状态，开启轮询
-      if (userStatus.value.syncStatus === 1 || userStatus.value.punchStatus === 1) {
+      if (isUserStatusProcessing(userStatus.value)) {
         startStatusPolling()
       } else {
         stopStatusPolling()
@@ -152,7 +167,7 @@ const startStatusPolling = () => {
   if (statusTimer) return
   statusTimer = setInterval(() => {
     fetchUserStatus()
-  }, 3000) // 每3秒查询一次状态
+  }, POLLING_CONFIG.USER_STATUS_INTERVAL)
 }
 
 const stopStatusPolling = () => {
@@ -177,81 +192,88 @@ onUnmounted(() => {
   stopStatusPolling()
 })
 
-const firstChar = computed(() => personalInfo.value.name ? personalInfo.value.name.charAt(0) : '?')
+const firstChar = computed(() => personalInfo.value.name ? personalInfo.value.name.charAt(0) : APP_CONFIG.DEFAULT_AVATAR_TEXT)
 
 const statusText = computed(() => {
   const s = userStatus.value.syncStatus
-  if (s === null || s === 0) return '未同步'
-  if (s === 1) return '同步中'
-  if (s === 2) return '同步成功'
-  if (s === 3) return '同步失败'
-  return '未知状态'
+  return SYNC_STATUS_TEXT[s] || SYNC_STATUS_TEXT.DEFAULT
 })
 
 const statusClass = computed(() => {
   const s = userStatus.value.syncStatus
-  if (s === 2) return 'status-ok'
-  if (s === 1) return 'status-syncing'
-  if (s === 3) return 'status-err'
-  return ''
+  if (s === SYNC_STATUS.SUCCESS) return STATUS_CLASS.SUCCESS
+  if (s === SYNC_STATUS.SYNCING) return STATUS_CLASS.PROCESSING
+  if (s === SYNC_STATUS.FAILED) return STATUS_CLASS.FAILED
+  return STATUS_CLASS.DEFAULT
 })
 
 const syncIconStyle = computed(() => {
   const s = userStatus.value.syncStatus
-  if (s === 2) return 'background:#f0fdf4; color:#10b981'
-  if (s === 1) return 'background:#eef3ff; color:#4f86f7'
-  if (s === 3) return 'background:#fee2e2; color:#ef4444'
-  return 'background:#f5f5f5; color:#b0bdd4'
+  if (s === SYNC_STATUS.SUCCESS) return STATUS_ICON_STYLE.SUCCESS
+  if (s === SYNC_STATUS.SYNCING) return STATUS_ICON_STYLE.PROCESSING
+  if (s === SYNC_STATUS.FAILED) return STATUS_ICON_STYLE.FAILED
+  return STATUS_ICON_STYLE.DEFAULT
 })
 
 const punchText = computed(() => {
   const p = userStatus.value.punchStatus
-  if (p === null || p === undefined || p === 0) return '未打卡'
-  if (p === 1) return '打卡中'
-  if (p === 2) return '打卡成功'
-  if (p === 3) return '打卡失败'
-  return '未知状态'
+  return PUNCH_STATUS_TEXT[p] || PUNCH_STATUS_TEXT.DEFAULT
 })
 
 const punchClass = computed(() => {
   const p = userStatus.value.punchStatus
-  if (p === 2) return 'status-ok'
-  if (p === 1) return 'status-syncing'
-  if (p === 3) return 'status-err'
-  return ''
+  if (p === PUNCH_STATUS.SUCCESS) return STATUS_CLASS.SUCCESS
+  if (p === PUNCH_STATUS.PUNCHING) return STATUS_CLASS.PROCESSING
+  if (p === PUNCH_STATUS.FAILED) return STATUS_CLASS.FAILED
+  return STATUS_CLASS.DEFAULT
 })
 
 const punchIconStyle = computed(() => {
   const p = userStatus.value.punchStatus
-  if (p === 2) return 'background:#f0fdf4; color:#10b981'
-  if (p === 1) return 'background:#eef3ff; color:#4f86f7'
-  if (p === 3) return 'background:#fee2e2; color:#ef4444'
-  return 'background:#f5f5f5; color:#b0bdd4'
+  if (p === PUNCH_STATUS.SUCCESS) return STATUS_ICON_STYLE.SUCCESS
+  if (p === PUNCH_STATUS.PUNCHING) return STATUS_ICON_STYLE.PROCESSING
+  if (p === PUNCH_STATUS.FAILED) return STATUS_ICON_STYLE.FAILED
+  return STATUS_ICON_STYLE.DEFAULT
 })
 
 // 测试阶段未开启开关功能，当前全部默认自动打卡
 const handleAutoPunch = () => {
-  alert('当前测试阶段，自动打卡功能已默认全部开启，暂不支持手动切换。')
+  alert(APP_CONFIG.AUTO_PUNCH_TIP)
+}
+
+const clearAuthAndGoLogin = () => {
+  stopStatusPolling()
+  localStorage.removeItem(STORAGE_KEYS.TOKEN)
+  personalInfo.value = {}
+  userStatus.value = {}
+  tokenInfo.value = null
+  userInfoLoaded.value = false
+  window.location.replace(ROUTE_PATHS.LOGIN)
 }
 
 const handleLogout = async () => {
-  if (!confirm('确定要退出登录吗？')) return
+  if (!confirm(APP_CONFIG.LOGOUT_CONFIRM)) return
   try {
     await logout()
   } catch (_) {}
-  localStorage.removeItem('campus_token')
-  router.replace('/login')
+  clearAuthAndGoLogin()
 }
 
 const handleDeleteAccount = async () => {
-  if (!confirm('警告：注销账号将删除所有数据且无法恢复！确定继续吗？')) return
+  if (deletingAccount.value) return
+  if (!confirm(APP_CONFIG.DELETE_ACCOUNT_CONFIRM)) return
+
+  deletingAccount.value = true
   try {
     await deleteAccount()
-    alert('账号已注销')
-    localStorage.removeItem('campus_token')
-    router.replace('/login')
+    try {
+      await logout()
+    } catch (_) {}
+    clearAuthAndGoLogin()
   } catch (error) {
     console.error(error)
+  } finally {
+    deletingAccount.value = false
   }
 }
 </script>
@@ -386,6 +408,10 @@ const handleDeleteAccount = async () => {
   transition: background .15s;
 }
 .action-row:active { background: #f8faff; }
+.action-row:disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
 .action-icon {
   width: 36px;
   height: 36px;

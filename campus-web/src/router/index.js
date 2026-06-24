@@ -1,25 +1,26 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ROUTE_NAMES, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
 
 const routes = [
   {
-    path: '/',
-    redirect: '/schedule'
+    path: ROUTE_PATHS.ROOT,
+    redirect: ROUTE_PATHS.SCHEDULE
   },
   {
-    path: '/login',
-    name: 'Login',
+    path: ROUTE_PATHS.LOGIN,
+    name: ROUTE_NAMES.LOGIN,
     component: () => import('../views/Login.vue'),
     meta: { title: '登录', index: 0 }
   },
   {
-    path: '/schedule',
-    name: 'Schedule',
+    path: ROUTE_PATHS.SCHEDULE,
+    name: ROUTE_NAMES.SCHEDULE,
     component: () => import('../views/Schedule.vue'),
     meta: { title: '我的课表', requiresAuth: true, index: 1 }
   },
   {
-    path: '/profile',
-    name: 'Profile',
+    path: ROUTE_PATHS.PROFILE,
+    name: ROUTE_NAMES.PROFILE,
     component: () => import('../views/Profile.vue'),
     meta: { title: '个人中心', requiresAuth: true, index: 2 }
   }
@@ -37,19 +38,19 @@ router.beforeEach((to, from, next) => {
     document.title = to.meta.title
   }
 
-  const token = localStorage.getItem('campus_token')
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
 
   if (to.meta.requiresAuth) {
     // 需要登录
     if (token) {
       next()
     } else {
-      next('/login')
+      next(ROUTE_PATHS.LOGIN)
     }
   } else {
     // 不需要登录的页面（如 login 或者 catch-all）
-    if (to.path === '/login' && token) {
-      next('/schedule')
+    if (to.path === ROUTE_PATHS.LOGIN && token) {
+      next(ROUTE_PATHS.SCHEDULE)
     } else {
       next()
     }
