@@ -209,19 +209,16 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { getSchedule, refreshSchedule, getUserStatus } from '@/api/index'
+import { APP_CONFIG, HTTP_STATUS, POLLING_CONFIG, SCHEDULE_CONFIG, SYNC_STATUS } from '@/config'
 
-const days = ['一', '二', '三', '四', '五', '六', '日']
-const periodTime = [
-  '08:00','08:55','09:50','10:55','11:50',
-  '13:30','14:25','15:20','16:25','17:20',
-  '18:30','19:25','20:20','21:15'
-]
+const days = SCHEDULE_CONFIG.DAYS
+const periodTime = SCHEDULE_CONFIG.PERIOD_TIME
 
 function getCurrentWeek() {
-  const semesterStart = new Date('2025-02-17')
+  const semesterStart = new Date(SCHEDULE_CONFIG.SEMESTER_START_DATE)
   const now = new Date()
   const diff = Math.floor((now - semesterStart) / (7 * 24 * 60 * 60 * 1000))
-  return Math.max(1, Math.min(diff + 1, 25))
+  return Math.max(1, Math.min(diff + 1, SCHEDULE_CONFIG.MAX_WEEK))
 }
 
 function isTodayColumn(dayIndex) {
@@ -236,15 +233,17 @@ const isSyncing = ref(false)
 const rawScheduleData = ref([])
 const detailCourse = ref(null)
 const stackGroup = ref(null)
-const rowHeight = ref(58)
+const rowHeight = ref(SCHEDULE_CONFIG.DESKTOP_ROW_HEIGHT)
 const isMobile = ref(false)
 
 let statusTimer = null
 
 function updateLayout() {
   const w = window.innerWidth
-  isMobile.value = w < 768
-  rowHeight.value = w < 360 ? 52 : 58
+  isMobile.value = w < SCHEDULE_CONFIG.MOBILE_BREAKPOINT
+  rowHeight.value = w < SCHEDULE_CONFIG.SMALL_MOBILE_BREAKPOINT
+    ? SCHEDULE_CONFIG.MOBILE_ROW_HEIGHT
+    : SCHEDULE_CONFIG.DESKTOP_ROW_HEIGHT
 }
 
 onMounted(() => {
@@ -267,15 +266,15 @@ const stopStatusPolling = () => {
 const checkSyncStatus = async () => {
   try {
     const res = await getUserStatus()
-    if (res.code === 200 && res.data) {
-      if (res.data.syncStatus === 2) {
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+      if (res.data.syncStatus === SYNC_STATUS.SUCCESS) {
         // 同步成功，停止轮询并刷新课表
         stopStatusPolling()
         fetchSchedule()
-      } else if (res.data.syncStatus === 3) {
+      } else if (res.data.syncStatus === SYNC_STATUS.FAILED) {
         // 同步失败
         stopStatusPolling()
-        showToast('数据同步失败，请稍后再试')
+        showToast(APP_CONFIG.SCHEDULE_SYNC_FAILED_TIP)
       }
     }
   } catch (error) {
@@ -286,7 +285,7 @@ const checkSyncStatus = async () => {
 const startStatusPolling = () => {
   if (statusTimer) return
   isSyncing.value = true
-  statusTimer = setInterval(checkSyncStatus, 3000)
+  statusTimer = setInterval(checkSyncStatus, POLLING_CONFIG.SCHEDULE_STATUS_INTERVAL)
 }
 
 const fetchSchedule = async () => {
@@ -294,7 +293,7 @@ const fetchSchedule = async () => {
   try {
     const res = await getSchedule()
     const scheduleJson = res.data?.scheduleJson
-    if (!scheduleJson || scheduleJson === '[]' || scheduleJson === '{}') { 
+    if (!scheduleJson || SCHEDULE_CONFIG.EMPTY_SCHEDULE_VALUES.includes(scheduleJson)) { 
       startStatusPolling()
       return 
     }
@@ -318,7 +317,7 @@ const fetchSchedule = async () => {
 const handleManualRefresh = async () => {
   try {
     await refreshSchedule()
-    showToast('已触发刷新，正在拉取最新数据')
+    showToast(APP_CONFIG.SCHEDULE_SYNCING_TIP)
     startStatusPolling()
   } catch (error) {
     console.error(error)
@@ -332,9 +331,9 @@ function showToast(msg) {
 const changeWeek = (delta) => {
   let v = currentWeek.value + delta
   if (currentWeek.value === 0 && delta > 0) v = 1
-  else if (currentWeek.value === 0 && delta < 0) v = 25
-  if (v > 25) v = 0
-  if (v < 0) v = 25
+  else if (currentWeek.value === 0 && delta < 0) v = SCHEDULE_CONFIG.MAX_WEEK
+  if (v > SCHEDULE_CONFIG.MAX_WEEK) v = 0
+  if (v < 0) v = SCHEDULE_CONFIG.MAX_WEEK
   currentWeek.value = v
 }
 
@@ -390,15 +389,10 @@ const courseGroups = computed(() => {
   return Object.values(groupsMap)
 })
 
-const PALETTE = [
-  ['#4f86f7','#dbeafe'],['#10b981','#d1fae5'],['#f97316','#ffedd5'],
-  ['#8b5cf6','#ede9fe'],['#ec4899','#fce7f3'],['#06b6d4','#cffafe'],
-  ['#f59e0b','#fef3c7'],['#ef4444','#fee2e2'],['#14b8a6','#ccfbf1'],
-  ['#6366f1','#e0e7ff'],['#84cc16','#ecfccb'],['#a855f7','#f3e8ff']
-]
+const PALETTE = SCHEDULE_CONFIG.COURSE_COLORS
 
 function getCourseColor(name) {
-  if (!name) return '#4f86f7'
+  if (!name) return SCHEDULE_CONFIG.DEFAULT_COURSE_COLOR
   let hash = 0
   for (let i = 0; i < name.length; i++) {
     hash = (hash << 5) - hash + name.charCodeAt(i)

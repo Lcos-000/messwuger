@@ -14,7 +14,7 @@ public class PersonalInfoEntity {
     private String name;
     private String major;
     private String className;
-    private String college = "西南大学";
+    private String college;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 }
