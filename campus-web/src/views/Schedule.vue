@@ -31,12 +31,11 @@
 
     <!-- ===== 同步中 ===== -->
     <div v-else-if="isSyncing" class="state-screen">
-      <div class="sync-icon-wrap">
+      <div class="sync-icon-wrap pulse-ring">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4f86f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       </div>
       <p class="state-title">数据同步中</p>
-      <p class="state-sub">请稍候约 30 秒后点击刷新</p>
-      <button class="pill-btn" @click="handleManualRefresh">立即刷新</button>
+      <p class="state-sub">正在为您拉取最新课表，请稍候...</p>
     </div>
 
     <!-- ===== 课表主体 ===== -->
@@ -208,8 +207,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { getSchedule, refreshSchedule } from '@/api/index'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { getSchedule, refreshSchedule, getUserStatus } from '@/api/index'
 
 const days = ['一', '二', '三', '四', '五', '六', '日']
 const periodTime = [
@@ -240,6 +239,8 @@ const stackGroup = ref(null)
 const rowHeight = ref(58)
 const isMobile = ref(false)
 
+let statusTimer = null
+
 function updateLayout() {
   const w = window.innerWidth
   isMobile.value = w < 768
@@ -252,23 +253,63 @@ onMounted(() => {
   fetchSchedule()
 })
 
+onUnmounted(() => {
+  stopStatusPolling()
+})
+
+const stopStatusPolling = () => {
+  if (statusTimer) {
+    clearInterval(statusTimer)
+    statusTimer = null
+  }
+}
+
+const checkSyncStatus = async () => {
+  try {
+    const res = await getUserStatus()
+    if (res.code === 200 && res.data) {
+      if (res.data.syncStatus === 2) {
+        // 同步成功，停止轮询并刷新课表
+        stopStatusPolling()
+        fetchSchedule()
+      } else if (res.data.syncStatus === 3) {
+        // 同步失败
+        stopStatusPolling()
+        showToast('数据同步失败，请稍后再试')
+      }
+    }
+  } catch (error) {
+    console.error('查询状态失败:', error)
+  }
+}
+
+const startStatusPolling = () => {
+  if (statusTimer) return
+  isSyncing.value = true
+  statusTimer = setInterval(checkSyncStatus, 3000)
+}
+
 const fetchSchedule = async () => {
   loading.value = true
   try {
     const res = await getSchedule()
     const scheduleJson = res.data?.scheduleJson
-    if (!scheduleJson) { isSyncing.value = true; return }
+    if (!scheduleJson || scheduleJson === '[]' || scheduleJson === '{}') { 
+      startStatusPolling()
+      return 
+    }
     try {
       const parsed = JSON.parse(scheduleJson)
       rawScheduleData.value = Array.isArray(parsed) ? parsed : (parsed.courses || [])
       isSyncing.value = false
+      stopStatusPolling()
     } catch (e) {
       console.error('scheduleJson 解析失败', e)
-      isSyncing.value = true
+      startStatusPolling()
     }
   } catch (error) {
     console.error('获取课表失败:', error)
-    isSyncing.value = true
+    startStatusPolling()
   } finally {
     loading.value = false
   }
@@ -277,8 +318,8 @@ const fetchSchedule = async () => {
 const handleManualRefresh = async () => {
   try {
     await refreshSchedule()
-    showToast('已触发刷新，请约 30 秒后查看')
-    setTimeout(fetchSchedule, 2000)
+    showToast('已触发刷新，正在拉取最新数据')
+    startStatusPolling()
   } catch (error) {
     console.error(error)
   }

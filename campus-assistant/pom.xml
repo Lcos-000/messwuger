@@ -48,6 +48,7 @@
         <mapstruct.version>1.5.2.Final</mapstruct.version> <!-- MapStruct 版本 -->
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version> <!-- Binding 版本 (通常与 MapStruct 保持一致或特定版本) -->
         <skywalking.version>9.0.0</skywalking.version>
+        <knife4j.version>4.4.0</knife4j.version>
     </properties>
 
     <!--  只统一锁定版本，不强制引入-->
@@ -128,6 +129,12 @@
                 <groupId>org.apache.skywalking</groupId>
                 <artifactId>apm-toolkit-trace</artifactId>
                 <version>${skywalking.version}</version>
+            </dependency>
+            <!-- openapi3 文档 -->
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -14,13 +14,6 @@ spring:
             allowed-headers: '*' #允许所有请求头
             allowed-methods: '*' #允许所有 HTTP 方法（GET, POST, PUT, DELETE 等）
       routes: #路由规则定列表
-        - id: course-service
-          uri: lb://campus-course-service
-          predicates:
-            - Path=/gateway/course/**
-          filters:
-            - RewritePath=/gateway/?(?<segment>.*),/$\{segment}
-            - AddResponseHeader=X-Gateway-Version, 1.0
         - id: student-service
           uri: lb://student-service    # lb 表示负载均衡，从 Nacos 获取实例
           predicates:

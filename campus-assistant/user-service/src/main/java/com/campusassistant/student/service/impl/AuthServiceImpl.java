@@ -6,7 +6,7 @@ import com.campusassistant.exception.BusinessException;
 import com.campusassistant.properties.JwtProperties;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.utils.AesUtil;
-import com.campusassistant.utils.CommonCacheService;
+import com.campusassistant.utils.redistool.CommonCacheService;
 import com.campusassistant.utils.JwtUtil;
 import com.campusassistant.student.pojo.dto.LoginDTO;
 import com.campusassistant.student.pojo.dto.UserDTO;
@@ -16,6 +16,7 @@ import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.ThreadLocalUtil;
 import com.campusassistant.utils.rediskey.*;
+import com.campusassistant.utils.redistool.rediskey.TokenCacheKey;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,8 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final SpiderService spiderService;
     private final UserPwdCacheKey userPwdCacheKey;
     private final CommonCacheService commonCacheService;
-    private final UsernameCacheKey usernameCacheKey;
-    private final StudentIdCacheKey studentIdCacheKey;
+    private final UserStatusCacheKey userStatusCacheKey;
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final AesUtil aesUtil;
 
@@ -105,8 +105,8 @@ public class AuthServiceImpl implements AuthService {
         ThreadLocalUtil.set(userContext);
 
         Map<String,Object> claims = new HashMap<>();//创建一个 Map 集合，存入登录成功的用户关键信息
-        claims.put(USERID, userEntity.getId());
-        claims.put(STUDENTID, userEntity.getStudentId());
+        claims.put(USER_ID, userEntity.getId());
+        claims.put(STUDENT_ID, userEntity.getStudentId());
         claims.put(USER_ROLE, "暂时未开发");
         String token = jwtUtil.genToken(claims);//调用工具类生成加密字符串（Token）
 
@@ -138,8 +138,7 @@ public class AuthServiceImpl implements AuthService {
             // 从 Redis 删除 Token
             stringRedisTemplate.delete(tokenCacheKey.getKey(token));
             commonCacheService.deleteCache(userPwdCacheKey.getKey(userContext.getStudentId()));
-            commonCacheService.deleteCache(usernameCacheKey.getKey(studentId));
-            commonCacheService.deleteCache(studentIdCacheKey.getKey(studentId));
+            commonCacheService.deleteCache(userStatusCacheKey.getKey(studentId));
             commonCacheService.deleteCache(userPersonalCacheKey.getKey(userContext.getStudentId()));
         }
     }

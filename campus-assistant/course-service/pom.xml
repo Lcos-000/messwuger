@@ -18,11 +18,6 @@
             <artifactId>campusswu-web</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.github</groupId>
-            <artifactId>campusswu-mybatis</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- MySQL 驱动交给具体的业务服务自己引入 -->
         <dependency>
             <groupId>com.mysql</groupId>

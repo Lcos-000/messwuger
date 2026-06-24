@@ -8,7 +8,7 @@ public interface SystemConstants {
     // Header 相关常量
     String HEADER_AUTHORIZATION = "Authorization"; // 客户端传来的 Token 的 Header key
     String HEADER_USER_ID = "X-User-Id";           // 网关向微服务透传的 用户ID Header key
-    String HEADER_STUDENTID = "X-StudentId";
+    String HEADER_STUDENT_ID = "X-StudentId";
     String HEADER_USER_ROLE = "X-User-Role";
 
     // TraceId 相关常量
@@ -23,8 +23,8 @@ public interface SystemConstants {
     String ROLE_ADMIN = "ADMIN";
 
     // 请求头携带
-    String USERID = "userid";
-    String STUDENTID = "studentID";
+    String USER_ID = "userid";
+    String STUDENT_ID = "studentID";
     String USER_ROLE = "user-role";
 
 }

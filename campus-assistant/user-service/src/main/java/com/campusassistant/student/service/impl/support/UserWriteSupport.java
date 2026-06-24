@@ -1,7 +1,9 @@
 package com.campusassistant.student.service.impl.support;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
+import com.campusassistant.student.common.PunchStatusEnum;
 import com.campusassistant.utils.converter.UserDtoConverter;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
@@ -69,6 +71,18 @@ public class UserWriteSupport {
         }
     }
 
+    public void resetAllSyncStatus(Integer status) {
+        try {
+            LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.gt(UserEntity::getId, 0);
+            updateWrapper.set(UserEntity::getSyncStatus, status);
+            int rows = userMapper.update(null, updateWrapper);
+            log.info("已批量重置 {} 个用户的同步状态为: {}", rows, status);
+        } catch (Exception e) {
+            log.error("批量重置同步状态异常", e);
+        }
+    }
+
     public void updatePunchStatus(String studentId, Integer status) {
         try {
             LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
@@ -80,6 +94,19 @@ public class UserWriteSupport {
             userMapper.update(updateUser, updateWrapper);
         } catch (Exception e) {
             log.error("更新打卡状态异常, studentId: {}, status: {}", studentId, status, e);
+        }
+    }
+
+    public void resetAllPunchStatus() {
+        try {
+            LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.gt(UserEntity::getId, 0);  // 绕过 BlockAttackInnerInterceptor
+            updateWrapper.set(UserEntity::getPunchStatus, PunchStatusEnum.NOT_PUNCHED.getCode());
+            int rows = userMapper.update(null, updateWrapper);
+            log.info("已批量重置 {} 个用户的打卡状态为未打卡", rows);
+        } catch (Exception e) {
+            log.error("批量重置打卡状态异常", e);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
         }
     }
 

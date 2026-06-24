@@ -8,10 +8,9 @@ spring:
 
   profiles:
     include:
-      - datasource
       - mybatis
       - jwt
       - nacos
-#      - sentinel
+      - sentinel
       - weblog
       - aes
