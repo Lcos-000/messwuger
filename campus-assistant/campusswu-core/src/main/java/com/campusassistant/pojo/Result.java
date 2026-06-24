@@ -16,7 +16,7 @@ public class Result<T> {
     private Integer code;
     private String message;
     private T data;
-    private LocalDateTime timestamp; // 新增：响应时间戳
+    private LocalDateTime timestamp;
 
     // 私有构建方法
     private static <T> Result<T> build(Integer code, String message, T data) {
