@@ -21,7 +21,7 @@ HELP.md
 *.dll
 *.so
 *.dylib
-data/sessions/
+**/data/sessions/
 
 ### Python ###
 __pycache__/
@@ -40,6 +40,8 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+**/.vite/deps/
+**/.vite/
 
 ### OS ###
 .DS_Store
