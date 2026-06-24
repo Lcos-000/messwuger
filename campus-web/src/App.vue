@@ -15,11 +15,12 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
+import { ROUTE_NAMES, ROUTE_PATHS } from '@/config'
 
 const route = useRoute()
 
 const isLoginPage = computed(() => {
-  return route.path === '/login' || route.name === 'Login'
+  return route.path === ROUTE_PATHS.LOGIN || route.name === ROUTE_NAMES.LOGIN
 })
 
 const transitionName = ref('slide-left')

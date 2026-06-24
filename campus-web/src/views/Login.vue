@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-box">
-      <h1 class="title">校园课表查询</h1>
+      <h1 class="title">{{ APP_CONFIG.APP_TITLE }}</h1>
       
       <div class="tabs">
         <div 
@@ -45,6 +45,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/api/index'
+import { APP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
 
 const router = useRouter()
 const isLoginTab = ref(true)
@@ -57,7 +58,7 @@ const formData = reactive({
 
 const handleSubmit = async () => {
   if (!formData.studentId || !formData.password) {
-    alert('请填写完整信息')
+    alert(APP_CONFIG.FORM_INCOMPLETE_TIP)
     return
   }
 
@@ -66,16 +67,19 @@ const handleSubmit = async () => {
     if (isLoginTab.value) {
       // 登录
       const res = await login(formData)
-      if (res.code === 200 && res.data) {
-        localStorage.setItem('campus_token', res.data)
-        router.push('/schedule')
+      if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+        localStorage.setItem(STORAGE_KEYS.TOKEN, res.data)
+        router.push(ROUTE_PATHS.SCHEDULE)
       }
     } else {
       // 注册
       const res = await register(formData)
-      if (res.code === 200) {
-        alert('注册成功，数据同步需要一点时间')
-        isLoginTab.value = true // 切回登录
+      if (res.code === HTTP_STATUS.SUCCESS) {
+        const loginRes = await login(formData)
+        if (loginRes.code === HTTP_STATUS.SUCCESS && loginRes.data) {
+          localStorage.setItem(STORAGE_KEYS.TOKEN, loginRes.data)
+          router.push(ROUTE_PATHS.SCHEDULE)
+        }
       }
     }
   } catch (error) {
