@@ -1,11 +1,11 @@
 package com.campusassistant.student.service.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campusassistant.student.common.PunchStatusEnum;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
+import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.rediskey.UserPwdCacheKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,23 +27,22 @@ public class PunchCardScheduledTask {
     private final SpiderService spiderService;
     private final UserPwdCacheKey userPwdCacheKey;
     private final UserMapper userMapper;
+    private final UserWriteSupport userWriteSupport;
 
     private static final int BATCH_SIZE = 100;
     private static final long STAGGER_DELAY_MS = 200L;
 
     /**
-     * 1. 每日重置任务：每天晚上 20:00，将所有人的打卡状态重置为"未打卡" (0)
+     * 1. 每日重置任务：每天中午 12:00，将所有人的打卡状态重置为"未打卡" (0)
      */
-    @Scheduled(cron = "0 0 20 * * ?")
+    @Scheduled(cron = "0 0 12 * * ?")
     public void resetPunchStatusDaily() {
         String lockKey = "lock:scheduled:punchcard:reset";
         if (!tryLock(lockKey, 15)) return;
 
         try {
             log.info("开始执行每日打卡状态重置任务");
-            LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.set(UserEntity::getPunchStatus, PunchStatusEnum.NOT_PUNCHED.getCode());
-            userMapper.update(null, updateWrapper);
+            userWriteSupport.resetAllPunchStatus();
             log.info("每日打卡状态重置完成");
         } finally {
             stringRedisTemplate.delete(lockKey);

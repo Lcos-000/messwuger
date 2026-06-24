@@ -28,6 +28,7 @@
 | MyBatis Plus | 3.5.7 |
 | MySQL Connector/J | 8.0.33 |
 | java-jwt | 4.4.0 |
+| Knife4j (OpenAPI 3) | 4.4.0 |
 | MapStruct | 1.5.2.Final |
 | Lombok | 1.18.30 |
 | SkyWalking APM Toolkit | 9.0.0 |
@@ -298,6 +299,18 @@ netstat -ano | findstr ":8082 "
 | 8000 | User-Service |
 | 9000 | Course-Service |
 | 8082 | Go 爬虫服务 |
+
+---
+
+### 6.1 接口文档访问
+
+User-Service 集成了 Knife4j (OpenAPI 3) 自动生成 API 文档，启动后访问：
+
+```
+http://localhost:8000/doc.html
+```
+
+> 文档由 Controller 中的 `@Tag` 和 `@Operation` 注解自动生成，修改代码后刷新页面即可同步。
 
 ---
 

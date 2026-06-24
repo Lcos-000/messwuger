@@ -1,12 +1,19 @@
 package com.campusassistant.remote.spider.pojo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+@Schema(description = "用户个人信息")
 @Data
 public class PersonalInfoVO {
-    private String studentId; // 学号
-    private String name;      // 姓名
-    private String major;     // 专业
-    private String className; // 班级
-    private String college; // 学校
+    @Schema(description = "学号")
+    private String studentId;
+    @Schema(description = "姓名")
+    private String name;
+    @Schema(description = "专业")
+    private String major;
+    @Schema(description = "班级")
+    private String className;
+    @Schema(description = "学校/学院")
+    private String college;
 }
