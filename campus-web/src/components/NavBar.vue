@@ -1,6 +1,6 @@
 <template>
   <nav class="nav-bar">
-    <router-link to="/schedule" class="nav-item" active-class="active">
+    <router-link :to="ROUTE_PATHS.SCHEDULE" class="nav-item" active-class="active">
       <div class="nav-icon-wrap">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2"/>
@@ -11,7 +11,7 @@
       </div>
       <span>课表</span>
     </router-link>
-    <router-link to="/profile" class="nav-item" active-class="active">
+    <router-link :to="ROUTE_PATHS.PROFILE" class="nav-item" active-class="active">
       <div class="nav-icon-wrap">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -24,6 +24,7 @@
 </template>
 
 <script setup>
+import { ROUTE_PATHS } from '@/config'
 </script>
 
 <style scoped>

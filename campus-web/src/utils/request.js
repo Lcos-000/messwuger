@@ -1,16 +1,17 @@
 ﻿import axios from 'axios'
 import router from '@/router'
+import { HTTP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS, REQUEST_MESSAGES } from '@/config'
 
 const service = axios.create({
-  baseURL: '/api',
-  timeout: 10000
+  baseURL: HTTP_CONFIG.BASE_URL,
+  timeout: HTTP_CONFIG.TIMEOUT
 })
 
 service.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('campus_token')
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`
+      config.headers[HTTP_CONFIG.AUTH_HEADER] = `${HTTP_CONFIG.AUTH_PREFIX} ${token}`
     }
     return config
   },
@@ -20,9 +21,10 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code !== 200) {
-      alert(res.message || 'Error')
-      return Promise.reject(new Error(res.message || 'Error'))
+    const successCodes = [HTTP_STATUS.SUCCESS, HTTP_STATUS.NO_CONTENT]
+    if (!successCodes.includes(res.code)) {
+      alert(res.message || REQUEST_MESSAGES.DEFAULT_ERROR)
+      return Promise.reject(new Error(res.message || REQUEST_MESSAGES.DEFAULT_ERROR))
     } else {
       return res
     }
@@ -30,15 +32,15 @@ service.interceptors.response.use(
   error => {
     console.error('Response Error:', error)
     if (error.response) {
-      if (error.response.status === 401) {
-        alert('登录状态已过期，请重新登录')
-        localStorage.removeItem('campus_token')
-        router.replace('/login')
+      if (error.response.status === HTTP_STATUS.UNAUTHORIZED) {
+        alert(REQUEST_MESSAGES.UNAUTHORIZED)
+        localStorage.removeItem(STORAGE_KEYS.TOKEN)
+        router.replace(ROUTE_PATHS.LOGIN)
       } else {
-        alert(error.response.data?.message || '网络或服务器错误')
+        alert(error.response.data?.message || REQUEST_MESSAGES.SERVER_ERROR)
       }
     } else {
-      alert('网络异常，请稍后再试')
+      alert(REQUEST_MESSAGES.NETWORK_ERROR)
     }
     return Promise.reject(error)
   }
