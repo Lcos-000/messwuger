@@ -19,3 +19,4 @@ spring:
       - openfeign
       - sentinel
       - aes
+      - static

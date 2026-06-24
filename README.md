@@ -169,6 +169,18 @@ CREATE TABLE IF NOT EXISTS course_db (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_student_id (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课表数据表';
+
+CREATE TABLE IF NOT EXISTS user_profile_style (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+    avatar VARCHAR(255) NOT NULL COMMENT '头像地址',
+    background VARCHAR(255) NOT NULL COMMENT '顶部背景地址',
+    wallpaper VARCHAR(255) NOT NULL COMMENT '墙纸地址',
+    card_opacity DECIMAL(3,2) NOT NULL COMMENT '资料卡透明度',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_student_id (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户个性化配置表';
 ```
 
 ---
@@ -339,3 +351,15 @@ $env:PYTHON_PATH="C:\Users\xxx\AppData\Local\Programs\Python\Python312\python.ex
 #### Q5: User-Service 调用 Go 爬虫服务超时或连接失败
 
 检查 `SpiderServiceClient.java` 中的 `url` 配置是否为本地地址 `http://127.0.0.1:8082`，而非外网 `cpolar` 地址。
+
+#### Q6: 注册成功后个人页个性化配置为空或默认图片不显示
+
+先检查 `user_profile_style` 表是否已建好，并确认注册成功后该表存在当前学号的一条记录。默认资源依赖 User-Service 的静态资源目录和 `profile.default-style` 配置，推荐保证以下文件存在：
+
+```text
+src/main/resources/static/avatar/avatar_default_1.jpg
+src/main/resources/static/background/background_default_1.jpg
+src/main/resources/static/wallpaper/wallpaper_default_1.jpg
+```
+
+如果后端已返回正确图片地址但前端仍显示旧图，通常是浏览器缓存了同一路径静态资源，强制刷新或更换资源 URL 后即可生效。

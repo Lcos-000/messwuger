@@ -24,7 +24,7 @@ startup.cmd -m standalone
 ## 清空数据库（可选）
 
 ```powershell
-mysql -u root -p1234 -e "USE campus_db; TRUNCATE TABLE course_db; TRUNCATE TABLE personal_info; TRUNCATE TABLE student_db;"
+mysql -u root -p1234 -e "USE campus_db; TRUNCATE TABLE user_profile_style; TRUNCATE TABLE course_db; TRUNCATE TABLE personal_info; TRUNCATE TABLE student_db;"
 ```
 
 ---
@@ -117,6 +117,20 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/auth/register" `
 **期望结果**：
 - `code`: `200`
 - 约 10~30 秒后，Go 爬虫完成登录、抓取、回调 Java 服务
+
+### 1.1 登录并验证个性化配置接口
+
+登录成功后，带上返回的 JWT 调用：
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
+  -Method GET `
+  -Headers @{ Authorization = "Bearer YOUR_JWT_TOKEN" }
+```
+
+**期望结果**：
+- `code`: `200`
+- `data.avatar`、`data.background`、`data.wallpaper`、`data.cardOpacity` 均有值
 
 ### 2. 登录
 
@@ -230,6 +244,7 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 | `student_db.punch_status` | `0-3`（打卡状态）|
 | `personal_info_count` | `1` |
 | `course_count` | `1` |
+| `user_profile_style` | 存在 1 条记录，且 `avatar/background/wallpaper/card_opacity` 均有值 |
 
 ---
 
@@ -263,7 +278,7 @@ mysql -u root -p1234 -e "USE campus_db; SELECT student_id, punch_status FROM stu
 
 ## 全部通过 = 项目跑通
 
-如果以上接口均返回 `200`，且数据库 3 张表均有数据，则整个链路已完全跑通。
+如果以上接口均返回 `200`，且数据库 4 张表（`student_db`、`personal_info`、`course_db`、`user_profile_style`）均有预期数据，则整个链路已完全跑通。
 
 ---
 
