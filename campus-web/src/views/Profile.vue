@@ -1,17 +1,24 @@
 ﻿<template>
-  <div class="profile-root">
+  <div class="profile-root" :style="profileRootStyle">
+    <div v-if="profileStyle.wallpaper" class="wallpaper-layer" :style="wallpaperLayerStyle"></div>
     <!-- 顶部背景渐变 + 用户信息 -->
-    <div class="hero-section">
-      <div class="hero-bg"></div>
-      <div class="avatar-ring">
-        <div class="avatar">{{ firstChar }}</div>
+    <div class="hero-shell" :style="heroShellStyle">
+      <div class="hero-section" :style="heroSectionStyle">
+        <div class="hero-bg" :style="heroBackgroundStyle"></div>
+        <div class="avatar-ring" :style="avatarRingStyle">
+          <div class="avatar">
+            <img v-if="profileStyle.avatar" class="avatar-image" :src="profileStyle.avatar" alt="用户头像" />
+            <span v-else>{{ firstChar }}</span>
+          </div>
+        </div>
+        <h2 class="user-name" :style="heroTextStyle">{{ personalInfo.name || APP_CONFIG.DEFAULT_USER_NAME }}</h2>
+        <p class="user-sub" :style="heroSubStyle">{{ personalInfo.studentId || tokenInfo?.studentID || APP_CONFIG.UNKNOWN_STUDENT_ID }}</p>
       </div>
-      <h2 class="user-name">{{ personalInfo.name || APP_CONFIG.DEFAULT_USER_NAME }}</h2>
-      <p class="user-sub">{{ personalInfo.studentId || tokenInfo?.studentID || APP_CONFIG.UNKNOWN_STUDENT_ID }}</p>
     </div>
 
-    <!-- 信息卡片 -->
-    <div class="section-card info-card">
+    <div class="profile-content" :style="profileContentStyle">
+      <!-- 信息卡片 -->
+      <div class="section-card info-card">
       <div class="info-row" v-show="userInfoLoaded">
         <div class="info-icon" style="background:#fef3c7; color:#f59e0b">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-8M21 21v-8M3 13L12 3l9 10M12 3v18"/></svg>
@@ -59,6 +66,24 @@
       </div>
     </div>
 
+    <div class="section-card setting-card">
+      <div class="setting-block">
+        <div class="setting-head">
+          <span class="setting-title">资料卡透明度</span>
+          <span class="setting-value">{{ Math.round(cardOpacityControl * 100) }}%</span>
+        </div>
+        <input
+          v-model.number="cardOpacityControl"
+          class="setting-slider"
+          type="range"
+          min="0.2"
+          max="1"
+          step="0.01"
+        />
+        <p class="setting-tip">拖动滑块可调整资料卡的透明度。</p>
+      </div>
+    </div>
+
     <!-- 操作区 -->
     <div class="section-card action-card">
       <!-- 测试阶段未开启开关功能，当前全部默认自动打卡 -->
@@ -89,18 +114,20 @@
       </button>
     </div>
 
-    <p class="footer-hint">数据来源于教务系统，仅供参考</p>
+      <p class="footer-hint">数据来源于教务系统，仅供参考</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { logout, deleteAccount, getPersonalInfo, getUserStatus } from '@/api/index'
+import { logout, deleteAccount, getPersonalInfo, getUserStatus, getProfileStyle, updateProfileStyle } from '@/api/index'
 import {
   APP_CONFIG,
   HTTP_STATUS,
   POLLING_CONFIG,
+  PROFILE_UI_CONFIG,
   PUNCH_STATUS,
   PUNCH_STATUS_TEXT,
   ROUTE_PATHS,
@@ -118,7 +145,17 @@ const userStatus = ref({})
 const tokenInfo = ref(null)
 const userInfoLoaded = ref(false)
 const deletingAccount = ref(false)
+const scrollTop = ref(0)
+const profileStyle = ref({
+  avatar: '',
+  background: '',
+  wallpaper: ''
+})
+const cardOpacityControl = ref(PROFILE_UI_CONFIG.CARD_BG_OPACITY)
+const profileStyleLoaded = ref(false)
 let statusTimer = null
+let scrollContainer = null
+let cardOpacitySaveTimer = null
 
 const getUserInfoFromToken = () => {
   const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
@@ -129,6 +166,13 @@ const getUserInfoFromToken = () => {
   } catch {
     return null
   }
+}
+
+const resolveAssetUrl = (path) => {
+  if (!path) return ''
+  if (/^https?:\/\//.test(path)) return path
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${window.location.protocol}//${window.location.hostname}:8000${normalizedPath}`
 }
 
 const fetchPersonalInfo = async () => {
@@ -163,6 +207,36 @@ const fetchUserStatus = async () => {
   }
 }
 
+const fetchProfileStyle = async () => {
+  try {
+    const res = await getProfileStyle()
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+      profileStyle.value = {
+        avatar: resolveAssetUrl(res.data.avatar),
+        background: resolveAssetUrl(res.data.background),
+        wallpaper: resolveAssetUrl(res.data.wallpaper)
+      }
+      if (res.data.cardOpacity !== null && res.data.cardOpacity !== undefined) {
+        cardOpacityControl.value = Number(res.data.cardOpacity)
+      }
+    }
+  } catch (error) {
+    console.error('获取个性化样式失败', error)
+  } finally {
+    profileStyleLoaded.value = true
+  }
+}
+
+const saveProfileStyle = async () => {
+  try {
+    await updateProfileStyle({
+      cardOpacity: Number(cardOpacityControl.value.toFixed(2))
+    })
+  } catch (error) {
+    console.error('更新个性化样式失败', error)
+  }
+}
+
 const startStatusPolling = () => {
   if (statusTimer) return
   statusTimer = setInterval(() => {
@@ -177,19 +251,137 @@ const stopStatusPolling = () => {
   }
 }
 
+const onScroll = () => {
+  if (!scrollContainer) return
+  scrollTop.value = scrollContainer.scrollTop || 0
+}
+
+const bindScrollContainer = () => {
+  scrollContainer = document.querySelector('.main-content')
+  if (!scrollContainer) return
+  scrollContainer.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+}
+
+const unbindScrollContainer = () => {
+  if (!scrollContainer) return
+  scrollContainer.removeEventListener('scroll', onScroll)
+  scrollContainer = null
+}
+
 onMounted(() => {
   tokenInfo.value = getUserInfoFromToken()
   const userId = tokenInfo.value?.userid
+  bindScrollContainer()
   if (userId) {
     fetchPersonalInfo()
     fetchUserStatus()
+    fetchProfileStyle()
   } else {
     userInfoLoaded.value = true
+    profileStyleLoaded.value = true
   }
 })
 
 onUnmounted(() => {
   stopStatusPolling()
+  unbindScrollContainer()
+  if (cardOpacitySaveTimer) {
+    clearTimeout(cardOpacitySaveTimer)
+    cardOpacitySaveTimer = null
+  }
+})
+
+const scrollProgress = computed(() => {
+  return Math.min(scrollTop.value / PROFILE_UI_CONFIG.HERO_COLLAPSE_DISTANCE, 1)
+})
+
+const heroHeight = computed(() => {
+  const diff = PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT - PROFILE_UI_CONFIG.HERO_COLLAPSED_HEIGHT
+  return PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT - diff * scrollProgress.value
+})
+
+const contentOverlay = computed(() => {
+  const diff = PROFILE_UI_CONFIG.CONTENT_OVERLAY_COLLAPSED - PROFILE_UI_CONFIG.CONTENT_OVERLAY_EXPANDED
+  return PROFILE_UI_CONFIG.CONTENT_OVERLAY_EXPANDED + diff * scrollProgress.value
+})
+
+const cardOpacity = computed(() => {
+  return Math.max(cardOpacityControl.value - scrollProgress.value * 0.08, 0.2)
+})
+
+const profileRootStyle = computed(() => {
+  const style = {
+    '--hero-height': `${heroHeight.value}px`,
+    '--content-overlay': `${contentOverlay.value}px`,
+    '--card-opacity': cardOpacity.value,
+    '--card-blur': `${PROFILE_UI_CONFIG.CARD_BLUR}px`,
+    '--hero-theme-start': PROFILE_UI_CONFIG.HERO_THEME.START,
+    '--hero-theme-end': PROFILE_UI_CONFIG.HERO_THEME.END,
+    '--hero-theme-glow': PROFILE_UI_CONFIG.HERO_THEME.GLOW
+  }
+
+  if (profileStyle.value.wallpaper) {
+    style['--page-wallpaper'] = `linear-gradient(rgba(240, 244, 251, 0.04), rgba(240, 244, 251, 0.04)), url(${profileStyle.value.wallpaper})`
+  }
+
+  return style
+})
+
+const heroShellStyle = computed(() => ({
+  height: `${PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT}px`
+}))
+
+const heroSectionStyle = computed(() => ({
+  height: `${heroHeight.value}px`
+}))
+
+const heroBackgroundStyle = computed(() => {
+  if (!profileStyle.value.background) {
+    return {}
+  }
+
+  return {
+    backgroundImage: `url(${profileStyle.value.background})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat'
+  }
+})
+
+const wallpaperLayerStyle = computed(() => ({
+  backgroundImage: `url(${profileStyle.value.wallpaper})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  opacity: 0.4
+}))
+
+const avatarRingStyle = computed(() => ({
+  transform: `translateY(${scrollProgress.value * -8}px) scale(${1 - scrollProgress.value * 0.06})`
+}))
+
+const heroTextStyle = computed(() => ({
+  transform: `translateY(${scrollProgress.value * -12}px)`
+}))
+
+const heroSubStyle = computed(() => ({
+  transform: `translateY(${scrollProgress.value * -12}px)`,
+  opacity: 1 - scrollProgress.value * 0.12
+}))
+
+const profileContentStyle = computed(() => ({
+  marginTop: `calc(var(--content-overlay) * -1)`
+}))
+
+watch(cardOpacityControl, (value, oldValue) => {
+  if (!profileStyleLoaded.value || value === oldValue) return
+  if (cardOpacitySaveTimer) {
+    clearTimeout(cardOpacitySaveTimer)
+  }
+  cardOpacitySaveTimer = setTimeout(() => {
+    saveProfileStyle()
+  }, 350)
 })
 
 const firstChar = computed(() => personalInfo.value.name ? personalInfo.value.name.charAt(0) : APP_CONFIG.DEFAULT_AVATAR_TEXT)
@@ -280,32 +472,75 @@ const handleDeleteAccount = async () => {
 
 <style scoped>
 .profile-root {
+  --hero-height: 320px;
+  --content-overlay: 56px;
+  --card-opacity: 0.88;
+  --card-blur: 14px;
+  --hero-theme-start: #4f86f7;
+  --hero-theme-end: #6366f1;
+  --hero-theme-glow: rgba(255,255,255,0.16);
   background: #f0f4fb;
   min-height: 100%;
   padding-bottom: 40px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.wallpaper-layer {
+  position: absolute;
+  top: calc(var(--hero-height) - 36px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.95;
 }
 
 /* ---- Hero ---- */
-.hero-section {
+.hero-shell {
   position: relative;
-  padding: 40px 24px 64px;
+  overflow: visible;
+  z-index: 2;
+}
+.hero-section {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  padding: 42px 24px 72px;
   text-align: center;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  transition: height 0.18s ease-out;
 }
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(145deg, #4f86f7 0%, #6366f1 100%);
+  background: linear-gradient(145deg, var(--hero-theme-start) 0%, var(--hero-theme-end) 100%);
   z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  top: -12%;
+  right: -12%;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, var(--hero-theme-glow) 0%, rgba(255,255,255,0) 72%);
 }
 .hero-bg::after {
   content: '';
   position: absolute;
-  bottom: -30px;
-  left: -10%;
-  right: -10%;
-  height: 60px;
+  bottom: -34px;
+  left: -12%;
+  right: -12%;
+  height: 76px;
   background: #f0f4fb;
   border-radius: 50%;
 }
@@ -313,45 +548,70 @@ const handleDeleteAccount = async () => {
   position: relative;
   z-index: 1;
   display: inline-block;
-  padding: 3px;
-  background: rgba(255,255,255,.25);
+  padding: 4px;
+  background: rgba(255,255,255,.24);
   border-radius: 50%;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  transition: transform 0.16s ease-out;
 }
 .avatar {
-  width: 72px;
-  height: 72px;
-  background: #fff;
-  color: #4f86f7;
+  width: 78px;
+  height: 78px;
+  background: rgba(255,255,255,0.92);
+  color: var(--hero-theme-start);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
+  box-shadow: 0 10px 24px rgba(16, 36, 84, 0.12);
+  overflow: hidden;
+  position: relative;
+}
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar > span {
+  position: relative;
+  z-index: 1;
 }
 .user-name {
   position: relative;
   z-index: 1;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  transition: transform 0.16s ease-out;
 }
 .user-sub {
   position: relative;
   z-index: 1;
   font-size: 13px;
-  color: rgba(255,255,255,.75);
+  color: rgba(255,255,255,.8);
+  transition: transform 0.16s ease-out, opacity 0.16s ease-out;
+}
+
+.profile-content {
+  position: relative;
+  z-index: 2;
+  padding: 0 16px 8px;
 }
 
 /* ---- Cards ---- */
 .section-card {
-  margin: -8px 16px 14px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(15,25,50,.07);
+  margin: 0 0 14px;
+  background: rgba(255, 255, 255, var(--card-opacity));
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15,25,50,.08);
   overflow: hidden;
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  border: 1px solid rgba(255,255,255,0.36);
 }
 .info-card {
   overflow: visible;
@@ -395,6 +655,42 @@ const handleDeleteAccount = async () => {
 .status-ok { color: #10b981; }
 .status-syncing { color: #4f86f7; }
 .status-err { color: #ef4444; }
+
+/* ---- Setting card ---- */
+.setting-card {
+  padding: 16px 18px;
+}
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setting-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.setting-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2540;
+}
+.setting-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--hero-theme-start);
+}
+.setting-slider {
+  width: 100%;
+  accent-color: var(--hero-theme-start);
+}
+.setting-tip {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #7f8da8;
+}
 
 /* ---- Action rows ---- */
 .action-card { margin-top: 0; }
@@ -441,5 +737,22 @@ const handleDeleteAccount = async () => {
   color: #b0bdd4;
   margin-top: 24px;
   letter-spacing: .3px;
+}
+
+@media (min-width: 768px) {
+  .profile-root {
+    max-width: 720px;
+    margin: 0 auto;
+    padding-bottom: 56px;
+  }
+
+  .hero-section {
+    padding-top: 48px;
+    padding-bottom: 84px;
+  }
+
+  .profile-content {
+    padding: 0 24px 12px;
+  }
 }
 </style>

@@ -11,7 +11,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @MapperScan({
         "com.campusassistant.student.mapper",
-        "com.campusassistant.remote.spider.mapper"
+        "com.campusassistant.remote.spider.mapper",
+        "com.campusassistant.personalization.mapper"
 })
 @EnableFeignClients(basePackages = {
         "com.campusassistant.remote.course.client",

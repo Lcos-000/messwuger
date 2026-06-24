@@ -3,6 +3,7 @@ package com.campusassistant.student.service.impl;
 import com.campusassistant.common.UserContext;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
+import com.campusassistant.personalization.service.impl.support.ProfileWriteSupport;
 import com.campusassistant.properties.JwtProperties;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.utils.AesUtil;
@@ -50,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserStatusCacheKey userStatusCacheKey;
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final AesUtil aesUtil;
+    private final ProfileWriteSupport profileWriteSupport;
 
     @Override
     public void register(UserDTO userDTO) {
@@ -73,7 +75,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(INVALID_CREDENTIALS);
         }
         userWriteSupport.addUser(userDTO);
+        // 触发异步爬虫任务
         spiderService.asyncStartFullCrawl(studentId, encryptedPassword);
+        // 初始化用户个性化配置
+        profileWriteSupport.initByStudentId(studentId);
 
     }
 

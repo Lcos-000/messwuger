@@ -9,4 +9,6 @@ export const getSchedule = () => request({ url: API_PATHS.SCHEDULE.GET, method: 
 export const getPersonalInfo = () => request({ url: API_PATHS.USER.PERSONAL, method: 'get' })
 export const getUserStatus = () => request({ url: API_PATHS.USER.STATUS, method: 'get' })
 export const deleteAccount = () => request({ url: API_PATHS.USER.DELETE, method: 'delete' })
+export const getProfileStyle = () => request({ url: API_PATHS.PERSONALIZATION.GET_PROFILE, method: 'get' })
+export const updateProfileStyle = (data) => request({ url: API_PATHS.PERSONALIZATION.UPDATE_PROFILE, method: 'put', data })
 
