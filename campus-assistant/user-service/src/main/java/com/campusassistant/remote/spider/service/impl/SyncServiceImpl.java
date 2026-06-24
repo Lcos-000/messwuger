@@ -3,6 +3,7 @@ package com.campusassistant.remote.spider.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
+import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.client.CourseServiceClient;
 import com.campusassistant.remote.course.pojo.RemoteCourseDTO;
 import com.campusassistant.remote.spider.mapper.SyncMapper;
@@ -10,8 +11,8 @@ import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
 import com.campusassistant.remote.spider.pojo.SyncDataDTO;
 import com.campusassistant.remote.spider.service.SyncService;
 import com.campusassistant.student.common.PunchStatusEnum;
-import com.campusassistant.student.pojo.UserVO;
-import com.campusassistant.student.service.CurrentUserService;
+import com.campusassistant.student.pojo.UserEntity;
+import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.converter.PersonalInfoConverter;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
@@ -30,9 +31,9 @@ import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING_SU
 public class SyncServiceImpl  implements SyncService {
 
     private final UserWriteSupport userWriteSupport;
+    private final UserReadSupport userReadSupport;
     private final CourseServiceClient courseServiceClient;
     private final StringRedisTemplate stringRedisTemplate;
-    private final CurrentUserService currentUserService;
     private final CourseMixCacheKey courseMixCacheKey;
     private final PersonalInfoConverter personalInfoConverter;
     private final SyncMapper syncMapper;
@@ -46,8 +47,8 @@ public class SyncServiceImpl  implements SyncService {
         log.info("接收到爬虫回推数据，准备处理。学号: {}", studentId);
 
         //  校验用户是否存在
-        UserVO userVO = currentUserService.getBasicByStudentId(studentId);
-        if (userVO == null) {
+        UserEntity userEntity = userReadSupport.findEntityByStudentId(studentId);
+        if (userEntity == null) {
             log.error("爬虫回调失败：未找到对应的本地用户。学号: {}", studentId);
             throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(), "未找到对应的本地用户");
         }
@@ -74,7 +75,8 @@ public class SyncServiceImpl  implements SyncService {
             remoteCourseDTO.setScheduleJson(scheduleJson);
 
             // 远程调用写入 course-service
-            courseServiceClient.syncScheduleData(remoteCourseDTO);
+            Result<String> stringResult = courseServiceClient.syncScheduleData(remoteCourseDTO);
+            log.info("调用 Course 服务同步课表数据，结果: {}", stringResult);
 
             // 重点：清空 user-service 中旧的 Redis 缓存，保证下次查出最新数据
             String redisKey = courseMixCacheKey.getKey(remoteCourseDTO.getStudentId());

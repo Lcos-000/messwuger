@@ -2,3 +2,20 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 暂时，后续从 Nacos 获取数据库配置
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/campus_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 默认缓存过期时间（1小时）
+  data:
+    redis:
+      host: localhost
+      port: 6379

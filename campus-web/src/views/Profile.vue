@@ -6,19 +6,28 @@
       <div class="avatar-ring">
         <div class="avatar">{{ firstChar }}</div>
       </div>
-      <h2 class="user-name">{{ userInfo.name || '暂未同步' }}</h2>
-      <p class="user-sub">{{ userInfo.studentId || tokenInfo?.studentID || '学号未知' }}</p>
+      <h2 class="user-name">{{ personalInfo.name || '暂未同步' }}</h2>
+      <p class="user-sub">{{ personalInfo.studentId || tokenInfo?.studentID || '学号未知' }}</p>
     </div>
 
     <!-- 信息卡片 -->
     <div class="section-card info-card">
+      <div class="info-row" v-show="userInfoLoaded">
+        <div class="info-icon" style="background:#fef3c7; color:#f59e0b">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-8M21 21v-8M3 13L12 3l9 10M12 3v18"/></svg>
+        </div>
+        <div class="info-content">
+          <span class="info-label">学校/学院</span>
+          <span class="info-value">{{ personalInfo.college || '西南大学' }}</span>
+        </div>
+      </div>
       <div class="info-row" v-show="userInfoLoaded">
         <div class="info-icon" style="background:#eef3ff; color:#4f86f7">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
         </div>
         <div class="info-content">
           <span class="info-label">专业</span>
-          <span class="info-value">{{ userInfo.major || '暂未同步' }}</span>
+          <span class="info-value">{{ personalInfo.major || '暂未同步' }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -27,7 +36,7 @@
         </div>
         <div class="info-content">
           <span class="info-label">班级</span>
-          <span class="info-value">{{ userInfo.className || '暂未同步' }}</span>
+          <span class="info-value">{{ personalInfo.className || '暂未同步' }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -85,14 +94,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { logout, deleteAccount, getUserInfo } from '@/api/index'
+import { logout, deleteAccount, getPersonalInfo, getUserStatus } from '@/api/index'
 
 const router = useRouter()
-const userInfo = ref({})
+const personalInfo = ref({})
+const userStatus = ref({})
 const tokenInfo = ref(null)
 const userInfoLoaded = ref(false)
+let statusTimer = null
 
 const getUserInfoFromToken = () => {
   const token = localStorage.getItem('campus_token')
@@ -105,27 +116,71 @@ const getUserInfoFromToken = () => {
   }
 }
 
-onMounted(async () => {
+const fetchPersonalInfo = async () => {
+  try {
+    const res = await getPersonalInfo()
+    if (res.code === 200 && res.data) {
+      personalInfo.value = res.data
+    }
+  } catch (error) {
+    console.error('获取个人信息失败', error)
+  } finally {
+    userInfoLoaded.value = true
+  }
+}
+
+const fetchUserStatus = async () => {
+  try {
+    const res = await getUserStatus()
+    if (res.code === 200 && res.data) {
+      userStatus.value = res.data
+      
+      // 如果处于进行中状态，开启轮询
+      if (userStatus.value.syncStatus === 1 || userStatus.value.punchStatus === 1) {
+        startStatusPolling()
+      } else {
+        stopStatusPolling()
+      }
+    }
+  } catch (error) {
+    console.error('获取用户状态失败', error)
+    stopStatusPolling()
+  }
+}
+
+const startStatusPolling = () => {
+  if (statusTimer) return
+  statusTimer = setInterval(() => {
+    fetchUserStatus()
+  }, 3000) // 每3秒查询一次状态
+}
+
+const stopStatusPolling = () => {
+  if (statusTimer) {
+    clearInterval(statusTimer)
+    statusTimer = null
+  }
+}
+
+onMounted(() => {
   tokenInfo.value = getUserInfoFromToken()
   const userId = tokenInfo.value?.userid
   if (userId) {
-    try {
-      const res = await getUserInfo(userId)
-      if (res.code === 200 && res.data) userInfo.value = res.data
-    } catch (error) {
-      console.error('获取个人信息失败', error)
-    } finally {
-      userInfoLoaded.value = true
-    }
+    fetchPersonalInfo()
+    fetchUserStatus()
   } else {
     userInfoLoaded.value = true
   }
 })
 
-const firstChar = computed(() => userInfo.value.name ? userInfo.value.name.charAt(0) : '?')
+onUnmounted(() => {
+  stopStatusPolling()
+})
+
+const firstChar = computed(() => personalInfo.value.name ? personalInfo.value.name.charAt(0) : '?')
 
 const statusText = computed(() => {
-  const s = userInfo.value.syncStatus
+  const s = userStatus.value.syncStatus
   if (s === null || s === 0) return '未同步'
   if (s === 1) return '同步中'
   if (s === 2) return '同步成功'
@@ -134,7 +189,7 @@ const statusText = computed(() => {
 })
 
 const statusClass = computed(() => {
-  const s = userInfo.value.syncStatus
+  const s = userStatus.value.syncStatus
   if (s === 2) return 'status-ok'
   if (s === 1) return 'status-syncing'
   if (s === 3) return 'status-err'
@@ -142,7 +197,7 @@ const statusClass = computed(() => {
 })
 
 const syncIconStyle = computed(() => {
-  const s = userInfo.value.syncStatus
+  const s = userStatus.value.syncStatus
   if (s === 2) return 'background:#f0fdf4; color:#10b981'
   if (s === 1) return 'background:#eef3ff; color:#4f86f7'
   if (s === 3) return 'background:#fee2e2; color:#ef4444'
@@ -150,7 +205,7 @@ const syncIconStyle = computed(() => {
 })
 
 const punchText = computed(() => {
-  const p = userInfo.value.punchStatus
+  const p = userStatus.value.punchStatus
   if (p === null || p === undefined || p === 0) return '未打卡'
   if (p === 1) return '打卡中'
   if (p === 2) return '打卡成功'
@@ -159,7 +214,7 @@ const punchText = computed(() => {
 })
 
 const punchClass = computed(() => {
-  const p = userInfo.value.punchStatus
+  const p = userStatus.value.punchStatus
   if (p === 2) return 'status-ok'
   if (p === 1) return 'status-syncing'
   if (p === 3) return 'status-err'
@@ -167,7 +222,7 @@ const punchClass = computed(() => {
 })
 
 const punchIconStyle = computed(() => {
-  const p = userInfo.value.punchStatus
+  const p = userStatus.value.punchStatus
   if (p === 2) return 'background:#f0fdf4; color:#10b981'
   if (p === 1) return 'background:#eef3ff; color:#4f86f7'
   if (p === 3) return 'background:#fee2e2; color:#ef4444'

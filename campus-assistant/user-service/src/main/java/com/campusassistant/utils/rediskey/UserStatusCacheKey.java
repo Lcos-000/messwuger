@@ -4,13 +4,12 @@ import com.campusassistant.utils.redistool.rediskey.AbstractCacheKeyProvider;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CourseMixCacheKey extends AbstractCacheKeyProvider<String> {
+public class UserStatusCacheKey extends AbstractCacheKeyProvider<String> {
 
-    // 定义常量
-    private static final String COURSE_PREFIX = "course:info:id:";
+    private static final String USER_STATUS_PREFIX = "user:status:";
 
     @Override
     public String getPrefix() {
-        return COURSE_PREFIX;
+        return USER_STATUS_PREFIX;
     }
 }

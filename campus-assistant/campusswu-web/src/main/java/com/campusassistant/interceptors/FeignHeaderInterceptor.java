@@ -28,13 +28,13 @@ public class FeignHeaderInterceptor implements RequestInterceptor {
             String traceId = TraceContext.traceId();
             // 解析出 UserId 等用户信息，在这里一并透传
             String userId = request.getHeader(HEADER_USER_ID);
-            String studentId = request.getHeader(HEADER_STUDENTID);
+            String studentId = request.getHeader(HEADER_STUDENT_ID);
             String userRole = request.getHeader(HEADER_USER_ROLE);
             if (userId != null) {
                 template.header(HEADER_USER_ID, userId);
             }
             if (studentId != null) {
-                template.header(HEADER_STUDENTID, studentId);
+                template.header(HEADER_STUDENT_ID, studentId);
             }
             if (userRole != null) {
                 template.header(HEADER_USER_ROLE, userRole);

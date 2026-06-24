@@ -4,7 +4,7 @@ import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.client.CourseServiceClient;
 import com.campusassistant.remote.course.pojo.RemoteCourseVO;
 import com.campusassistant.remote.course.service.UserCourseService;
-import com.campusassistant.utils.CommonCacheService;
+import com.campusassistant.utils.redistool.CommonCacheService;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

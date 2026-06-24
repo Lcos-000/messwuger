@@ -19,11 +19,6 @@
             <artifactId>campusswu-web</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.github</groupId>
-            <artifactId>campusswu-mybatis</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- Spring Security 仅仅引入轻量加密依赖-->
         <dependency>
             <groupId>org.springframework.security</groupId>

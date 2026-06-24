@@ -133,23 +133,35 @@ Write-Host "Token: $token"
 - `code`: `200`
 - `data`: 返回 JWT Token 字符串
 
-### 3. 查询用户信息
+### 3. 查询用户状态
 
 ```powershell
 $headers = @{"Authorization"=$token}
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/search" `
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/status" `
   -Method GET `
   -Headers $headers
 ```
 
 **期望结果**：
 - `code`: `200`
-- `data` 包含 `studentId`、`name`、`major`、`className`、`syncStatus`
+- `data` 包含 `studentId`、`syncStatus`、`punchStatus`
 
-### 4. 查询课表
+### 4. 查询用户个人信息
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/course/get" `
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/personal" `
+  -Method GET `
+  -Headers $headers
+```
+
+**期望结果**：
+- `code`: `200`
+- `data` 包含 `studentId`、`name`、`major`、`className`、`college`
+
+### 5. 查询课表
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/schedule/get" `
   -Method GET `
   -Headers $headers
 ```
@@ -158,7 +170,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/course/get" `
 - `code`: `200`
 - `data` 包含 `studentId`、`academicYear`、`semester`、`scheduleJson`
 
-### 5. 刷新数据（手动触发爬虫同步）
+### 6. 刷新数据（手动触发爬虫同步）
 
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1/gateway/auth/refresh" `
@@ -170,7 +182,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/auth/refresh" `
 - `code`: `200`
 - `data`: "刷新任务已提交，后台正在同步数据"
 
-### 6. 注销用户
+### 7. 注销用户
 
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/delete" `
@@ -179,8 +191,23 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/delete" `
 ```
 
 **期望结果**：
-- `code`: `204`
+- `code`: `200`
 - 用户数据被删除
+
+---
+
+## 接口文档测试
+
+启动 User-Service 后，可直接在浏览器中访问可视化文档：
+
+```
+http://localhost:8000/doc.html
+```
+
+文档中提供了：
+- 在线接口调试（无需手动写 curl）
+- 请求/响应参数说明
+- 接口分组（认证接口、用户接口、课表接口）
 
 ---
 
@@ -250,9 +277,9 @@ mysql -u root -p1234 -e "USE campus_db; SELECT student_id, punch_status FROM stu
 
 ### Q2: 打卡功能无法触发
 
-**原因**：项目没有提供手动打卡 API，打卡功能由定时任务自动触发（每天 21:00 首轮，22:30 补偿）。
+**原因**：打卡功能由定时任务自动触发（每天 12:00 重置状态，21:05-22:30 轮询打卡）。课表同步改为每周日 23:00 重置状态，登录时自动触发。
 
-**解决**：可以直接调用 Go 端打卡接口进行测试（见上方"打卡功能测试"章节）。
+**解决**：可以直接调用 Go 端打卡接口进行测试（见上方"打卡功能测试"章节），或手动调用 `/auth/refresh` 触发课表同步。
 
 ### Q3: 新用户 punch_status 为 NULL
 
