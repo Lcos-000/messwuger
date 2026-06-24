@@ -53,3 +53,4 @@ desktop.ini
 *.key
 *.env.local
 *.env.production
+campus-spider-service/go_callback.json

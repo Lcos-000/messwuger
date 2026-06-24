@@ -10,6 +10,10 @@ export const API_PATHS = {
     PERSONAL: '/user/personal',
     DELETE: '/user/delete'
   },
+  PERSONALIZATION: {
+    GET_PROFILE: '/personalization/get-profile',
+    UPDATE_PROFILE: '/personalization/update-profile'
+  },
   SCHEDULE: {
     GET: '/user/schedule/get'
   }
