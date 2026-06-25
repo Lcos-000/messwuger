@@ -4,3 +4,15 @@ profile:
     background: http://localhost:8000/background/background_default_1.jpg
     wallpaper: http://localhost:8000/wallpaper/wallpaper_default_1.jpg
     card-opacity: 1.00
+
+
+  default-options:
+    avatars:
+      - /avatar/avatar_default_1.jpg
+      - /avatar/avatar_default_2.jpg
+    backgrounds:
+      - /background/background_default_1.jpg
+      - /background/background_default_2.jpg
+    wallpapers:
+      - /wallpaper/wallpaper_default_1.jpg
+      - /wallpaper/wallpaper_default_2.jpg

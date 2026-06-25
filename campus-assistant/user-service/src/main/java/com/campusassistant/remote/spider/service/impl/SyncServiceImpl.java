@@ -14,7 +14,7 @@ import com.campusassistant.student.common.PunchStatusEnum;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.converter.PersonalInfoConverter;
+import com.campusassistant.utils.converter.PersonalInfoConvertor;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class SyncServiceImpl  implements SyncService {
     private final CourseServiceClient courseServiceClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final CourseMixCacheKey courseMixCacheKey;
-    private final PersonalInfoConverter personalInfoConverter;
+    private final PersonalInfoConvertor personalInfoConvertor;
     private final SyncMapper syncMapper;
     private final ObjectMapper objectMapper;
 
@@ -55,7 +55,7 @@ public class SyncServiceImpl  implements SyncService {
 
         try {
             // 修改基本信息
-            PersonalInfoEntity personalInfoEntity = personalInfoConverter.toSource(syncDataDTO.getPersonalInfoDTO());
+            PersonalInfoEntity personalInfoEntity = personalInfoConvertor.toSource(syncDataDTO.getPersonalInfoDTO());
             LambdaQueryWrapper<PersonalInfoEntity> lqw = new LambdaQueryWrapper<>();
             lqw.eq(PersonalInfoEntity::getStudentId, studentId);
             PersonalInfoEntity entity = syncMapper.selectOne(lqw);

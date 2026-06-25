@@ -10,8 +10,8 @@ import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.utils.ThreadLocalUtil;
 import com.campusassistant.common.UserContext;
 import com.campusassistant.utils.redistool.CommonCacheService;
-import com.campusassistant.utils.converter.PersonalInfoVoConverter;
-import com.campusassistant.utils.converter.UserStatusVoConverter;
+import com.campusassistant.utils.converter.PersonalInfoVoConvertor;
+import com.campusassistant.utils.converter.UserStatusVoConvertor;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.pojo.UserStatusVO;
@@ -31,7 +31,7 @@ import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 public class CurrentUserServiceImpl implements CurrentUserService {
     private final UserMapper userMapper;
     private final UserReadSupport userReadSupport;
-    private final UserStatusVoConverter userStatusVoConverter;
+    private final UserStatusVoConvertor userStatusVoConvertor;
     private final CommonCacheService commonCacheService;
     private final UserStatusCacheKey userStatusCacheKey;
     private final UserPwdCacheKey userPwdCacheKey;
@@ -39,7 +39,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     private final SpiderService spiderService;
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final SyncMapper syncMapper;
-    private final PersonalInfoVoConverter personalInfoVoConverter;
+    private final PersonalInfoVoConvertor personalInfoVoConvertor;
 
     @Override
     public void self_unsubscribe() {
@@ -76,7 +76,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
                 UserStatusVO.class,
                 () -> {
                     UserEntity entity = userReadSupport.findEntityByStudentId(studentId);
-                    return entity == null ? null : userStatusVoConverter.toTarget(entity);
+                    return entity == null ? null : userStatusVoConvertor.toTarget(entity);
                 }
         );
     }
@@ -96,7 +96,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
                     if (personalInfoEntity == null) {
                         return null;
                     }
-                    return personalInfoVoConverter.toTarget(personalInfoEntity);
+                    return personalInfoVoConvertor.toTarget(personalInfoEntity);
                 }
         );
     }

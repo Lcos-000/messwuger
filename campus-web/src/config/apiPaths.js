@@ -12,7 +12,8 @@ export const API_PATHS = {
   },
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',
-    UPDATE_PROFILE: '/personalization/update-profile'
+    UPDATE_PROFILE: '/personalization/update-profile',
+    GET_DEFAULT_OPTIONS: '/personalization/get-default-options'
   },
   SCHEDULE: {
     GET: '/user/schedule/get'

@@ -41,7 +41,7 @@ public class ProfileWriteSupport {
             return;
         }
 
-        UserProfileStyleEntity entity = profileStyleDefaultConvertor.toSource(profileDefaultStyleProperties);
+        UserProfileStyleEntity entity = profileStyleDefaultConvertor.toTarget(profileDefaultStyleProperties);
         entity.setStudentId(studentId);
         userProfileStyleMapper.insert(entity);
     }
