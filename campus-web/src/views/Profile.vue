@@ -1,6 +1,7 @@
 <template>
   <div class="profile-root" :style="profileRootStyle">
     <div v-if="profileStyle.wallpaper" class="wallpaper-layer" :style="wallpaperLayerStyle"></div>
+    <div class="profile-shell">
 
     <div class="hero-shell" :style="heroShellStyle">
       <div class="hero-section" :style="heroSectionStyle">
@@ -332,6 +333,7 @@
 
       <p class="footer-hint">{{ PROFILE_VIEW_CONFIG.FOOTER_HINT }}</p>
     </div>
+    </div>
   </div>
 </template>
 
@@ -388,6 +390,7 @@ const profileDefaultOptions = ref({
 
 const cardOpacityControl = ref(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT)
 const cardBlurControl = ref(PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT)
+const wallpaperMaskControl = ref(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT)
 const globalFontEnabled = ref(true)
 
 const iconMap = PROFILE_VIEW_CONFIG.ICONS
@@ -415,6 +418,9 @@ const displaySettings = computed(() => {
     if (setting.key === 'cardBlur') {
       return { ...setting, currentValue: cardBlurControl.value }
     }
+    if (setting.key === 'wallpaperMask') {
+      return { ...setting, currentValue: wallpaperMaskControl.value }
+    }
     return { ...setting, currentValue: globalFontEnabled.value }
   })
 })
@@ -441,11 +447,20 @@ const contentOverlay = computed(() => {
   return PROFILE_VIEW_CONFIG.CONTENT_OVERLAY_EXPANDED + diff * scrollProgress.value
 })
 
+const wallpaperScale = computed(() => {
+  const scale = PROFILE_VIEW_CONFIG.WALLPAPER_SCALE_MIN + scrollProgress.value * PROFILE_VIEW_CONFIG.WALLPAPER_SCALE_DELTA
+  return Math.min(scale, PROFILE_VIEW_CONFIG.WALLPAPER_SCALE_MAX)
+})
+
 const cardOpacity = computed(() => {
   return Math.max(
     cardOpacityControl.value - scrollProgress.value * PROFILE_VIEW_CONFIG.CARD_OPACITY_SCROLL_DELTA,
     PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN
   )
+})
+
+const heroFrameOpacity = computed(() => {
+  return 0.18 + wallpaperMaskControl.value * 0.34
 })
 
 const profileRootStyle = computed(() => {
@@ -454,6 +469,9 @@ const profileRootStyle = computed(() => {
     '--content-overlay': `${contentOverlay.value}px`,
     '--card-opacity': cardOpacity.value,
     '--card-blur': `${cardBlurControl.value}px`,
+    '--wallpaper-scale': wallpaperScale.value,
+    '--page-wallpaper-mask-alpha': wallpaperMaskControl.value,
+    '--hero-frame-opacity': heroFrameOpacity.value,
     '--hero-theme-start': PROFILE_THEME_CONFIG.START,
     '--hero-theme-end': PROFILE_THEME_CONFIG.END,
     '--hero-theme-glow': PROFILE_THEME_CONFIG.GLOW,
@@ -468,10 +486,24 @@ const profileRootStyle = computed(() => {
     ? `'${PROFILE_VIEW_CONFIG.FONT_FACE.family}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif`
     : "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
 
-  if (profileStyle.value.wallpaper) {
-    style['--page-wallpaper'] = `linear-gradient(rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA}), rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA})), url(${profileStyle.value.wallpaper})`
-  }
-
+  style['--hero-section-padding-top'] = `${PROFILE_VIEW_CONFIG.HERO_SECTION_PADDING_TOP}px`
+  style['--hero-section-padding-x'] = `${PROFILE_VIEW_CONFIG.HERO_SECTION_PADDING_X}px`
+  style['--hero-section-padding-bottom'] = `${PROFILE_VIEW_CONFIG.HERO_SECTION_PADDING_BOTTOM}px`
+  style['--hero-bg-side-inset'] = `${PROFILE_VIEW_CONFIG.HERO_BG_SIDE_INSET}px`
+  style['--hero-bg-bottom-inset'] = `${PROFILE_VIEW_CONFIG.HERO_BG_BOTTOM_INSET}px`
+  style['--hero-bg-radius-top'] = `${PROFILE_VIEW_CONFIG.HERO_BG_RADIUS_TOP}px`
+  style['--hero-bg-radius-bottom'] = `${PROFILE_VIEW_CONFIG.HERO_BG_RADIUS_BOTTOM}px`
+  style['--hero-bg-shadow'] = PROFILE_VIEW_CONFIG.HERO_BG_SHADOW
+  style['--hero-frame-side-inset'] = `${PROFILE_VIEW_CONFIG.HERO_FRAME_SIDE_INSET}px`
+  style['--hero-frame-extra-height'] = `${PROFILE_VIEW_CONFIG.HERO_FRAME_EXTRA_HEIGHT}px`
+  style['--hero-frame-radius-top'] = `${PROFILE_VIEW_CONFIG.HERO_FRAME_RADIUS_TOP}px`
+  style['--hero-frame-radius-bottom'] = `${PROFILE_VIEW_CONFIG.HERO_FRAME_RADIUS_BOTTOM}px`
+  style['--hero-frame-bg'] = PROFILE_VIEW_CONFIG.HERO_FRAME_BG
+  style['--hero-frame-shadow'] = PROFILE_VIEW_CONFIG.HERO_FRAME_SHADOW
+  style['--hero-blend-height'] = `${PROFILE_VIEW_CONFIG.HERO_BLEND_HEIGHT}px`
+  style['--hero-glow-size'] = `${PROFILE_VIEW_CONFIG.HERO_GLOW_SIZE}px`
+  style['--hero-glow-top'] = PROFILE_VIEW_CONFIG.HERO_GLOW_TOP
+  style['--hero-glow-right'] = PROFILE_VIEW_CONFIG.HERO_GLOW_RIGHT
   return style
 })
 
@@ -480,7 +512,15 @@ const heroShellStyle = computed(() => ({
 }))
 
 const heroSectionStyle = computed(() => ({
-  height: `${heroHeight.value}px`
+  height: `${heroHeight.value}px`,
+  '--hero-surface-height': `${Math.max(
+    heroHeight.value - PROFILE_VIEW_CONFIG.HERO_SURFACE_HEIGHT_OFFSET,
+    PROFILE_VIEW_CONFIG.HERO_COLLAPSED_HEIGHT - PROFILE_VIEW_CONFIG.HERO_SURFACE_MIN_HEIGHT_OFFSET
+  )}px`,
+  '--hero-surface-offset': `${Math.min(
+    scrollProgress.value * PROFILE_VIEW_CONFIG.HERO_SURFACE_SCROLL_FACTOR + PROFILE_VIEW_CONFIG.HERO_SURFACE_TOP_OFFSET,
+    PROFILE_VIEW_CONFIG.HERO_SURFACE_TOP_OFFSET
+  )}px`
 }))
 
 const heroBackgroundStyle = computed(() => {
@@ -501,7 +541,8 @@ const wallpaperLayerStyle = computed(() => ({
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
-  opacity: PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_OPACITY
+  opacity: PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_OPACITY,
+  transform: `scale(${wallpaperScale.value})`
 }))
 
 const avatarRingStyle = computed(() => ({
@@ -518,7 +559,7 @@ const heroSubStyle = computed(() => ({
 }))
 
 const profileContentStyle = computed(() => ({
-  marginTop: `calc(var(--content-overlay) * -1)`
+  marginTop: `calc(var(--content-overlay) * -1 - 22px)`
 }))
 
 const firstChar = computed(() => {
@@ -640,6 +681,52 @@ const resolveAssetUrl = (path) => {
   return `${window.location.protocol}//${window.location.hostname}:8000${normalizedPath}`
 }
 
+const clampWallpaperMaskValue = (value) => {
+  const normalized = Number(value)
+  if (Number.isNaN(normalized)) {
+    return PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
+  }
+  return Math.min(
+    PROFILE_VIEW_CONFIG.WALLPAPER_MASK_MAX,
+    Math.max(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_MIN, normalized)
+  )
+}
+
+const clampCardBlurValue = (value) => {
+  const normalized = Number(value)
+  if (Number.isNaN(normalized)) {
+    return PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT
+  }
+  return Math.min(
+    PROFILE_VIEW_CONFIG.CARD_BLUR_MAX,
+    Math.max(PROFILE_VIEW_CONFIG.CARD_BLUR_MIN, normalized)
+  )
+}
+
+const loadCardBlurPreference = () => {
+  const savedValue = localStorage.getItem(STORAGE_KEYS.PROFILE_CARD_BLUR)
+  if (savedValue === null) {
+    return PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT
+  }
+  return clampCardBlurValue(savedValue)
+}
+
+const saveCardBlurPreference = (value) => {
+  localStorage.setItem(STORAGE_KEYS.PROFILE_CARD_BLUR, clampCardBlurValue(value).toString())
+}
+
+const loadWallpaperMaskPreference = () => {
+  const savedValue = localStorage.getItem(STORAGE_KEYS.PROFILE_WALLPAPER_MASK)
+  if (savedValue === null) {
+    return PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
+  }
+  return clampWallpaperMaskValue(savedValue)
+}
+
+const saveWallpaperMaskPreference = () => {
+  localStorage.setItem(STORAGE_KEYS.PROFILE_WALLPAPER_MASK, wallpaperMaskControl.value.toFixed(2))
+}
+
 const toRelativeAssetPath = (url) => {
   if (!url) return ''
 
@@ -688,6 +775,8 @@ const fetchUserStatus = async () => {
 
 const fetchProfileStyle = async () => {
   try {
+    cardBlurControl.value = loadCardBlurPreference()
+    wallpaperMaskControl.value = loadWallpaperMaskPreference()
     const res = await getProfileStyle()
     if (res.code === HTTP_STATUS.SUCCESS && res.data) {
       profileStyle.value = {
@@ -700,7 +789,12 @@ const fetchProfileStyle = async () => {
         cardOpacityControl.value = Number(res.data.cardOpacity)
       }
       if (res.data.cardBlur !== null && res.data.cardBlur !== undefined) {
-        cardBlurControl.value = Number(res.data.cardBlur)
+        cardBlurControl.value = clampCardBlurValue(res.data.cardBlur)
+        saveCardBlurPreference(cardBlurControl.value)
+      }
+      if (res.data.wallpaperMask !== null && res.data.wallpaperMask !== undefined) {
+        wallpaperMaskControl.value = clampWallpaperMaskValue(res.data.wallpaperMask)
+        saveWallpaperMaskPreference()
       }
       if (res.data.globalFontEnabled !== null && res.data.globalFontEnabled !== undefined) {
         globalFontEnabled.value = Number(res.data.globalFontEnabled) === 1
@@ -733,6 +827,7 @@ const saveProfileStyle = async () => {
     await updateProfileStyle({
       cardOpacity: Number(cardOpacityControl.value.toFixed(2)),
       cardBlur: Number(cardBlurControl.value),
+      wallpaperMask: Number(wallpaperMaskControl.value.toFixed(2)),
       globalFontEnabled: globalFontEnabled.value ? 1 : 0
     })
   } catch (error) {
@@ -767,7 +862,14 @@ const updateDisplaySetting = (key, value) => {
   }
 
   if (key === 'cardBlur') {
-    cardBlurControl.value = Number(value)
+    cardBlurControl.value = clampCardBlurValue(value)
+    saveCardBlurPreference(cardBlurControl.value)
+    return
+  }
+
+  if (key === 'wallpaperMask') {
+    wallpaperMaskControl.value = clampWallpaperMaskValue(value)
+    saveWallpaperMaskPreference()
     return
   }
 
@@ -890,6 +992,8 @@ watch(cardBlurControl, (value, oldValue) => {
 onMounted(() => {
   tokenInfo.value = getUserInfoFromToken()
   const userId = tokenInfo.value?.userid
+  cardBlurControl.value = loadCardBlurPreference()
+  wallpaperMaskControl.value = loadWallpaperMaskPreference()
 
   bindScrollContainer()
   fetchProfileDefaultOptions()
@@ -916,38 +1020,80 @@ onUnmounted(() => {
   --hero-height: 320px;
   --content-overlay: 56px;
   --card-opacity: 0.88;
+  --wallpaper-scale: 1;
+  --page-wallpaper-mask-alpha: 0.14;
+  --hero-frame-opacity: 0.24;
+  --hero-section-padding-top: 40px;
+  --hero-section-padding-x: 24px;
+  --hero-section-padding-bottom: 94px;
+  --hero-bg-side-inset: 18px;
+  --hero-bg-bottom-inset: 14px;
+  --hero-bg-radius-top: 34px;
+  --hero-bg-radius-bottom: 40px;
+  --hero-bg-shadow: 0 12px 28px rgba(15, 25, 50, 0.06);
+  --hero-frame-side-inset: 10px;
+  --hero-frame-extra-height: 68px;
+  --hero-frame-radius-top: 40px;
+  --hero-frame-radius-bottom: 44px;
+  --hero-frame-bg: #ffffff;
+  --hero-frame-shadow: 0 10px 22px rgba(15, 25, 50, 0.04);
+  --hero-blend-height: 174px;
+  --hero-glow-size: 220px;
+  --hero-glow-top: -12%;
+  --hero-glow-right: -12%;
   --hero-theme-start: #4f86f7;
   --hero-theme-end: #6366f1;
   --hero-theme-glow: rgba(255, 255, 255, 0.16);
-  background: #f0f4fb;
-  min-height: 100%;
+  background: #e9eef8;
+  min-height: 100vh;
   padding-bottom: 40px;
   position: relative;
-  overflow: hidden;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .wallpaper-layer {
-  position: absolute;
-  top: calc(var(--hero-height) - 36px);
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
   opacity: 0.95;
+  will-change: transform;
+  transform-origin: center top;
+  transition: transform 0.18s ease-out;
+  filter: saturate(1.04);
+}
+
+.profile-shell {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.wallpaper-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.16)) 0%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.04)) 32%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.12)) 100%
+  );
 }
 
 .hero-shell {
   position: relative;
   overflow: visible;
-  z-index: 2;
+  z-index: 1;
 }
 
 .hero-section {
   position: sticky;
   top: 0;
   z-index: 0;
-  padding: 42px 24px 72px;
+  padding: var(--hero-section-padding-top) var(--hero-section-padding-x) var(--hero-section-padding-bottom);
   text-align: center;
   overflow: hidden;
   display: flex;
@@ -959,33 +1105,56 @@ onUnmounted(() => {
 
 .hero-bg {
   position: absolute;
-  inset: 0;
+  top: var(--hero-surface-offset, -54px);
+  left: var(--hero-bg-side-inset);
+  right: var(--hero-bg-side-inset);
+  bottom: var(--hero-bg-bottom-inset);
   background: linear-gradient(145deg, var(--hero-theme-start) 0%, var(--hero-theme-end) 100%);
   z-index: 0;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  border-radius: var(--hero-bg-radius-top) var(--hero-bg-radius-top) var(--hero-bg-radius-bottom) var(--hero-bg-radius-bottom);
+  overflow: hidden;
+  box-shadow: var(--hero-bg-shadow);
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  left: var(--hero-frame-side-inset);
+  right: var(--hero-frame-side-inset);
+  top: var(--hero-surface-offset, -54px);
+  height: calc(var(--hero-surface-height, calc(var(--hero-height) - 28px)) + var(--hero-frame-extra-height));
+  border-radius: var(--hero-frame-radius-top) var(--hero-frame-radius-top) var(--hero-frame-radius-bottom) var(--hero-frame-radius-bottom);
+  background: var(--hero-frame-bg);
+  box-shadow: var(--hero-frame-shadow);
+  z-index: 0;
 }
 
 .hero-bg::before {
   content: '';
   position: absolute;
-  top: -12%;
-  right: -12%;
-  width: 220px;
-  height: 220px;
+  top: var(--hero-glow-top);
+  right: var(--hero-glow-right);
+  width: var(--hero-glow-size);
+  height: var(--hero-glow-size);
   background: radial-gradient(circle, var(--hero-theme-glow) 0%, rgba(255, 255, 255, 0) 72%);
 }
 
 .hero-bg::after {
   content: '';
   position: absolute;
-  bottom: -34px;
-  left: -12%;
-  right: -12%;
-  height: 76px;
-  background: #f0f4fb;
-  border-radius: 50%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--hero-blend-height);
+  background: linear-gradient(
+    180deg,
+    rgba(240, 244, 251, 0) 0%,
+    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.52 + 0.16)) 56%,
+    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.82 + 0.28)) 100%
+  );
 }
 
 .avatar-ring {
@@ -1047,19 +1216,19 @@ onUnmounted(() => {
 
 .profile-content {
   position: relative;
-  z-index: 2;
-  padding: 0 16px 8px;
+  z-index: 3;
+  padding: 0 18px 12px;
 }
 
 .section-card {
   margin: 0 0 14px;
   background: rgba(255, 255, 255, var(--card-opacity));
   border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(15, 25, 50, 0.08);
   overflow: hidden;
-  backdrop-filter: blur(var(--card-blur));
-  -webkit-backdrop-filter: blur(var(--card-blur));
-  border: 1px solid rgba(255, 255, 255, 0.36);
+  box-shadow: 0 14px 36px rgba(15, 25, 50, 0.08);
+  backdrop-filter: blur(var(--card-blur)) saturate(1.06);
+  -webkit-backdrop-filter: blur(var(--card-blur)) saturate(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .section-card + .section-card {
@@ -1130,7 +1299,7 @@ onUnmounted(() => {
 }
 
 .gallery-card {
-  padding: 14px 16px 16px;
+  padding: 16px 18px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1509,9 +1678,11 @@ input:checked + .toggle-slider::before {
 
 @media (min-width: 768px) {
   .profile-root {
-    max-width: 720px;
-    margin: 0 auto;
     padding-bottom: 56px;
+  }
+
+  .profile-shell {
+    width: min(100%, 720px);
   }
 
   .hero-section {
