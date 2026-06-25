@@ -19,31 +19,20 @@
     <div class="profile-content" :style="profileContentStyle">
       <!-- 信息卡片 -->
       <div class="section-card info-card">
-      <div class="info-row" v-show="userInfoLoaded">
-        <div class="info-icon" style="background:#fef3c7; color:#f59e0b">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-8M21 21v-8M3 13L12 3l9 10M12 3v18"/></svg>
+      <div
+        v-for="field in PROFILE_VIEW_CONFIG.INFO_FIELDS"
+        :key="field.key"
+        class="info-row"
+        v-show="userInfoLoaded"
+      >
+        <div class="info-icon" :style="field.iconStyle">
+          <svg v-if="field.icon === iconMap.college" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-8M21 21v-8M3 13L12 3l9 10M12 3v18"/></svg>
+          <svg v-else-if="field.icon === iconMap.major" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         </div>
         <div class="info-content">
-          <span class="info-label">学校/学院</span>
-          <span class="info-value">{{ personalInfo.college || APP_CONFIG.DEFAULT_COLLEGE }}</span>
-        </div>
-      </div>
-      <div class="info-row" v-show="userInfoLoaded">
-        <div class="info-icon" style="background:#eef3ff; color:#4f86f7">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-        </div>
-        <div class="info-content">
-          <span class="info-label">专业</span>
-          <span class="info-value">{{ personalInfo.major || APP_CONFIG.DEFAULT_USER_NAME }}</span>
-        </div>
-      </div>
-      <div class="info-row" v-show="userInfoLoaded">
-        <div class="info-icon" style="background:#f0fdf4; color:#10b981">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </div>
-        <div class="info-content">
-          <span class="info-label">班级</span>
-          <span class="info-value">{{ personalInfo.className || APP_CONFIG.DEFAULT_USER_NAME }}</span>
+          <span class="info-label">{{ field.label }}</span>
+          <span class="info-value">{{ personalInfo[field.key] || APP_CONFIG[field.fallback] }}</span>
         </div>
       </div>
       <div class="info-row" v-show="userInfoLoaded">
@@ -66,31 +55,8 @@
       </div>
     </div>
 
-    <div class="section-card setting-card">
-      <div class="setting-block">
-        <div class="setting-head">
-          <div class="setting-title-row">
-            <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_TITLE }}</span>
-            <span class="help-icon-wrap">
-              <span class="help-icon" aria-label="提示">i</span>
-              <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_HELP_TEXT }}</span>
-            </span>
-          </div>
-          <span class="setting-value">{{ Math.round(cardOpacityControl * 100) }}%</span>
-        </div>
-        <input
-          v-model.number="cardOpacityControl"
-          class="setting-slider"
-          type="range"
-          :min="PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN"
-          :max="PROFILE_VIEW_CONFIG.CARD_OPACITY_MAX"
-          :step="PROFILE_VIEW_CONFIG.CARD_OPACITY_STEP"
-        />
-      </div>
-    </div>
 
     <div
-      v-if="galleryGroups.length"
       class="section-card gallery-card"
       :class="{ expanded: galleryExpanded }"
       @click="toggleGalleryExpanded"
@@ -108,6 +74,68 @@
 
       <transition name="gallery-collapse">
         <div v-if="galleryExpanded" class="gallery-panel" @click.stop>
+          <div class="gallery-settings">
+            <div class="setting-block">
+              <div class="setting-head">
+                <div class="setting-title-row">
+                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_TITLE }}</span>
+                  <span class="help-icon-wrap">
+                    <span class="help-icon" aria-label="提示">i</span>
+                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_HELP_TEXT }}</span>
+                  </span>
+                </div>
+                <span class="setting-value">{{ Math.round(cardOpacityControl * 100) }}%</span>
+              </div>
+              <input
+                v-model.number="cardOpacityControl"
+                class="setting-slider"
+                type="range"
+                :min="PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN"
+                :max="PROFILE_VIEW_CONFIG.CARD_OPACITY_MAX"
+                :step="PROFILE_VIEW_CONFIG.CARD_OPACITY_STEP"
+              />
+            </div>
+            <div class="setting-block">
+              <div class="setting-head">
+                <div class="setting-title-row">
+                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_BLUR_TITLE }}</span>
+                  <span class="help-icon-wrap">
+                    <span class="help-icon" aria-label="提示">i</span>
+                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_BLUR_HELP_TEXT }}</span>
+                  </span>
+                </div>
+                <span class="setting-value">{{ cardBlurControl }}px</span>
+              </div>
+              <input
+                v-model.number="cardBlurControl"
+                class="setting-slider"
+                type="range"
+                :min="PROFILE_VIEW_CONFIG.CARD_BLUR_MIN"
+                :max="PROFILE_VIEW_CONFIG.CARD_BLUR_MAX"
+                :step="PROFILE_VIEW_CONFIG.CARD_BLUR_STEP"
+              />
+            </div>
+            <div class="setting-block font-setting-block">
+              <div class="setting-head">
+                <div class="setting-title-row">
+                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.GLOBAL_FONT_ENABLED_TITLE }}</span>
+                  <span class="help-icon-wrap">
+                    <span class="help-icon" aria-label="提示">i</span>
+                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.GLOBAL_FONT_ENABLED_HELP_TEXT }}</span>
+                  </span>
+                </div>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    v-model="globalFontEnabled"
+                    @change="saveGlobalFont"
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div
             v-for="group in galleryGroups"
             :key="group.key"
@@ -201,6 +229,8 @@ const profileStyle = ref({
   wallpaper: ''
 })
 const cardOpacityControl = ref(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT)
+  const cardBlurControl = ref(PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT)
+  const globalFontEnabled = ref(true)
 const profileDefaultOptions = ref({
   avatars: [],
   backgrounds: [],
@@ -218,6 +248,8 @@ const galleryGroups = computed(() => {
 let statusTimer = null
 let scrollContainer = null
 let cardOpacitySaveTimer = null
+  let cardBlurSaveTimer = null
+  let globalFontSaveTimer = null
 
 const getUserInfoFromToken = () => {
   const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
@@ -291,6 +323,12 @@ const fetchProfileStyle = async () => {
       if (res.data.cardOpacity !== null && res.data.cardOpacity !== undefined) {
         cardOpacityControl.value = Number(res.data.cardOpacity)
       }
+      if (res.data.cardBlur !== null && res.data.cardBlur !== undefined) {
+        cardBlurControl.value = Number(res.data.cardBlur)
+      }
+      if (res.data.globalFontEnabled !== null && res.data.globalFontEnabled !== undefined) {
+        globalFontEnabled.value = Number(res.data.globalFontEnabled) === 1
+      }
     }
   } catch (error) {
     console.error('获取个性化样式失败', error)
@@ -317,11 +355,22 @@ const fetchProfileDefaultOptions = async () => {
 const saveProfileStyle = async () => {
   try {
     await updateProfileStyle({
-      cardOpacity: Number(cardOpacityControl.value.toFixed(2))
+      cardOpacity: Number(cardOpacityControl.value.toFixed(2)),
+      cardBlur: Number(cardBlurControl.value),
+      globalFontEnabled: globalFontEnabled.value ? 1 : 0
     })
   } catch (error) {
     console.error('更新个性化样式失败', error)
   }
+}
+
+const saveGlobalFont = () => {
+  if (globalFontSaveTimer) {
+    clearTimeout(globalFontSaveTimer)
+  }
+  globalFontSaveTimer = setTimeout(() => {
+    saveProfileStyle()
+  }, PROFILE_VIEW_CONFIG.CARD_OPACITY_SAVE_DEBOUNCE)
 }
 
 const persistProfileStyle = async (payload) => {
@@ -427,7 +476,7 @@ const profileRootStyle = computed(() => {
     '--hero-height': `${heroHeight.value}px`,
     '--content-overlay': `${contentOverlay.value}px`,
     '--card-opacity': cardOpacity.value,
-    '--card-blur': `${PROFILE_VIEW_CONFIG.CARD_BLUR}px`,
+    '--card-blur': `${cardBlurControl.value}px`,
     '--hero-theme-start': PROFILE_THEME_CONFIG.START,
     '--hero-theme-end': PROFILE_THEME_CONFIG.END,
     '--hero-theme-glow': PROFILE_THEME_CONFIG.GLOW,
@@ -437,6 +486,10 @@ const profileRootStyle = computed(() => {
     '--cover-grid-min': `${PROFILE_VIEW_CONFIG.COVER_GRID_MIN}px`,
     '--cover-card-max-width': `${PROFILE_VIEW_CONFIG.COVER_CARD_MAX_WIDTH}px`
   }
+
+  style.fontFamily = globalFontEnabled.value
+    ? `'${PROFILE_VIEW_CONFIG.FONT_FACE.family}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif`
+    : "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
 
   if (profileStyle.value.wallpaper) {
     style['--page-wallpaper'] = `linear-gradient(rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA}), rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA})), url(${profileStyle.value.wallpaper})`
@@ -497,6 +550,16 @@ watch(cardOpacityControl, (value, oldValue) => {
     clearTimeout(cardOpacitySaveTimer)
   }
   cardOpacitySaveTimer = setTimeout(() => {
+    saveProfileStyle()
+  }, PROFILE_VIEW_CONFIG.CARD_OPACITY_SAVE_DEBOUNCE)
+})
+
+watch(cardBlurControl, (value, oldValue) => {
+  if (!profileStyleLoaded.value || value === oldValue) return
+  if (cardBlurSaveTimer) {
+    clearTimeout(cardBlurSaveTimer)
+  }
+  cardBlurSaveTimer = setTimeout(() => {
     saveProfileStyle()
   }, PROFILE_VIEW_CONFIG.CARD_OPACITY_SAVE_DEBOUNCE)
 })
@@ -592,14 +655,14 @@ const handleDeleteAccount = async () => {
   --hero-height: 320px;
   --content-overlay: 56px;
   --card-opacity: 0.88;
-  --card-blur: 14px;
+  
   --hero-theme-start: #4f86f7;
   --hero-theme-end: #6366f1;
   --hero-theme-glow: rgba(255,255,255,0.16);
   background: #f0f4fb;
   min-height: 100%;
   padding-bottom: 40px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+  
   position: relative;
   overflow: hidden;
 }
@@ -774,19 +837,27 @@ const handleDeleteAccount = async () => {
 .status-err { color: #ef4444; }
 
 /* ---- Setting card ---- */
-.setting-card {
-  padding: 18px 18px 20px;
-}
 .setting-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 .gallery-card {
-  padding: 14px 16px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.gallery-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 2px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+.gallery-settings .setting-block {
+  gap: 12px;
 }
 .gallery-toggle {
   width: 100%;
@@ -1002,6 +1073,53 @@ const handleDeleteAccount = async () => {
   width: 100%;
   accent-color: var(--hero-theme-start);
 }
+
+/* ---- Toggle Switch ---- */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  border-radius: 24px;
+}
+.toggle-slider:before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+input:checked + .toggle-slider {
+  background-color: var(--hero-theme-start);
+}
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+.font-setting-block {
+  padding-top: 4px;
+}
+
 /* ---- Action rows ---- */
 .action-card { margin-top: 0; }
 .action-row {
@@ -1065,4 +1183,15 @@ const handleDeleteAccount = async () => {
     padding: 0 24px 12px;
   }
 }
+
+@font-face {
+  font-family: 'SourceHanSerifCN';
+  src: url('/fonts/SourceHanSerifCN-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 </style>
+
+
+
+
