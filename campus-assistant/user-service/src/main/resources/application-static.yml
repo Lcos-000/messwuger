@@ -6,6 +6,7 @@ profile:
     card-opacity: 1.00
     card-blur: 14.00
     global-font-enabled: 1
+    wallpaper-mask: 1.00
 
 
   default-options:

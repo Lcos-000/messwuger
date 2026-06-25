@@ -36,4 +36,9 @@ public class UserProfileStyleUpdateDTO {
     @Max(value = 1, message = "全局字体开关取值非法")
     @Schema(description = "是否启用全局字体：0否 1是")
     private Integer globalFontEnabled;
+
+    @Schema(description = "墙纸蒙版强度，范围 0.00 ~ 1.00")
+    @DecimalMin(value = "0.00", message = "墙纸蒙版强度不能小于 0.00")
+    @DecimalMax(value = "1.00", message = "墙纸蒙版强度不能大于 1.00")
+    private BigDecimal wallpaperMask;
 }

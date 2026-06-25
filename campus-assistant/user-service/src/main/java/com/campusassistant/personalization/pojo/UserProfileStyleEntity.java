@@ -30,5 +30,7 @@ public class UserProfileStyleEntity extends BaseEntity {
     private BigDecimal cardBlur;
     // 是否启用全局字体：0否 1是
     private Integer globalFontEnabled;
+    // 墙纸蒙版强度
+    private BigDecimal wallpaperMask;
 
 }
