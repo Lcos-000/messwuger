@@ -22,6 +22,12 @@ service.interceptors.response.use(
   response => {
     const res = response.data
     const successCodes = [HTTP_STATUS.SUCCESS, HTTP_STATUS.NO_CONTENT]
+    if (res.code === HTTP_STATUS.UNAUTHORIZED) {
+      alert(res.message || REQUEST_MESSAGES.UNAUTHORIZED)
+      localStorage.removeItem(STORAGE_KEYS.TOKEN)
+      router.replace(ROUTE_PATHS.LOGIN)
+      return Promise.reject(new Error(res.message || REQUEST_MESSAGES.UNAUTHORIZED))
+    }
     if (!successCodes.includes(res.code)) {
       alert(res.message || REQUEST_MESSAGES.DEFAULT_ERROR)
       return Promise.reject(new Error(res.message || REQUEST_MESSAGES.DEFAULT_ERROR))

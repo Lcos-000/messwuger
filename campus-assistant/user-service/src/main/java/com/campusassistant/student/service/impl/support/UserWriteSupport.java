@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static com.campusassistant.enums.ResultCodeEnum.USER_ALREADY_EXISTS;
 import static com.campusassistant.remote.spider.common.SyncStatusEnum.NOT_SYNCED;
+import static com.campusassistant.student.common.PunchStatusEnum.AUTO_PUNCH_ENABLED;
 import static com.campusassistant.student.common.PunchStatusEnum.NOT_PUNCHED;
 
 @Service
@@ -38,7 +39,7 @@ public class UserWriteSupport {
         String hash = passwordEncoder.encode(UserDTO.getPassword());
         userEntity.setPassword(hash);
         userEntity.setSyncStatus(NOT_SYNCED.getCode());
-        userEntity.setPunchStatus(NOT_PUNCHED.getCode());
+        userEntity.setAutoPunchEnabled(AUTO_PUNCH_ENABLED.getCode());
         try {
             userMapper.insert(userEntity);
         } catch (DuplicateKeyException e) {
@@ -106,6 +107,24 @@ public class UserWriteSupport {
             log.info("已批量重置 {} 个用户的打卡状态为未打卡", rows);
         } catch (Exception e) {
             log.error("批量重置打卡状态异常", e);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
+        }
+    }
+
+    public void updateAutoPunchEnabled(String studentId, Integer enabled) {
+        try {
+            LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(UserEntity::getStudentId, studentId);
+
+            UserEntity updateUser = new UserEntity();
+            updateUser.setAutoPunchEnabled(enabled);
+
+            int rows = userMapper.update(updateUser, updateWrapper);
+            if (rows == 0) {
+                log.warn("更新自动打卡开关失败，未找到学号为 {} 的用户", studentId);
+            }
+        } catch (Exception e) {
+            log.error("更新自动打卡开关异常 studentId: {}, enabled: {}", studentId, enabled, e);
             throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
         }
     }

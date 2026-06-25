@@ -15,7 +15,7 @@ export const PROFILE_VIEW_CONFIG = {
   CARD_BLUR: 14,
   CARD_BLUR_MIN: 0,
   CARD_BLUR_MAX: 30,
-  CARD_BLUR_DEFAULT: 30,
+  CARD_BLUR_DEFAULT: 14,
   CARD_BLUR_STEP: 1,
 
   PAGE_WALLPAPER_OPACITY: 0.4,
@@ -53,6 +53,16 @@ export const PROFILE_VIEW_CONFIG = {
       type: 'toggle',
       title: '全局字体',
       helpText: '开启后页面将使用自定义全局字体，关闭则使用系统默认字体。'
+    }
+  ],
+
+  ACTION_TOGGLES: [
+    {
+      key: 'autoPunchEnabled',
+      label: '开启自动打卡',
+      enabledText: '已开启，系统会参与定时打卡任务',
+      disabledText: '已关闭，不会参与自动打卡',
+      iconStyle: 'background:#f0fdf4; color:#10b981'
     }
   ],
 
@@ -127,10 +137,6 @@ export const PROFILE_VIEW_CONFIG = {
   ],
 
   ACTIONS: {
-    autoPunch: {
-      label: '开启自动打卡',
-      iconStyle: 'background:#f0fdf4; color:#10b981'
-    },
     logout: {
       label: '退出登录',
       color: '#f97316',
