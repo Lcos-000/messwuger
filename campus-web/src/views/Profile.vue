@@ -60,7 +60,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
         <div class="info-content">
-          <span class="info-label">打卡状态</span>
+          <span class="info-label">{{ PROFILE_VIEW_CONFIG.STATUS_FIELDS[1].label }}</span>
           <span class="info-value" :class="punchClass">{{ punchText }}</span>
         </div>
       </div>
@@ -69,40 +69,90 @@
     <div class="section-card setting-card">
       <div class="setting-block">
         <div class="setting-head">
-          <span class="setting-title">资料卡透明度</span>
+          <div class="setting-title-row">
+            <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_TITLE }}</span>
+            <span class="help-icon-wrap">
+              <span class="help-icon" aria-label="提示">i</span>
+              <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_HELP_TEXT }}</span>
+            </span>
+          </div>
           <span class="setting-value">{{ Math.round(cardOpacityControl * 100) }}%</span>
         </div>
         <input
           v-model.number="cardOpacityControl"
           class="setting-slider"
           type="range"
-          min="0.2"
-          max="1"
-          step="0.01"
+          :min="PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN"
+          :max="PROFILE_VIEW_CONFIG.CARD_OPACITY_MAX"
+          :step="PROFILE_VIEW_CONFIG.CARD_OPACITY_STEP"
         />
-        <p class="setting-tip">拖动滑块可调整资料卡的透明度。</p>
       </div>
+    </div>
+
+    <div
+      v-if="galleryGroups.length"
+      class="section-card gallery-card"
+      :class="{ expanded: galleryExpanded }"
+      @click="toggleGalleryExpanded"
+    >
+      <div class="gallery-toggle-main">
+        <div class="gallery-title-row">
+          <span class="gallery-toggle-title">{{ PROFILE_VIEW_CONFIG.GALLERY_TITLE }}</span>
+          <span class="help-icon-wrap">
+            <span class="help-icon" aria-label="提示">i</span>
+            <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.GALLERY_HELP_TEXT }}</span>
+          </span>
+        </div>
+      </div>
+      <span class="gallery-toggle-arrow" :class="{ expanded: galleryExpanded }">⌄</span>
+
+      <transition name="gallery-collapse">
+        <div v-if="galleryExpanded" class="gallery-panel" @click.stop>
+          <div
+            v-for="group in galleryGroups"
+            :key="group.key"
+            class="gallery-block"
+          >
+            <div class="gallery-head">
+              <span class="gallery-title">{{ group.title }}</span>
+              <span class="gallery-tip">{{ PROFILE_VIEW_CONFIG.OPTION_GROUP_HINT }}</span>
+            </div>
+            <div class="gallery-grid" :class="group.gridClass">
+              <button
+                v-for="option in group.options"
+                :key="option"
+                type="button"
+                class="gallery-option"
+                :class="[group.optionClass, { active: profileStyle[group.key] === option }]"
+                @click="persistProfileSelection(group.key, option)"
+              >
+                <img :src="option" :alt="group.imageAlt" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
 
     <!-- 操作区 -->
     <div class="section-card action-card">
       <!-- 测试阶段未开启开关功能，当前全部默认自动打卡 -->
       <button class="action-row" @click="handleAutoPunch">
-        <div class="action-icon" style="background:#f0fdf4; color:#10b981">
+        <div class="action-icon" :style="PROFILE_VIEW_CONFIG.ACTIONS.autoPunch.iconStyle">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <span class="action-label">开启自动打卡</span>
+        <span class="action-label">{{ PROFILE_VIEW_CONFIG.ACTIONS.autoPunch.label }}</span>
         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
 
     <div class="section-card action-card danger-card">
       <button class="action-row" @click="handleLogout">
-        <div class="action-icon" style="background:#fff7ed; color:#f97316">
+        <div class="action-icon" :style="PROFILE_VIEW_CONFIG.ACTIONS.logout.iconStyle">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </div>
-        <span class="action-label" style="color:#f97316">退出登录</span>
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="action-label" :style="{ color: PROFILE_VIEW_CONFIG.ACTIONS.logout.color }">{{ PROFILE_VIEW_CONFIG.ACTIONS.logout.label }}</span>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" :stroke="PROFILE_VIEW_CONFIG.ACTIONS.logout.color" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <div class="divider"></div>
       <button class="action-row" :disabled="deletingAccount" @click="handleDeleteAccount">
@@ -114,20 +164,20 @@
       </button>
     </div>
 
-      <p class="footer-hint">数据来源于教务系统，仅供参考</p>
+      <p class="footer-hint">{{ PROFILE_VIEW_CONFIG.FOOTER_HINT }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { logout, deleteAccount, getPersonalInfo, getUserStatus, getProfileStyle, updateProfileStyle } from '@/api/index'
+import { logout, deleteAccount, getPersonalInfo, getUserStatus, getProfileStyle, updateProfileStyle, getProfileDefaultOptions } from '@/api/index'
 import {
   APP_CONFIG,
   HTTP_STATUS,
   POLLING_CONFIG,
-  PROFILE_UI_CONFIG,
+  PROFILE_THEME_CONFIG,
+  PROFILE_VIEW_CONFIG,
   PUNCH_STATUS,
   PUNCH_STATUS_TEXT,
   ROUTE_PATHS,
@@ -139,7 +189,6 @@ import {
   isUserStatusProcessing
 } from '@/config'
 
-const router = useRouter()
 const personalInfo = ref({})
 const userStatus = ref({})
 const tokenInfo = ref(null)
@@ -151,8 +200,21 @@ const profileStyle = ref({
   background: '',
   wallpaper: ''
 })
-const cardOpacityControl = ref(PROFILE_UI_CONFIG.CARD_BG_OPACITY)
+const cardOpacityControl = ref(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT)
+const profileDefaultOptions = ref({
+  avatars: [],
+  backgrounds: [],
+  wallpapers: []
+})
+const iconMap = PROFILE_VIEW_CONFIG.ICONS
+const galleryExpanded = ref(false)
 const profileStyleLoaded = ref(false)
+const galleryGroups = computed(() => {
+  return PROFILE_VIEW_CONFIG.OPTION_GROUPS.map((group) => ({
+    ...group,
+    options: profileDefaultOptions.value[group.optionField] || []
+  })).filter((group) => group.options.length)
+})
 let statusTimer = null
 let scrollContainer = null
 let cardOpacitySaveTimer = null
@@ -173,6 +235,16 @@ const resolveAssetUrl = (path) => {
   if (/^https?:\/\//.test(path)) return path
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${window.location.protocol}//${window.location.hostname}:8000${normalizedPath}`
+}
+
+const toRelativeAssetPath = (url) => {
+  if (!url) return ''
+  try {
+    const parsed = new URL(url)
+    return `${parsed.pathname}${parsed.search}`
+  } catch {
+    return url
+  }
 }
 
 const fetchPersonalInfo = async () => {
@@ -227,6 +299,21 @@ const fetchProfileStyle = async () => {
   }
 }
 
+const fetchProfileDefaultOptions = async () => {
+  try {
+    const res = await getProfileDefaultOptions()
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+      profileDefaultOptions.value = {
+        avatars: (res.data.avatars || []).map(resolveAssetUrl),
+        backgrounds: (res.data.backgrounds || []).map(resolveAssetUrl),
+        wallpapers: (res.data.wallpapers || []).map(resolveAssetUrl)
+      }
+    }
+  } catch (error) {
+    console.error('获取默认图库失败', error)
+  }
+}
+
 const saveProfileStyle = async () => {
   try {
     await updateProfileStyle({
@@ -235,6 +322,30 @@ const saveProfileStyle = async () => {
   } catch (error) {
     console.error('更新个性化样式失败', error)
   }
+}
+
+const persistProfileStyle = async (payload) => {
+  try {
+    await updateProfileStyle(payload)
+  } catch (error) {
+    console.error('更新个性化样式失败', error)
+  }
+}
+
+const persistProfileSelection = async (field, url) => {
+  const previousValue = profileStyle.value[field]
+  profileStyle.value[field] = url
+
+  try {
+    await persistProfileStyle({ [field]: toRelativeAssetPath(url) })
+  } catch (error) {
+    profileStyle.value[field] = previousValue
+    alert('保存个性化设置失败，请稍后重试')
+  }
+}
+
+const toggleGalleryExpanded = () => {
+  galleryExpanded.value = !galleryExpanded.value
 }
 
 const startStatusPolling = () => {
@@ -273,6 +384,7 @@ onMounted(() => {
   tokenInfo.value = getUserInfoFromToken()
   const userId = tokenInfo.value?.userid
   bindScrollContainer()
+  fetchProfileDefaultOptions()
   if (userId) {
     fetchPersonalInfo()
     fetchUserStatus()
@@ -293,21 +405,21 @@ onUnmounted(() => {
 })
 
 const scrollProgress = computed(() => {
-  return Math.min(scrollTop.value / PROFILE_UI_CONFIG.HERO_COLLAPSE_DISTANCE, 1)
+  return Math.min(scrollTop.value / PROFILE_VIEW_CONFIG.HERO_COLLAPSE_DISTANCE, 1)
 })
 
 const heroHeight = computed(() => {
-  const diff = PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT - PROFILE_UI_CONFIG.HERO_COLLAPSED_HEIGHT
-  return PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT - diff * scrollProgress.value
+  const diff = PROFILE_VIEW_CONFIG.HERO_EXPANDED_HEIGHT - PROFILE_VIEW_CONFIG.HERO_COLLAPSED_HEIGHT
+  return PROFILE_VIEW_CONFIG.HERO_EXPANDED_HEIGHT - diff * scrollProgress.value
 })
 
 const contentOverlay = computed(() => {
-  const diff = PROFILE_UI_CONFIG.CONTENT_OVERLAY_COLLAPSED - PROFILE_UI_CONFIG.CONTENT_OVERLAY_EXPANDED
-  return PROFILE_UI_CONFIG.CONTENT_OVERLAY_EXPANDED + diff * scrollProgress.value
+  const diff = PROFILE_VIEW_CONFIG.CONTENT_OVERLAY_COLLAPSED - PROFILE_VIEW_CONFIG.CONTENT_OVERLAY_EXPANDED
+  return PROFILE_VIEW_CONFIG.CONTENT_OVERLAY_EXPANDED + diff * scrollProgress.value
 })
 
 const cardOpacity = computed(() => {
-  return Math.max(cardOpacityControl.value - scrollProgress.value * 0.08, 0.2)
+  return Math.max(cardOpacityControl.value - scrollProgress.value * PROFILE_VIEW_CONFIG.CARD_OPACITY_SCROLL_DELTA, PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN)
 })
 
 const profileRootStyle = computed(() => {
@@ -315,21 +427,26 @@ const profileRootStyle = computed(() => {
     '--hero-height': `${heroHeight.value}px`,
     '--content-overlay': `${contentOverlay.value}px`,
     '--card-opacity': cardOpacity.value,
-    '--card-blur': `${PROFILE_UI_CONFIG.CARD_BLUR}px`,
-    '--hero-theme-start': PROFILE_UI_CONFIG.HERO_THEME.START,
-    '--hero-theme-end': PROFILE_UI_CONFIG.HERO_THEME.END,
-    '--hero-theme-glow': PROFILE_UI_CONFIG.HERO_THEME.GLOW
+    '--card-blur': `${PROFILE_VIEW_CONFIG.CARD_BLUR}px`,
+    '--hero-theme-start': PROFILE_THEME_CONFIG.START,
+    '--hero-theme-end': PROFILE_THEME_CONFIG.END,
+    '--hero-theme-glow': PROFILE_THEME_CONFIG.GLOW,
+    '--tooltip-min-width': `${PROFILE_VIEW_CONFIG.TOOLTIP_MIN_WIDTH}px`,
+    '--tooltip-max-width': `${PROFILE_VIEW_CONFIG.TOOLTIP_MAX_WIDTH}px`,
+    '--avatar-grid-min': `${PROFILE_VIEW_CONFIG.AVATAR_GRID_MIN}px`,
+    '--cover-grid-min': `${PROFILE_VIEW_CONFIG.COVER_GRID_MIN}px`,
+    '--cover-card-max-width': `${PROFILE_VIEW_CONFIG.COVER_CARD_MAX_WIDTH}px`
   }
 
   if (profileStyle.value.wallpaper) {
-    style['--page-wallpaper'] = `linear-gradient(rgba(240, 244, 251, 0.04), rgba(240, 244, 251, 0.04)), url(${profileStyle.value.wallpaper})`
+    style['--page-wallpaper'] = `linear-gradient(rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA}), rgba(240, 244, 251, ${PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_MASK_ALPHA})), url(${profileStyle.value.wallpaper})`
   }
 
   return style
 })
 
 const heroShellStyle = computed(() => ({
-  height: `${PROFILE_UI_CONFIG.HERO_EXPANDED_HEIGHT}px`
+  height: `${PROFILE_VIEW_CONFIG.HERO_EXPANDED_HEIGHT}px`
 }))
 
 const heroSectionStyle = computed(() => ({
@@ -354,7 +471,7 @@ const wallpaperLayerStyle = computed(() => ({
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
-  opacity: 0.4
+  opacity: PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_OPACITY
 }))
 
 const avatarRingStyle = computed(() => ({
@@ -381,7 +498,7 @@ watch(cardOpacityControl, (value, oldValue) => {
   }
   cardOpacitySaveTimer = setTimeout(() => {
     saveProfileStyle()
-  }, 350)
+  }, PROFILE_VIEW_CONFIG.CARD_OPACITY_SAVE_DEBOUNCE)
 })
 
 const firstChar = computed(() => personalInfo.value.name ? personalInfo.value.name.charAt(0) : APP_CONFIG.DEFAULT_AVATAR_TEXT)
@@ -658,12 +775,211 @@ const handleDeleteAccount = async () => {
 
 /* ---- Setting card ---- */
 .setting-card {
-  padding: 16px 18px;
+  padding: 18px 18px 20px;
 }
 .setting-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.gallery-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gallery-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  text-align: left;
+  cursor: pointer;
+}
+.gallery-toggle-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gallery-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gallery-toggle-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.help-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.help-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.help-icon-wrap:hover .help-icon {
+  transform: scale(1.08);
+  border-color: rgba(79, 134, 247, 0.45);
+  color: #4f86f7;
+  box-shadow: 0 4px 10px rgba(79, 134, 247, 0.14);
+}
+.help-tooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  transform: translateX(-50%) translateY(-4px);
+  min-width: 220px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  z-index: 10;
+}
+.help-tooltip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(15, 23, 42, 0.9);
+}
+.help-icon-wrap:hover .help-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.gallery-toggle-arrow {
+  font-size: 18px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+.gallery-toggle-arrow.expanded {
+  transform: rotate(180deg);
+}
+.gallery-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 6px;
+  transform-origin: top center;
+}
+.gallery-collapse-enter-active,
+.gallery-collapse-leave-active {
+  transition: opacity 0.24s ease, transform 0.24s ease, max-height 0.28s ease;
+  overflow: hidden;
+}
+.gallery-collapse-enter-from,
+.gallery-collapse-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+  max-height: 0;
+}
+.gallery-collapse-enter-to,
+.gallery-collapse-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 720px;
+}
+.gallery-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gallery-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.gallery-tip {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.gallery-grid {
+  display: grid;
+  gap: 12px;
+}
+.avatar-gallery {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.cover-gallery {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-items: start;
+}
+.gallery-option {
+  width: 100%;
+  min-width: 0;
+  border: 2px solid transparent;
+  background: rgba(255,255,255,0.78);
+  border-radius: 16px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+.gallery-option:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+}
+.gallery-option.active {
+  border-color: #4f86f7;
+  box-shadow: 0 0 0 3px rgba(79, 134, 247, 0.14);
+}
+.gallery-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 12px;
+}
+.avatar-option {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  padding: 3px;
+}
+.avatar-option img {
+  border-radius: 50%;
+}
+.cover-option {
+  width: min(100%, var(--cover-card-max-width));
+  aspect-ratio: 16 / 10;
 }
 
 .setting-head {
@@ -686,12 +1002,6 @@ const handleDeleteAccount = async () => {
   width: 100%;
   accent-color: var(--hero-theme-start);
 }
-.setting-tip {
-  font-size: 12px;
-  line-height: 1.55;
-  color: #7f8da8;
-}
-
 /* ---- Action rows ---- */
 .action-card { margin-top: 0; }
 .action-row {

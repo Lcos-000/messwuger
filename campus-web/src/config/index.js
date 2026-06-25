@@ -1,6 +1,7 @@
 export * from './apiPaths'
 export * from './appConfig'
 export * from './pollingConfig'
+export * from './profileConfig'
 export * from './routePaths'
 export * from './scheduleConfig'
 export * from './statusConfig'

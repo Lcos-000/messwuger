@@ -2,7 +2,7 @@ package com.campusassistant.common.converter;
 
 import java.util.List;
 
-public interface BaseConverter<S, T> {
+public interface BaseConvertor<S, T> {
 
     // 单个对象转换 (正向与逆向)
     T toTarget(S source);
