@@ -26,5 +26,9 @@ public class UserProfileStyleEntity extends BaseEntity {
     private String wallpaper;
     //资料卡片透明度
     private BigDecimal cardOpacity;
+    // 资料卡片模糊度
+    private BigDecimal cardBlur;
+    // 是否启用全局字体：0否 1是
+    private Integer globalFontEnabled;
 
 }

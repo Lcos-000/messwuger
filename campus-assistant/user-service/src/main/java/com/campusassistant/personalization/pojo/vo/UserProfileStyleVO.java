@@ -23,4 +23,10 @@ public class UserProfileStyleVO {
 
     @Schema(description = "资料卡片透明度")
     private BigDecimal cardOpacity;
+
+    @Schema(description = "资料卡片模糊度")
+    private BigDecimal cardBlur;
+
+    @Schema(description = "是否启用全局字体：0否 1是")
+    private Integer globalFontEnabled;
 }
