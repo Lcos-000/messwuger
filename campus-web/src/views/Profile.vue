@@ -75,64 +75,40 @@
       <transition name="gallery-collapse">
         <div v-if="galleryExpanded" class="gallery-panel" @click.stop>
           <div class="gallery-settings">
-            <div class="setting-block">
+            <div
+              v-for="setting in displaySettings"
+              :key="setting.key"
+              class="setting-block"
+              :class="{ 'font-setting-block': setting.type === 'toggle' }"
+            >
               <div class="setting-head">
                 <div class="setting-title-row">
-                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_TITLE }}</span>
+                  <span class="setting-title">{{ setting.title }}</span>
                   <span class="help-icon-wrap">
                     <span class="help-icon" aria-label="提示">i</span>
-                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_OPACITY_HELP_TEXT }}</span>
+                    <span class="help-tooltip">{{ setting.helpText }}</span>
                   </span>
                 </div>
-                <span class="setting-value">{{ Math.round(cardOpacityControl * 100) }}%</span>
-              </div>
-              <input
-                v-model.number="cardOpacityControl"
-                class="setting-slider"
-                type="range"
-                :min="PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN"
-                :max="PROFILE_VIEW_CONFIG.CARD_OPACITY_MAX"
-                :step="PROFILE_VIEW_CONFIG.CARD_OPACITY_STEP"
-              />
-            </div>
-            <div class="setting-block">
-              <div class="setting-head">
-                <div class="setting-title-row">
-                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.CARD_BLUR_TITLE }}</span>
-                  <span class="help-icon-wrap">
-                    <span class="help-icon" aria-label="提示">i</span>
-                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.CARD_BLUR_HELP_TEXT }}</span>
-                  </span>
-                </div>
-                <span class="setting-value">{{ cardBlurControl }}px</span>
-              </div>
-              <input
-                v-model.number="cardBlurControl"
-                class="setting-slider"
-                type="range"
-                :min="PROFILE_VIEW_CONFIG.CARD_BLUR_MIN"
-                :max="PROFILE_VIEW_CONFIG.CARD_BLUR_MAX"
-                :step="PROFILE_VIEW_CONFIG.CARD_BLUR_STEP"
-              />
-            </div>
-            <div class="setting-block font-setting-block">
-              <div class="setting-head">
-                <div class="setting-title-row">
-                  <span class="setting-title">{{ PROFILE_VIEW_CONFIG.GLOBAL_FONT_ENABLED_TITLE }}</span>
-                  <span class="help-icon-wrap">
-                    <span class="help-icon" aria-label="提示">i</span>
-                    <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.GLOBAL_FONT_ENABLED_HELP_TEXT }}</span>
-                  </span>
-                </div>
-                <label class="toggle-switch">
+                <span v-if="setting.type === 'range'" class="setting-value">{{ formatDisplaySettingValue(setting) }}</span>
+                <label v-else class="toggle-switch">
                   <input
                     type="checkbox"
-                    v-model="globalFontEnabled"
-                    @change="saveGlobalFont"
+                    :checked="setting.currentValue"
+                    @change="updateDisplaySetting(setting.key, $event.target.checked)"
                   />
                   <span class="toggle-slider"></span>
                 </label>
               </div>
+              <input
+                v-if="setting.type === 'range'"
+                :value="setting.currentValue"
+                class="setting-slider"
+                type="range"
+                :min="setting.min"
+                :max="setting.max"
+                :step="setting.step"
+                @input="updateDisplaySetting(setting.key, $event.target.value)"
+              />
             </div>
           </div>
 
@@ -245,6 +221,41 @@ const galleryGroups = computed(() => {
     options: profileDefaultOptions.value[group.optionField] || []
   })).filter((group) => group.options.length)
 })
+
+const displaySettings = computed(() => {
+  return PROFILE_VIEW_CONFIG.DISPLAY_SETTINGS.map((setting) => {
+    if (setting.key === 'cardOpacity') {
+      return { ...setting, currentValue: cardOpacityControl.value }
+    }
+    if (setting.key === 'cardBlur') {
+      return { ...setting, currentValue: cardBlurControl.value }
+    }
+    return { ...setting, currentValue: globalFontEnabled.value }
+  })
+})
+
+const updateDisplaySetting = (key, value) => {
+  if (key === 'cardOpacity') {
+    cardOpacityControl.value = Number(value)
+    return
+  }
+  if (key === 'cardBlur') {
+    cardBlurControl.value = Number(value)
+    return
+  }
+  globalFontEnabled.value = Boolean(value)
+  saveGlobalFont()
+}
+
+const formatDisplaySettingValue = (setting) => {
+  if (setting.format === 'percent') {
+    return `${Math.round(Number(setting.currentValue) * 100)}%`
+  }
+  if (setting.format === 'pixel') {
+    return `${Number(setting.currentValue)}px`
+  }
+  return String(setting.currentValue)
+}
 let statusTimer = null
 let scrollContainer = null
 let cardOpacitySaveTimer = null
@@ -450,6 +461,14 @@ onUnmounted(() => {
   if (cardOpacitySaveTimer) {
     clearTimeout(cardOpacitySaveTimer)
     cardOpacitySaveTimer = null
+  }
+  if (cardBlurSaveTimer) {
+    clearTimeout(cardBlurSaveTimer)
+    cardBlurSaveTimer = null
+  }
+  if (globalFontSaveTimer) {
+    clearTimeout(globalFontSaveTimer)
+    globalFontSaveTimer = null
   }
 })
 
@@ -1191,6 +1210,7 @@ input:checked + .toggle-slider:before {
   font-style: normal;
 }
 </style>
+
 
 
 

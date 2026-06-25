@@ -11,24 +11,12 @@ export const PROFILE_VIEW_CONFIG = {
   CARD_OPACITY_SAVE_DEBOUNCE: 350,
   CARD_OPACITY_MAX: 1,
   CARD_OPACITY_STEP: 0.01,
-  CARD_OPACITY_TITLE: '资料卡透明度',
-  CARD_OPACITY_HELP_TEXT: '拖动滑块可以调整资料卡的透明度。',
 
   CARD_BLUR: 14,
   CARD_BLUR_MIN: 0,
   CARD_BLUR_MAX: 30,
   CARD_BLUR_DEFAULT: 30,
   CARD_BLUR_STEP: 1,
-  CARD_BLUR_TITLE: '资料卡模糊度',
-  CARD_BLUR_HELP_TEXT: '拖动滑块可以调整资料卡背景的模糊程度。',
-
-  GLOBAL_FONT_ENABLED_TITLE: '全局字体',
-  GLOBAL_FONT_ENABLED_HELP_TEXT: '开启后页面将使用自定义全局字体，关闭则使用系统默认字体。',
-  FONT_FACE: {
-    family: 'SourceHanSerifCN',
-    path: '/fonts/SourceHanSerifCN-Regular.ttf',
-    format: 'truetype'
-  },
 
   PAGE_WALLPAPER_OPACITY: 0.4,
   PAGE_WALLPAPER_MASK_ALPHA: 0.04,
@@ -36,8 +24,43 @@ export const PROFILE_VIEW_CONFIG = {
   GALLERY_TOGGLE_DURATION: 240,
   GALLERY_MAX_HEIGHT: 720,
   GALLERY_TITLE: '个性化设置',
-  GALLERY_HELP_TEXT: '点击此卡片可展开选择默认头像、背景和壁纸，后续自定义上传也会收纳在这里。',
+  GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置、默认头像、背景和壁纸，后续自定义上传也会收纳在这里。',
   OPTION_GROUP_HINT: '点击即可切换',
+
+  DISPLAY_SETTINGS: [
+    {
+      key: 'cardOpacity',
+      type: 'range',
+      title: '资料卡透明度',
+      helpText: '拖动滑块可以调整资料卡的透明度。',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      format: 'percent'
+    },
+    {
+      key: 'cardBlur',
+      type: 'range',
+      title: '资料卡模糊度',
+      helpText: '拖动滑块可以调整资料卡背景的模糊程度。',
+      min: 0,
+      max: 30,
+      step: 1,
+      format: 'pixel'
+    },
+    {
+      key: 'globalFontEnabled',
+      type: 'toggle',
+      title: '全局字体',
+      helpText: '开启后页面将使用自定义全局字体，关闭则使用系统默认字体。'
+    }
+  ],
+
+  FONT_FACE: {
+    family: 'SourceHanSerifCN',
+    path: '/fonts/SourceHanSerifCN-Regular.ttf',
+    format: 'truetype'
+  },
 
   AVATAR_THUMB_SIZE: 64,
   COVER_THUMB_RATIO: '16 / 10',
