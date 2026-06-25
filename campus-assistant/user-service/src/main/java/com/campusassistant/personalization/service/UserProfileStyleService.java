@@ -1,6 +1,7 @@
 package com.campusassistant.personalization.service;
 
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
+import com.campusassistant.personalization.pojo.vo.ProfileDefaultOptionsVO;
 import com.campusassistant.personalization.pojo.vo.UserProfileStyleVO;
 
 public interface UserProfileStyleService {
@@ -13,4 +14,7 @@ public interface UserProfileStyleService {
 
     // 更新用户个性化样式
     void updateByStudentId(UserProfileStyleUpdateDTO dto);
+
+    // 获取用户个性化样式默认选项
+    ProfileDefaultOptionsVO getDefaultOptions();
 }

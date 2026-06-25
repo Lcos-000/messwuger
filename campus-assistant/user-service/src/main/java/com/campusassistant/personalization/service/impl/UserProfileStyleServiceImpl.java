@@ -2,6 +2,7 @@ package com.campusassistant.personalization.service.impl;
 
 import com.campusassistant.personalization.pojo.UserProfileStyleEntity;
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
+import com.campusassistant.personalization.pojo.vo.ProfileDefaultOptionsVO;
 import com.campusassistant.personalization.pojo.vo.UserProfileStyleVO;
 import com.campusassistant.personalization.service.UserProfileStyleService;
 import com.campusassistant.personalization.service.impl.support.ProfileReadSupport;
@@ -38,5 +39,9 @@ public class UserProfileStyleServiceImpl implements UserProfileStyleService {
         profileWriteSupport.updateByStudentId(updateDTO);
     }
 
+    @Override
+    public ProfileDefaultOptionsVO getDefaultOptions() {
+        return profileReadSupport.getDefaultOptions();
+    }
 
 }
