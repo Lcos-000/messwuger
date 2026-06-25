@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusassistant.common.UserContext;
-import com.campusassistant.converter.CourseDtoConverter;
-import com.campusassistant.converter.CourseVoConverter;
+import com.campusassistant.converter.CourseDtoConvertor;
+import com.campusassistant.converter.CourseVoConvertor;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.mapper.CourseMapper;
 import com.campusassistant.pojo.CourseDTO;
@@ -26,8 +26,8 @@ import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 public class UserCourseServiceImpl implements UserCourseService {
 
     private final CourseMapper courseMapper;
-    private final CourseDtoConverter courseDtoConverter;
-    private final CourseVoConverter courseVoConverter;
+    private final CourseDtoConvertor courseDtoConverter;
+    private final CourseVoConvertor courseVoConverter;
 
     @Override
     public void saveOrUpdateSchedule(CourseDTO courseDTO) {

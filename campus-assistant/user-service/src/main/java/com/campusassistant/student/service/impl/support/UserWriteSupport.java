@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.student.common.PunchStatusEnum;
-import com.campusassistant.utils.converter.UserDtoConverter;
+import com.campusassistant.utils.converter.UserDtoConvertor;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.pojo.dto.UserDTO;
@@ -27,14 +27,14 @@ public class UserWriteSupport {
     private final UserMapper userMapper;
     private final UserReadSupport userReadSupport;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final UserDtoConverter UserDtoConverter;
+    private final UserDtoConvertor UserDtoConvertor;
 
     @Transactional
     public void addUser(UserDTO UserDTO) {
         if (userReadSupport.findEntityByStudentId(UserDTO.getStudentId()) != null) {
             throw new BusinessException(USER_ALREADY_EXISTS);
         }
-        UserEntity userEntity = UserDtoConverter.toSource(UserDTO);
+        UserEntity userEntity = UserDtoConvertor.toSource(UserDTO);
         String hash = passwordEncoder.encode(UserDTO.getPassword());
         userEntity.setPassword(hash);
         userEntity.setSyncStatus(NOT_SYNCED.getCode());
