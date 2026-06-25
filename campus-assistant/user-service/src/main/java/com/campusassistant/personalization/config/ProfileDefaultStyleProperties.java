@@ -18,4 +18,8 @@ public class ProfileDefaultStyleProperties {
     private String wallpaper;
 
     private BigDecimal cardOpacity;
+
+    private BigDecimal cardBlur;
+
+    private Integer globalFontEnabled;
 }
