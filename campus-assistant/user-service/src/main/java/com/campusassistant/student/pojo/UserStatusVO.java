@@ -12,4 +12,6 @@ public class UserStatusVO {
     private Integer syncStatus;
     @Schema(description = "打卡状态：0-未打卡 1-打卡中 2-打卡成功 3-打卡失败")
     private Integer punchStatus;
+    @Schema(description = "是否开启自动打卡：0-关闭 1-开启")
+    private Integer autoPunchEnabled;
 }

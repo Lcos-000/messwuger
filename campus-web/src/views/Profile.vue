@@ -140,14 +140,27 @@
 
     <!-- 操作区 -->
     <div class="section-card action-card">
-      <!-- 测试阶段未开启开关功能，当前全部默认自动打卡 -->
-      <button class="action-row" @click="handleAutoPunch">
-        <div class="action-icon" :style="PROFILE_VIEW_CONFIG.ACTIONS.autoPunch.iconStyle">
+      <div
+        v-for="toggle in actionToggles"
+        :key="toggle.key"
+        class="action-row auto-punch-row"
+      >
+        <div class="action-icon" :style="toggle.iconStyle">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <span class="action-label">{{ PROFILE_VIEW_CONFIG.ACTIONS.autoPunch.label }}</span>
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
+        <div class="action-main">
+          <span class="action-label">{{ toggle.label }}</span>
+          <span class="action-subtitle">{{ toggle.description }}</span>
+        </div>
+        <label class="toggle-switch" @click.stop>
+          <input
+            type="checkbox"
+            :checked="toggle.currentValue"
+            @change="updateActionToggle(toggle.key, $event.target.checked)"
+          />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
     </div>
 
     <div class="section-card action-card danger-card">
@@ -175,7 +188,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { logout, deleteAccount, getPersonalInfo, getUserStatus, getProfileStyle, updateProfileStyle, getProfileDefaultOptions } from '@/api/index'
+import { logout, deleteAccount, getPersonalInfo, getUserStatus, getProfileStyle, updateProfileStyle, getProfileDefaultOptions, updateAutoPunch } from '@/api/index'
 import {
   APP_CONFIG,
   HTTP_STATUS,
@@ -198,6 +211,7 @@ const userStatus = ref({})
 const tokenInfo = ref(null)
 const userInfoLoaded = ref(false)
 const deletingAccount = ref(false)
+const autoPunchEnabled = ref(true)
 const scrollTop = ref(0)
 const profileStyle = ref({
   avatar: '',
@@ -232,6 +246,14 @@ const displaySettings = computed(() => {
     }
     return { ...setting, currentValue: globalFontEnabled.value }
   })
+})
+
+const actionToggles = computed(() => {
+  return PROFILE_VIEW_CONFIG.ACTION_TOGGLES.map((toggle) => ({
+    ...toggle,
+    currentValue: autoPunchEnabled.value,
+    description: autoPunchEnabled.value ? toggle.enabledText : toggle.disabledText
+  }))
 })
 
 const updateDisplaySetting = (key, value) => {
@@ -308,6 +330,9 @@ const fetchUserStatus = async () => {
     const res = await getUserStatus()
     if (res.code === HTTP_STATUS.SUCCESS && res.data) {
       userStatus.value = res.data
+      if (res.data.autoPunchEnabled !== null && res.data.autoPunchEnabled !== undefined) {
+        autoPunchEnabled.value = Number(res.data.autoPunchEnabled) === 1
+      }
       
       // 如果处于进行中状态，开启轮询
       if (isUserStatusProcessing(userStatus.value)) {
@@ -627,9 +652,25 @@ const punchIconStyle = computed(() => {
   return STATUS_ICON_STYLE.DEFAULT
 })
 
-// 测试阶段未开启开关功能，当前全部默认自动打卡
-const handleAutoPunch = () => {
-  alert(APP_CONFIG.AUTO_PUNCH_TIP)
+const updateAutoPunchEnabled = async (enabled) => {
+  const previousValue = autoPunchEnabled.value
+  autoPunchEnabled.value = enabled
+  try {
+    await updateAutoPunch({ autoPunchEnabled: enabled ? 1 : 0 })
+    userStatus.value = {
+      ...userStatus.value,
+      autoPunchEnabled: enabled ? 1 : 0
+    }
+  } catch (error) {
+    autoPunchEnabled.value = previousValue
+    console.error('更新自动打卡开关失败', error)
+  }
+}
+
+const updateActionToggle = async (key, value) => {
+  if (key === 'autoPunchEnabled') {
+    await updateAutoPunchEnabled(value)
+  }
 }
 
 const clearAuthAndGoLogin = () => {
@@ -1150,6 +1191,21 @@ input:checked + .toggle-slider:before {
   text-align: left;
   transition: background .15s;
 }
+.auto-punch-row {
+  justify-content: space-between;
+}
+.action-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.action-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
 .action-row:active { background: #f8faff; }
 .action-row:disabled {
   opacity: 0.68;
@@ -1210,6 +1266,7 @@ input:checked + .toggle-slider:before {
   font-style: normal;
 }
 </style>
+
 
 
 

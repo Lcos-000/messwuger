@@ -36,5 +36,10 @@ public class UserEntity extends BaseEntity {
      */
     private Integer punchStatus;
 
-
+    /**
+     * 是否开启自动打卡
+     * 0-关闭
+     * 1-开启
+     */
+    private Integer autoPunchEnabled;
 }

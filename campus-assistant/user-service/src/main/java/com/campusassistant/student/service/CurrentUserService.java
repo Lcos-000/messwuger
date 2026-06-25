@@ -7,9 +7,11 @@ public interface CurrentUserService {
 
     void self_unsubscribe();
 
-    UserStatusVO getStatusByStudentId(String studentId);
+    UserStatusVO getStatusByStudentId();
 
     void refreshData();
 
-    PersonalInfoVO getPersonalByStudentId(String studentId);
+    PersonalInfoVO getPersonalByStudentId();
+
+    void updateAutoPunchEnabled(Integer enabled);
 }

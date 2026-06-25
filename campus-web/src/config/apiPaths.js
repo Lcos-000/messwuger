@@ -8,7 +8,8 @@ export const API_PATHS = {
   USER: {
     STATUS: '/user/status',
     PERSONAL: '/user/personal',
-    DELETE: '/user/delete'
+    DELETE: '/user/delete',
+    AUTO_PUNCH: '/user/auto-punch'
   },
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',
