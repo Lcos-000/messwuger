@@ -1,6 +1,6 @@
 # 校园助手系统
 
-本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页与自动打卡开关等能力。
+本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源与自动打卡开关等能力。
 
 ---
 
@@ -9,11 +9,11 @@
 | 模块 | 技术栈 | 职责 |
 |------|--------|------|
 | `campus-assistant/campusswu-gateway` | Spring Cloud Gateway | 统一入口、JWT 鉴权、路由转发 |
-| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置 |
+| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置、自定义资源管理 |
 | `campus-assistant/course-service` | Spring Boot 3 + MyBatis Plus | 课表存储与查询 |
 | `campus-spider-service` | Go 1.24 + Python 3 | 教务系统登录、数据抓取、打卡任务调度 |
 | `campus-web` | Vue 3 + Vite + Axios | 登录页、课表页、个人主页、个性化设置 |
-| 基础设施 | MySQL、Redis、Nacos | 持久化、缓存、注册发现与配置中心 |
+| 基础设施 | MySQL、Redis、Nacos、OSS | 持久化、缓存、注册发现与配置中心、图片对象存储 |
 
 ---
 
@@ -24,23 +24,17 @@
 - 用户注册、登录、刷新同步、注销账号
 - 课表数据抓取与查询
 - 用户同步状态与打卡状态查询
-- 用户个性化主页配置保存
 - 自动打卡开关持久化
+- 用户个性化主页配置保存
+- 用户自定义头像、顶部背景、墙纸上传与地址持久化
+- 阿里云 OSS 上传接入
 
 ### 前端侧
 
-- 登录页与课表页
-- 个人主页资料卡展示
-- 个性化设置面板：
-  - 资料卡透明度
-  - 资料卡模糊度
-  - 墙纸蒙版强度
-  - 全局字体开关
-  - 默认头像选择
-  - 默认顶部背景选择
-  - 默认壁纸选择
-- 自动打卡开关
-- 前端统一处理响应体 `code = 401` 的登录失效场景
+- 登录页、课表页、个人主页
+- 个性化设置：资料卡透明度 / 模糊度 / 墙纸蒙版 / 全局字体
+- 默认图片切换与自定义图片上传、裁剪、回显
+- 自动打卡开关与登录失效统一处理
 
 ---
 
@@ -74,6 +68,7 @@
 | MapStruct | 1.5.2.Final |
 | Lombok | 1.18.30 |
 | SkyWalking APM Toolkit | 9.0.0 |
+| Aliyun OSS SDK | 3.17.4 |
 
 ### Go 主要依赖
 
@@ -88,16 +83,7 @@
 |------|---------|
 | `requests` | `pip install requests` |
 | `urllib3` | `pip install urllib3` |
-
-### 前端依赖
-
-前端依赖由 `campus-web/package.json` 管理，核心依赖包括：
-
-- `vue`
-- `vue-router`
-- `axios`
-- `vite`
-- `@vitejs/plugin-vue`
+| `pycryptodome` | `pip install pycryptodome` |
 
 ---
 
@@ -236,6 +222,17 @@ CREATE TABLE IF NOT EXISTS user_profile_style (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户个性化配置表';
+
+CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+    custom_avatar VARCHAR(255) DEFAULT NULL COMMENT '自定义头像 OSS 地址',
+    custom_background VARCHAR(255) DEFAULT NULL COMMENT '自定义顶部背景 OSS 地址',
+    custom_wallpaper VARCHAR(255) DEFAULT NULL COMMENT '自定义墙纸 OSS 地址',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_student_id (student_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
 ```
 
 ### 旧环境升级 SQL（已有表时执行）
@@ -248,6 +245,17 @@ ALTER TABLE user_profile_style
   ADD COLUMN card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
   ADD COLUMN wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
   ADD COLUMN global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启';
+
+CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  student_id VARCHAR(32) NOT NULL COMMENT '学号',
+  custom_avatar VARCHAR(255) DEFAULT NULL COMMENT '自定义头像 OSS 地址',
+  custom_background VARCHAR(255) DEFAULT NULL COMMENT '自定义顶部背景 OSS 地址',
+  custom_wallpaper VARCHAR(255) DEFAULT NULL COMMENT '自定义墙纸 OSS 地址',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_student_id (student_id)
+);
 ```
 
 > 如果列已存在，请根据数据库实际状态手动跳过对应 `ALTER TABLE` 语句。
@@ -307,6 +315,20 @@ logging:
     cloudstructuretemplate: info
 ```
 
+### `application-aliyun.yml`（建议外置）
+
+```yaml
+aliyun:
+  oss:
+    endpoint: https://oss-cn-beijing.aliyuncs.com
+    access-key-id: <your-access-key-id>
+    access-key-secret: <your-access-key-secret>
+    bucket-name: <your-bucket-name>
+    url-prefix: https://<your-bucket-name>.oss-cn-beijing.aliyuncs.com
+```
+
+> 建议不要把生产环境 OSS 凭据直接提交到仓库，优先使用外部配置或配置中心注入。
+
 ---
 
 ## 编译项目
@@ -315,7 +337,7 @@ logging:
 
 ```powershell
 cd campus-spider-service\scripts
-pip install requests urllib3
+pip install requests urllib3 pycryptodome
 ```
 
 ### 2. 编译 Go 爬虫服务
@@ -360,53 +382,42 @@ npm run build
 
 ---
 
-## 前端相关说明
+## 接口与资源说明
 
 ### 本地访问
 
 - 前端开发地址：`http://localhost:5173`
 - User-Service 文档地址：`http://localhost:8000/doc.html`
 
-### 当前前端接口约定
-
-前端通过 `campus-web/src/config/apiPaths.js` 管理接口路径，当前新增并已接入的接口包括：
+### 个性化配置接口
 
 - `GET /personalization/get-profile`
 - `PUT /personalization/update-profile`
 - `GET /personalization/get-default-options`
+- `GET /personalization/get-custom-assets`
+- `POST /personalization/upload-custom-asset`
 - `PUT /user/auto-punch`
 
-### 个性化配置字段
+### 关键字段约定
 
-`GET /personalization/get-profile` 当前前端依赖以下字段：
+`GET /personalization/get-profile` 依赖字段：`avatar`、`background`、`wallpaper`、`cardOpacity`、`cardBlur`、`wallpaperMask`、`globalFontEnabled`。
 
-```json
-{
-  "avatar": "/avatar/avatar_default_1.jpg",
-  "background": "/background/background_default_1.jpg",
-  "wallpaper": "/wallpaper/wallpaper_default_1.jpg",
-  "cardOpacity": 1.00,
-  "cardBlur": 14,
-  "wallpaperMask": 1.00,
-  "globalFontEnabled": 1
-}
-```
+`GET /user/status` / `PUT /user/auto-punch` 依赖字段：`autoPunchEnabled`，当前按 `0/1` 数值与后端对齐。
 
-### 自动打卡字段
+`GET /personalization/get-custom-assets` 建议返回字段：`customAvatar`、`customBackground`、`customWallpaper`。若为空可返回 `null`。
 
-`GET /user/status` / `PUT /user/auto-punch` 当前前端依赖：
+`POST /personalization/upload-custom-asset` 当前使用 `multipart/form-data`，字段包括：
 
-```json
-{
-  "autoPunchEnabled": 1
-}
-```
+- `type`：`avatar` / `background` / `wallpaper`
+- `file`：上传后的裁剪图片文件
 
-> 前端当前按 `0/1` 数值与后端对齐，而不是布尔值。
+### OSS 配置
+
+当前 `user-service` 已接入阿里云 OSS，配置前缀为 `aliyun.oss`，至少包括：`endpoint`、`access-key-id`、`access-key-secret`、`bucket-name`、`url-prefix`。
+
+> 当前实现只负责上传新对象并更新数据库记录，不会自动删除历史 OSS 图片。测试环境可手动清理，生产环境建议增加旧对象删除逻辑或配置生命周期规则。
 
 ### 字体资源
-
-前端当前使用的全局字体文件为：
 
 - `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf`
 
@@ -459,15 +470,14 @@ netstat -ano | findstr ":5173 "
 - `GET /user/status` 是否返回 `autoPunchEnabled`
 - 前后端是否统一使用 `0/1` 而非 `true/false`
 
-### Q4：默认头像、背景或壁纸不显示
+### Q4：自定义图片已上传到 OSS，但页面显示为空白
 
-检查后端静态资源与默认配置，推荐至少存在：
+优先检查：
 
-```text
-src/main/resources/static/avatar/avatar_default_1.jpg
-src/main/resources/static/background/background_default_1.jpg
-src/main/resources/static/wallpaper/wallpaper_default_1.jpg
-```
+- `GET /personalization/get-custom-assets` 是否返回了当前前端约定字段
+- 返回的 OSS URL 是否可直接在浏览器打开
+- `user_profile_custom_asset` 表中是否已正确落库
+- OSS Bucket/CORS/读权限是否允许浏览器访问
 
 ### Q5：Go 爬虫服务调用 Python 脚本失败
 

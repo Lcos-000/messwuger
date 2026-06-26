@@ -1,4 +1,4 @@
-export const PROFILE_VIEW_CONFIG = {
+﻿export const PROFILE_VIEW_CONFIG = {
   HERO_EXPANDED_HEIGHT: 320,
   HERO_COLLAPSED_HEIGHT: 160,
   HERO_COLLAPSE_DISTANCE: 180,
@@ -53,7 +53,7 @@ export const PROFILE_VIEW_CONFIG = {
   GALLERY_TOGGLE_DURATION: 240,
   GALLERY_MAX_HEIGHT: 720,
   GALLERY_TITLE: '个性化设置',
-  GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置、默认头像、背景和壁纸，后续自定义上传也会收纳在这里。',
+  GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置，以及头像、顶部背景和墙纸。你可以直接上传自定义图片，也可以继续使用系统预置图片。',
   OPTION_GROUP_HINT: '点击即可切换',
 
   DISPLAY_SETTINGS: [
@@ -118,28 +118,42 @@ export const PROFILE_VIEW_CONFIG = {
   AVATAR_GRID_MIN: 64,
   COVER_GRID_MIN: 96,
   COVER_CARD_MAX_WIDTH: 160,
+  CUSTOM_BADGE_TEXT: '自定义',
+  REPLACE_TILE_TEXT: '点击替换',
+  UPLOAD_TILE_TEXT: '上传图片',
+  UPLOAD_TILE_SUBTEXT: '点击上传',
+  CROP_MODAL_TITLE: '裁剪图片',
+  CROP_MODAL_HINT: '拖动图片调整位置，滑动缩放控制取景范围。',
+  CROP_PRESETS: {
+    avatar: { aspectRatio: 1, maxWidth: 260, maxHeight: 260, outputWidth: 720, outputHeight: 720, label: '头像' },
+    background: { aspectRatio: 16 / 10, maxWidth: 320, maxHeight: 220, outputWidth: 1600, outputHeight: 1000, label: '顶部背景' },
+    wallpaper: { aspectRatio: 9 / 16, maxWidth: 240, maxHeight: 420, outputWidth: 1080, outputHeight: 1920, label: '墙纸' }
+  },
 
   OPTION_GROUPS: [
     {
       key: 'avatar',
-      title: '默认头像',
+      title: '头像',
       optionField: 'avatars',
+      customField: 'customAvatar',
       optionClass: 'avatar-option',
       gridClass: 'avatar-gallery',
       imageAlt: '默认头像'
     },
     {
       key: 'background',
-      title: '默认顶部背景',
+      title: '顶部背景',
       optionField: 'backgrounds',
+      customField: 'customBackground',
       optionClass: 'cover-option',
       gridClass: 'cover-gallery',
       imageAlt: '默认顶部背景'
     },
     {
       key: 'wallpaper',
-      title: '默认壁纸',
+      title: '墙纸',
       optionField: 'wallpapers',
+      customField: 'customWallpaper',
       optionClass: 'cover-option',
       gridClass: 'cover-gallery',
       imageAlt: '默认壁纸'
@@ -208,3 +222,4 @@ export const PROFILE_THEME_CONFIG = {
   END: '#6366f1',
   GLOW: 'rgba(255,255,255,0.16)'
 }
+
