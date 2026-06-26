@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="profile-root" :style="profileRootStyle">
-    <div v-if="profileStyle.wallpaper" class="wallpaper-layer" :style="wallpaperLayerStyle"></div>
+    <div class="wallpaper-layer" :style="wallpaperLayerStyle"></div>
     <div class="profile-shell">
 
     <div class="hero-shell" :style="heroShellStyle">
@@ -163,6 +163,11 @@
         <transition name="gallery-collapse">
           <div v-if="galleryExpanded" class="gallery-panel" @click.stop>
             <div class="gallery-settings">
+              <div class="gallery-settings-actions">
+                <button type="button" class="reset-profile-button" @click="resetProfileToMinimalDefault">
+                  {{ PROFILE_VIEW_CONFIG.RESET_PROFILE_TEXT }}
+                </button>
+              </div>
               <div
                 v-for="setting in displaySettings"
                 :key="setting.key"
@@ -227,32 +232,38 @@
               </div>
 
               <div class="gallery-grid" :class="group.gridClass">
-                <button
+                <div
                   v-for="option in group.options"
                   :key="option.key"
-                  type="button"
-                  class="gallery-option"
-                  :style="option.style || null"
-                  :data-upload-label="option.type === 'upload' && option.previewUrl && group.key !== 'avatar' ? PROFILE_VIEW_CONFIG.REPLACE_TILE_TEXT : ''"
-                  :class="[
-                    group.optionClass,
-                    `gallery-option--${option.type}`,
-                    { active: isGalleryOptionActive(group.key, option), 'gallery-option--custom': option.source === 'custom' }
-                  ]"
-                  @click="handleGalleryOptionClick(group.key, option)"
+                  class="gallery-option-shell"
+                  :class="{ 'gallery-option-shell--with-caption': !!option.caption }"
                 >
-                  <template v-if="option.type === 'upload'">
-                    <span class="upload-option-body">
-                      <span class="upload-option-icon">+</span>
-                      <span v-if="!option.previewUrl" class="upload-option-title">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_TEXT }}</span>
-                      <span v-if="!option.previewUrl" class="upload-option-subtitle">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_SUBTEXT }}</span>
-                    </span>
-                  </template>
-                  <template v-else>
-                    <img :src="option.url" :alt="group.imageAlt" />
-                    <span v-if="option.source === 'custom'" class="custom-badge">{{ PROFILE_VIEW_CONFIG.CUSTOM_BADGE_TEXT }}</span>
-                  </template>
-                </button>
+                  <button
+                    type="button"
+                    class="gallery-option"
+                    :style="option.style || null"
+                    :data-upload-label="option.type === 'upload' && option.previewUrl && group.key !== 'avatar' ? PROFILE_VIEW_CONFIG.REPLACE_TILE_TEXT : ''"
+                    :class="[
+                      group.optionClass,
+                      `gallery-option--${option.type}`,
+                      { active: isGalleryOptionActive(group.key, option), 'gallery-option--custom': option.source === 'custom' }
+                    ]"
+                    @click="handleGalleryOptionClick(group.key, option)"
+                  >
+                    <template v-if="option.type === 'upload'">
+                      <span class="upload-option-body">
+                        <span class="upload-option-icon">+</span>
+                        <span v-if="!option.previewUrl" class="upload-option-title">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_TEXT }}</span>
+                        <span v-if="!option.previewUrl" class="upload-option-subtitle">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_SUBTEXT }}</span>
+                      </span>
+                    </template>
+                    <template v-else>
+                      <img :src="option.url" :alt="group.imageAlt" />
+                      <span v-if="option.source === 'custom'" class="custom-badge">{{ PROFILE_VIEW_CONFIG.CUSTOM_BADGE_TEXT }}</span>
+                    </template>
+                  </button>
+                  <span v-if="option.caption" class="gallery-option-caption">{{ option.caption }}</span>
+                </div>
                 <input
                   :ref="(element) => setFileInputRef(group.key, element)"
                   class="gallery-file-input"
@@ -415,7 +426,9 @@ import {
   updateProfileStyle
 } from '@/api/index'
 import {
+  API_PATHS,
   APP_CONFIG,
+  HTTP_CONFIG,
   HTTP_STATUS,
   POLLING_CONFIG,
   PROFILE_THEME_CONFIG,
@@ -480,6 +493,7 @@ let cardOpacitySaveTimer = null
 let cardBlurSaveTimer = null
 let wallpaperMaskSaveTimer = null
 let globalFontSaveTimer = null
+const profileStyleDirty = ref(false)
 
 const galleryGroups = computed(() => {
   return PROFILE_VIEW_CONFIG.OPTION_GROUPS.map((group) => {
@@ -500,7 +514,8 @@ const galleryGroups = computed(() => {
         key: `${group.key}-default-${index}`,
         type: 'image',
         source: 'default',
-        url: option
+        url: option,
+        caption: group.key === 'avatar' ? (PROFILE_VIEW_CONFIG.AVATAR_CAPTIONS[index] || '') : ''
       })
     })
 
@@ -626,7 +641,10 @@ const heroSectionStyle = computed(() => ({
 
 const heroBackgroundStyle = computed(() => {
   if (!profileStyle.value.background) {
-    return {}
+    return {
+      backgroundImage: 'none',
+      backgroundColor: PROFILE_VIEW_CONFIG.EMPTY_HERO_BG
+    }
   }
 
   return {
@@ -638,11 +656,12 @@ const heroBackgroundStyle = computed(() => {
 })
 
 const wallpaperLayerStyle = computed(() => ({
-  backgroundImage: `url(${profileStyle.value.wallpaper})`,
+  backgroundImage: profileStyle.value.wallpaper ? `url(${profileStyle.value.wallpaper})` : 'none',
+  backgroundColor: profileStyle.value.wallpaper ? 'transparent' : PROFILE_VIEW_CONFIG.EMPTY_WALLPAPER_BG,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
-  opacity: 1 - wallpaperMaskControl.value,
+  opacity: profileStyle.value.wallpaper ? 1 - wallpaperMaskControl.value : 1,
   transform: `scale(${wallpaperScale.value})`
 }))
 
@@ -751,6 +770,41 @@ const scheduleProfileStyleSave = (timerKey) => {
   if (timerKey === 'font') {
     globalFontSaveTimer = timer
   }
+}
+
+const buildProfileStylePayload = () => ({
+  cardOpacity: Number(cardOpacityControl.value.toFixed(2)),
+  cardBlur: Number(cardBlurControl.value),
+  wallpaperMask: Number(wallpaperMaskControl.value.toFixed(2)),
+  globalFontEnabled: globalFontEnabled.value ? 1 : 0
+})
+
+const flushProfileStyleOnPageHide = () => {
+  if (!profileStyleDirty.value) return
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+  if (!token) return
+
+  const payload = JSON.stringify(buildProfileStylePayload())
+  const requestUrl = `${HTTP_CONFIG.BASE_URL}${API_PATHS.PERSONALIZATION.UPDATE_PROFILE}`
+
+  try {
+    fetch(requestUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        [HTTP_CONFIG.AUTH_HEADER]: `${HTTP_CONFIG.AUTH_PREFIX} ${token}`
+      },
+      body: payload,
+      keepalive: true
+    })
+    profileStyleDirty.value = false
+  } catch (error) {
+    console.error('页面退出时保存个性化设置失败', error)
+  }
+}
+
+const handlePageHide = () => {
+  flushProfileStyleOnPageHide()
 }
 
 const clearSaveTimers = () => {
@@ -1003,6 +1057,53 @@ const persistProfileStyle = async (payload) => {
     await updateProfileStyle(payload)
   } catch (error) {
     console.error('更新个性化样式失败', error)
+  }
+}
+
+const resetProfileToMinimalDefault = async () => {
+  if (!confirm(PROFILE_VIEW_CONFIG.RESET_PROFILE_CONFIRM)) return
+
+  const previousProfileStyle = { ...profileStyle.value }
+  const previousCardOpacity = cardOpacityControl.value
+  const previousCardBlur = cardBlurControl.value
+  const previousWallpaperMask = wallpaperMaskControl.value
+  const previousGlobalFontEnabled = globalFontEnabled.value
+
+  profileStyle.value = {
+    avatar: '',
+    background: '',
+    wallpaper: ''
+  }
+  cardOpacityControl.value = PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT
+  cardBlurControl.value = PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT
+  wallpaperMaskControl.value = PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
+  globalFontEnabled.value = true
+  saveWallpaperPreference('')
+  saveCardOpacityPreference(cardOpacityControl.value)
+  saveCardBlurPreference(cardBlurControl.value)
+  saveWallpaperMaskPreference(wallpaperMaskControl.value)
+
+  try {
+    await persistProfileStyle({
+      avatar: '',
+      background: '',
+      wallpaper: '',
+      cardOpacity: Number(cardOpacityControl.value.toFixed(2)),
+      cardBlur: Number(cardBlurControl.value),
+      wallpaperMask: Number(wallpaperMaskControl.value.toFixed(2)),
+      globalFontEnabled: 1
+    })
+  } catch (error) {
+    profileStyle.value = previousProfileStyle
+    cardOpacityControl.value = previousCardOpacity
+    cardBlurControl.value = previousCardBlur
+    wallpaperMaskControl.value = previousWallpaperMask
+    globalFontEnabled.value = previousGlobalFontEnabled
+    saveWallpaperPreference(previousProfileStyle.wallpaper)
+    saveCardOpacityPreference(cardOpacityControl.value)
+    saveCardBlurPreference(cardBlurControl.value)
+    saveWallpaperMaskPreference(wallpaperMaskControl.value)
+    alert('重置失败，请稍后重试')
   }
 }
 
@@ -1583,6 +1684,28 @@ onUnmounted(() => {
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
+.gallery-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reset-profile-button {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+  color: #475569;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.reset-profile-button:hover {
+  color: #0f172a;
+  border-color: rgba(79, 134, 247, 0.28);
+  background: #ffffff;
+}
+
 .gallery-settings .setting-block {
   gap: 12px;
 }
@@ -1758,8 +1881,19 @@ onUnmounted(() => {
   align-items: start;
 }
 
+.gallery-option-shell {
+  width: 100%;
+}
+
+.gallery-option-shell--with-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 .avatar-gallery {
-  grid-template-columns: repeat(auto-fit, minmax(64px, 64px));
+  grid-template-columns: repeat(auto-fit, minmax(64px, 82px));
   justify-content: start;
 }
 
@@ -1929,7 +2063,10 @@ onUnmounted(() => {
 
 .avatar-option.gallery-option--upload .upload-option-body {
   border-radius: 50%;
-  min-height: 58px;
+  min-height: 64px;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
   padding: 2px;
 }
 
@@ -1942,6 +2079,18 @@ onUnmounted(() => {
 .avatar-option .custom-badge {
   top: -2px;
   right: -6px;
+}
+
+.gallery-option-caption {
+  display: block;
+  width: 100%;
+  padding: 0 1px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .avatar-option img {
@@ -2131,6 +2280,11 @@ input:checked + .toggle-slider::before {
   font-style: normal;
 }
 </style>
+
+
+
+
+
 
 
 

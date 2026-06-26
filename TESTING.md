@@ -1,4 +1,4 @@
-# 校园助手系统测试指南
+﻿# 校园助手系统测试指南
 
 本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源和自动打卡能力。
 
@@ -239,10 +239,20 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/update-profile" `
   -ContentType "application/json"
 ```
 
+若要验证“极简默认资料”回退逻辑，可额外测试：
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/update-profile" `
+  -Method PUT `
+  -Headers $headers `
+  -Body '{"avatar":"","background":"","wallpaper":""}' `
+  -ContentType "application/json"
+```
+
 **期望结果**：
 
 - `code = 200`
-- 再次调用 `get-profile` 时，返回值发生变化
+- 再次调用 `get-profile` 时，返回值发生变化；若传空字符串，前端应回退到极简默认显示
 
 ### 3. 获取默认图库
 
@@ -368,14 +378,15 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 
 展开“个性化设置”，检查：
 
-- 资料卡透明度滑块可拖动
-- 资料卡模糊度滑块可拖动
-- 墙纸蒙版强度滑块可拖动
-- 全局字体开关可切换
-- 默认头像可切换
+- 资料卡透明度滑块可拖动，刷新后保持
+- 资料卡模糊度滑块可拖动，切页后返回仍保持
+- 墙纸蒙版强度滑块可拖动，且课表页与个人页表现一致
+- 全局字体开关可切换，刷新后保持
+- 默认头像可切换，且下方说明文案与头像一一对应
 - 默认顶部背景可切换
 - 默认壁纸可切换
 - 自定义头像 / 顶部背景 / 墙纸可上传并回显
+- 点击“重置为极简默认”后，头像/背景/墙纸应回退到前端兜底样式
 
 ### 3. 显示效果检查
 
@@ -434,3 +445,4 @@ Authorization: Bearer <token>
 ### 3. 401 处理
 
 前端不仅处理 HTTP 401，也处理响应体 `code = 401`。这点在联调时需要特别注意。
+

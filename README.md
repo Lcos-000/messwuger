@@ -1,4 +1,4 @@
-# 校园助手系统
+﻿# 校园助手系统
 
 本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源与自动打卡开关等能力。
 
@@ -33,7 +33,8 @@
 
 - 登录页、课表页、个人主页
 - 个性化设置：资料卡透明度 / 模糊度 / 墙纸蒙版 / 全局字体
-- 默认图片切换与自定义图片上传、裁剪、回显
+- 默认图片切换、自定义图片上传裁剪与回显
+- 头像默认图库支持前端配置化说明文案
 - 自动打卡开关与登录失效统一处理
 
 ---
@@ -211,9 +212,9 @@ CREATE TABLE IF NOT EXISTS course_db (
 CREATE TABLE IF NOT EXISTS user_profile_style (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(32) NOT NULL COMMENT '学号',
-    avatar VARCHAR(255) NOT NULL COMMENT '头像地址',
-    background VARCHAR(255) NOT NULL COMMENT '顶部背景地址',
-    wallpaper VARCHAR(255) NOT NULL COMMENT '墙纸地址',
+    avatar VARCHAR(255) DEFAULT NULL COMMENT '头像地址，可为空，空时前端使用姓名首字母兜底',
+    background VARCHAR(255) DEFAULT NULL COMMENT '顶部背景地址，可为空，空时前端使用纯白极简背景',
+    wallpaper VARCHAR(255) DEFAULT NULL COMMENT '墙纸地址，可为空，空时前端使用浅灰极简背景',
     card_opacity DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '资料卡透明度',
     card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
     wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
@@ -245,6 +246,11 @@ ALTER TABLE user_profile_style
   ADD COLUMN card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
   ADD COLUMN wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
   ADD COLUMN global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启';
+
+ALTER TABLE user_profile_style
+  MODIFY avatar VARCHAR(255) DEFAULT NULL,
+  MODIFY background VARCHAR(255) DEFAULT NULL,
+  MODIFY wallpaper VARCHAR(255) DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -415,6 +421,16 @@ npm run build
 
 当前 `user-service` 已接入阿里云 OSS，配置前缀为 `aliyun.oss`，至少包括：`endpoint`、`access-key-id`、`access-key-secret`、`bucket-name`、`url-prefix`。
 
+### 默认资源与极简兜底
+
+当前版本允许 `avatar`、`background`、`wallpaper` 为空；前端会自动兜底为极简默认样式：
+
+- `avatar` 为空：显示姓名首字母头像
+- `background` 为空：显示纯白顶部背景
+- `wallpaper` 为空：显示浅灰墙纸背景
+
+若希望后端初始化时就显式写入“空资源”，建议在 `application-static.yml` 中使用空字符串 `""`，不要只保留空冒号。
+
 > 当前实现只负责上传新对象并更新数据库记录，不会自动删除历史 OSS 图片。测试环境可手动清理，生产环境建议增加旧对象删除逻辑或配置生命周期规则。
 
 ### 字体资源
@@ -498,3 +514,5 @@ $env:PYTHON_PATH="C:\Users\xxx\AppData\Local\Programs\Python\Python312\python.ex
 完整链路测试请查看根目录：
 
 - `E:\develop\idea\collaborative project\messwuger\TESTING.md`
+
+

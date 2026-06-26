@@ -1,4 +1,4 @@
-# 校园助手项目部署手册
+﻿# 校园助手项目部署手册
 
 > 目标：以当前仓库结构为准，在一台 Ubuntu 22.04 服务器上完成中间件、Java 微服务、Go 爬虫服务和前端静态页面部署。
 >
@@ -164,7 +164,7 @@ docker compose -f docker-compose.middleware.yml ps
 
 ## 五、初始化数据库
 
-中间件首次启动会自动执行 `deploy/init.sql`，但当前仓库内的 `init.sql` 只覆盖基础用户 / 个人信息 / 课表表。
+中间件首次启动会自动执行 `deploy/init.sql`。当前仓库内的 `init.sql` 已包含用户、个人信息、课表、自动打卡、个性化配置和自定义图片资源表。
 
 ### 5.1 检查基础表
 
@@ -174,6 +174,8 @@ docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SHOW TABLES;"
 
 ### 5.2 执行当前版本扩展 SQL
 
+若数据库是全新初始化，通常不需要额外执行本节。仅在旧环境升级、或你已跳过 `deploy/init.sql` 时使用以下 SQL。
+
 ```bash
 docker exec -i campus-mysql mysql -uroot -p1234 campus_db <<'EOF'
 ALTER TABLE student_db
@@ -182,9 +184,9 @@ ALTER TABLE student_db
 CREATE TABLE IF NOT EXISTS user_profile_style (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   student_id VARCHAR(32) NOT NULL COMMENT '学号',
-  avatar VARCHAR(255) NOT NULL COMMENT '头像地址',
-  background VARCHAR(255) NOT NULL COMMENT '顶部背景地址',
-  wallpaper VARCHAR(255) NOT NULL COMMENT '墙纸地址',
+  avatar VARCHAR(255) DEFAULT NULL COMMENT '头像地址，可为空，空时前端使用姓名首字母兜底',
+  background VARCHAR(255) DEFAULT NULL COMMENT '顶部背景地址，可为空，空时前端使用纯白极简背景',
+  wallpaper VARCHAR(255) DEFAULT NULL COMMENT '墙纸地址，可为空，空时前端使用浅灰极简背景',
   card_opacity DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '资料卡透明度',
   card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
   wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
@@ -235,6 +237,16 @@ aliyun:
 ### 6.2 关于图片删除
 
 当前实现会在上传新图片后更新数据库中的最新 URL，但**不会自动删除旧 OSS 对象**。
+
+### 6.3 默认资源与极简兜底
+
+当前版本允许 `avatar`、`background`、`wallpaper` 为空，前端会自动使用极简兜底样式。
+
+- `avatar` 为空：显示姓名首字母头像
+- `background` 为空：显示纯白顶部背景
+- `wallpaper` 为空：显示浅灰背景
+
+若你希望服务初始化时明确写入“空资源”，请在后端配置文件中使用空字符串 `""`，不要只写空冒号，否则 Spring 绑定后通常会得到 `null`。
 
 - 测试环境：可以手动删除，或者暂时保留
 - 生产环境：建议增加旧对象删除逻辑，或为 `profile-custom/` 目录配置生命周期规则
@@ -534,3 +546,5 @@ docker exec campus-mysql mysqldump -uroot -p1234 campus_db > /opt/backup/campus_
 ---
 
 按当前文档完成后，项目应能以“后端服务为主、前端静态托管为辅”的方式稳定部署。
+
+

@@ -1,8 +1,8 @@
 profile:
   default-style:
-    avatar: http://localhost:8000/avatar/avatar_default_1.jpg
-    background: http://localhost:8000/background/background_default_1.jpg
-    wallpaper: http://localhost:8000/wallpaper/wallpaper_default_1.jpg
+    avatar: ""
+    background: ""
+    wallpaper: ""
     card-opacity: 1.00
     card-blur: 14.00
     global-font-enabled: 1
