@@ -20,3 +20,4 @@ spring:
       - sentinel
       - aes
       - static
+      - aliyun

@@ -18,6 +18,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static com.campusassistant.student.common.PunchStatusEnum.AUTO_PUNCH_ENABLED;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -89,6 +91,7 @@ public class PunchCardScheduledTask {
             LambdaQueryWrapper<UserEntity> lqw = new LambdaQueryWrapper<>();
 
             lqw.in(UserEntity::getPunchStatus, statusList);
+            lqw.eq(UserEntity::getAutoPunchEnabled, AUTO_PUNCH_ENABLED.getCode());
             lqw.gt(UserEntity::getId, lastId);
             lqw.orderByAsc(UserEntity::getId);
             lqw.last("LIMIT " + BATCH_SIZE);

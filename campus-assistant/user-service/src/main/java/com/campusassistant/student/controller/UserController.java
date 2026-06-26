@@ -4,10 +4,12 @@ import com.campusassistant.common.UserContext;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.student.pojo.UserStatusVO;
 import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
+import com.campusassistant.student.pojo.dto.AutoPunchSwitchDTO;
 import com.campusassistant.student.service.CurrentUserService;
 import com.campusassistant.utils.ThreadLocalUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,16 +25,14 @@ public class UserController {
     @Operation(summary = "获取用户状态")
     @GetMapping("/status")
     public Result<UserStatusVO> getStatus() {
-        UserContext userContext = ThreadLocalUtil.get();
-        UserStatusVO statusVO = currentUserService.getStatusByStudentId(userContext.getStudentId());
+        UserStatusVO statusVO = currentUserService.getStatusByStudentId();
         return Result.success(statusVO);
     }
 
     @Operation(summary = "获取用户个人信息")
     @GetMapping("/personal")
     public Result<PersonalInfoVO> getPersonal() {
-        UserContext userContext = ThreadLocalUtil.get();
-        PersonalInfoVO personalVO = currentUserService.getPersonalByStudentId(userContext.getStudentId());
+        PersonalInfoVO personalVO = currentUserService.getPersonalByStudentId();
         return Result.success(personalVO);
     }
 
@@ -40,6 +40,13 @@ public class UserController {
     @DeleteMapping("/delete")
     public Result<Void> unsubscribe() {
         currentUserService.self_unsubscribe();
+        return Result.success();
+    }
+
+    @Operation(summary = "更新自动打卡开关")
+    @PutMapping("/auto-punch")
+    public Result<Void> updateAutoPunch(@Valid @RequestBody AutoPunchSwitchDTO dto) {
+        currentUserService.updateAutoPunchEnabled(dto.getAutoPunchEnabled());
         return Result.success();
     }
 

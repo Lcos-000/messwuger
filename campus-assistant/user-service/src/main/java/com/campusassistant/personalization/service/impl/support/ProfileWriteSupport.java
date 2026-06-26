@@ -4,7 +4,7 @@ import com.campusassistant.common.UserContext;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.personalization.config.ProfileDefaultStyleProperties;
 import com.campusassistant.personalization.mapper.UserProfileStyleMapper;
-import com.campusassistant.personalization.pojo.UserProfileStyleEntity;
+import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
 import com.campusassistant.utils.ThreadLocalUtil;
 import com.campusassistant.utils.converter.ProfileStyleDefaultConvertor;

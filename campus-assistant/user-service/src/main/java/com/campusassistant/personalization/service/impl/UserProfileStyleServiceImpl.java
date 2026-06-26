@@ -1,6 +1,6 @@
 package com.campusassistant.personalization.service.impl;
 
-import com.campusassistant.personalization.pojo.UserProfileStyleEntity;
+import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
 import com.campusassistant.personalization.pojo.vo.ProfileDefaultOptionsVO;
 import com.campusassistant.personalization.pojo.vo.UserProfileStyleVO;
@@ -10,7 +10,6 @@ import com.campusassistant.personalization.service.impl.support.ProfileWriteSupp
 import com.campusassistant.utils.converter.ProfileStyleVoConvertor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
