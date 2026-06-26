@@ -685,7 +685,7 @@ Java 端在 `PunchCardScheduledTask.java` 中：
 
 ```bash
 docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SELECT student_id, punch_status FROM student_db;"
-docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SELECT student_id, avatar, background, wallpaper, card_opacity FROM user_profile_style;"
+docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SELECT student_id, avatar, background, wallpaper, card_opacity, card_blur, wallpaper_mask, global_font_enabled FROM user_profile_style;"
 ```
 
 | 状态值 | 含义 |

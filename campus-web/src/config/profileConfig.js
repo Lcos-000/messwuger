@@ -60,7 +60,7 @@ export const PROFILE_VIEW_CONFIG = {
     {
       key: 'cardOpacity',
       type: 'range',
-      title: '资料卡透明度',
+      title: '资料卡不透明度',
       helpText: '拖动滑块可以调整资料卡的透明度。',
       min: 0,
       max: 1,
@@ -81,7 +81,7 @@ export const PROFILE_VIEW_CONFIG = {
       key: 'wallpaperMask',
       type: 'range',
       title: '墙纸蒙版强度',
-      helpText: '向右调大后，墙纸会更清淡、更简洁；调到 0 则保持最清晰的原图。',
+      helpText: '向右调大后，墙纸会更清淡、更简洁；调到 0 则保持最清晰的原图。推荐值为 0.5。',
       min: 0,
       max: 1,
       step: 0.01,

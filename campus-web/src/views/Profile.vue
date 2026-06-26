@@ -140,10 +140,22 @@
         <div class="gallery-toggle-main">
           <div class="gallery-title-row">
             <span class="gallery-toggle-title">{{ PROFILE_VIEW_CONFIG.GALLERY_TITLE }}</span>
-            <span class="help-icon-wrap">
-              <span class="help-icon" aria-label="提示">i</span>
+            <button
+              type="button"
+              class="help-icon-wrap"
+              :class="{ active: activeTooltipKey === 'gallery-help' }"
+              aria-label="查看提示"
+              @click.stop="toggleTooltip('gallery-help')"
+            >
+              <span class="help-icon" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"></circle>
+                  <path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.9c0 1.6-1.4 2.3-2.2 2.9-.6.4-.9.8-.9 1.5"></path>
+                  <circle cx="12" cy="17.2" r="0.8" fill="currentColor" stroke="none"></circle>
+                </svg>
+              </span>
               <span class="help-tooltip">{{ PROFILE_VIEW_CONFIG.GALLERY_HELP_TEXT }}</span>
-            </span>
+            </button>
           </div>
         </div>
         <span class="gallery-toggle-arrow" :class="{ expanded: galleryExpanded }">⌄</span>
@@ -160,10 +172,22 @@
                 <div class="setting-head">
                   <div class="setting-title-row">
                     <span class="setting-title">{{ setting.title }}</span>
-                    <span class="help-icon-wrap">
-                      <span class="help-icon" aria-label="提示">i</span>
+                    <button
+                      type="button"
+                      class="help-icon-wrap"
+                      :class="{ active: activeTooltipKey === `setting-${setting.key}` }"
+                      aria-label="查看提示"
+                      @click.stop="toggleTooltip(`setting-${setting.key}`)"
+                    >
+                      <span class="help-icon" aria-hidden="true">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="9"></circle>
+                          <path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.9c0 1.6-1.4 2.3-2.2 2.9-.6.4-.9.8-.9 1.5"></path>
+                          <circle cx="12" cy="17.2" r="0.8" fill="currentColor" stroke="none"></circle>
+                        </svg>
+                      </span>
                       <span class="help-tooltip">{{ setting.helpText }}</span>
-                    </span>
+                    </button>
                   </div>
 
                   <span v-if="setting.type === 'range'" class="setting-value">
@@ -375,6 +399,7 @@ const autoPunchEnabled = ref(true)
 const scrollTop = ref(0)
 const galleryExpanded = ref(false)
 const profileStyleLoaded = ref(false)
+const activeTooltipKey = ref('')
 
 const profileStyle = ref({
   avatar: '',
@@ -399,6 +424,7 @@ let statusTimer = null
 let scrollContainer = null
 let cardOpacitySaveTimer = null
 let cardBlurSaveTimer = null
+let wallpaperMaskSaveTimer = null
 let globalFontSaveTimer = null
 
 const galleryGroups = computed(() => {
@@ -541,7 +567,7 @@ const wallpaperLayerStyle = computed(() => ({
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
-  opacity: PROFILE_VIEW_CONFIG.PAGE_WALLPAPER_OPACITY,
+  opacity: 1 - wallpaperMaskControl.value,
   transform: `scale(${wallpaperScale.value})`
 }))
 
@@ -627,6 +653,9 @@ const scheduleProfileStyleSave = (timerKey) => {
   if (timerKey === 'blur' && cardBlurSaveTimer) {
     clearTimeout(cardBlurSaveTimer)
   }
+  if (timerKey === 'mask' && wallpaperMaskSaveTimer) {
+    clearTimeout(wallpaperMaskSaveTimer)
+  }
   if (timerKey === 'font' && globalFontSaveTimer) {
     clearTimeout(globalFontSaveTimer)
   }
@@ -641,6 +670,9 @@ const scheduleProfileStyleSave = (timerKey) => {
   if (timerKey === 'blur') {
     cardBlurSaveTimer = timer
   }
+  if (timerKey === 'mask') {
+    wallpaperMaskSaveTimer = timer
+  }
   if (timerKey === 'font') {
     globalFontSaveTimer = timer
   }
@@ -654,6 +686,10 @@ const clearSaveTimers = () => {
   if (cardBlurSaveTimer) {
     clearTimeout(cardBlurSaveTimer)
     cardBlurSaveTimer = null
+  }
+  if (wallpaperMaskSaveTimer) {
+    clearTimeout(wallpaperMaskSaveTimer)
+    wallpaperMaskSaveTimer = null
   }
   if (globalFontSaveTimer) {
     clearTimeout(globalFontSaveTimer)
@@ -703,6 +739,29 @@ const clampCardBlurValue = (value) => {
   )
 }
 
+const clampCardOpacityValue = (value) => {
+  const normalized = Number(value)
+  if (Number.isNaN(normalized)) {
+    return PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT
+  }
+  return Math.min(
+    PROFILE_VIEW_CONFIG.CARD_OPACITY_MAX,
+    Math.max(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_MIN, normalized)
+  )
+}
+
+const loadCardOpacityPreference = () => {
+  const savedValue = localStorage.getItem(STORAGE_KEYS.PROFILE_CARD_OPACITY)
+  if (savedValue === null) {
+    return PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT
+  }
+  return clampCardOpacityValue(savedValue)
+}
+
+const saveCardOpacityPreference = (value) => {
+  localStorage.setItem(STORAGE_KEYS.PROFILE_CARD_OPACITY, clampCardOpacityValue(value).toFixed(2))
+}
+
 const loadCardBlurPreference = () => {
   const savedValue = localStorage.getItem(STORAGE_KEYS.PROFILE_CARD_BLUR)
   if (savedValue === null) {
@@ -723,8 +782,16 @@ const loadWallpaperMaskPreference = () => {
   return clampWallpaperMaskValue(savedValue)
 }
 
-const saveWallpaperMaskPreference = () => {
-  localStorage.setItem(STORAGE_KEYS.PROFILE_WALLPAPER_MASK, wallpaperMaskControl.value.toFixed(2))
+const saveWallpaperMaskPreference = (value = wallpaperMaskControl.value) => {
+  localStorage.setItem(
+    STORAGE_KEYS.PROFILE_WALLPAPER_MASK,
+    clampWallpaperMaskValue(value).toFixed(2)
+  )
+}
+
+const saveWallpaperPreference = (value) => {
+  if (!value) return
+  localStorage.setItem(STORAGE_KEYS.PROFILE_WALLPAPER, value)
 }
 
 const toRelativeAssetPath = (url) => {
@@ -775,6 +842,7 @@ const fetchUserStatus = async () => {
 
 const fetchProfileStyle = async () => {
   try {
+    cardOpacityControl.value = loadCardOpacityPreference()
     cardBlurControl.value = loadCardBlurPreference()
     wallpaperMaskControl.value = loadWallpaperMaskPreference()
     const res = await getProfileStyle()
@@ -784,9 +852,11 @@ const fetchProfileStyle = async () => {
         background: resolveAssetUrl(res.data.background),
         wallpaper: resolveAssetUrl(res.data.wallpaper)
       }
+      saveWallpaperPreference(profileStyle.value.wallpaper)
 
       if (res.data.cardOpacity !== null && res.data.cardOpacity !== undefined) {
-        cardOpacityControl.value = Number(res.data.cardOpacity)
+        cardOpacityControl.value = clampCardOpacityValue(res.data.cardOpacity)
+        saveCardOpacityPreference(cardOpacityControl.value)
       }
       if (res.data.cardBlur !== null && res.data.cardBlur !== undefined) {
         cardBlurControl.value = clampCardBlurValue(res.data.cardBlur)
@@ -794,7 +864,7 @@ const fetchProfileStyle = async () => {
       }
       if (res.data.wallpaperMask !== null && res.data.wallpaperMask !== undefined) {
         wallpaperMaskControl.value = clampWallpaperMaskValue(res.data.wallpaperMask)
-        saveWallpaperMaskPreference()
+        saveWallpaperMaskPreference(wallpaperMaskControl.value)
       }
       if (res.data.globalFontEnabled !== null && res.data.globalFontEnabled !== undefined) {
         globalFontEnabled.value = Number(res.data.globalFontEnabled) === 1
@@ -846,18 +916,25 @@ const persistProfileStyle = async (payload) => {
 const persistProfileSelection = async (field, url) => {
   const previousValue = profileStyle.value[field]
   profileStyle.value[field] = url
+  if (field === 'wallpaper') {
+    saveWallpaperPreference(url)
+  }
 
   try {
     await persistProfileStyle({ [field]: toRelativeAssetPath(url) })
   } catch (error) {
     profileStyle.value[field] = previousValue
+    if (field === 'wallpaper' && previousValue) {
+      saveWallpaperPreference(previousValue)
+    }
     alert('保存个性化设置失败，请稍后重试')
   }
 }
 
 const updateDisplaySetting = (key, value) => {
   if (key === 'cardOpacity') {
-    cardOpacityControl.value = Number(value)
+    cardOpacityControl.value = clampCardOpacityValue(value)
+    saveCardOpacityPreference(cardOpacityControl.value)
     return
   }
 
@@ -869,7 +946,7 @@ const updateDisplaySetting = (key, value) => {
 
   if (key === 'wallpaperMask') {
     wallpaperMaskControl.value = clampWallpaperMaskValue(value)
-    saveWallpaperMaskPreference()
+    saveWallpaperMaskPreference(wallpaperMaskControl.value)
     return
   }
 
@@ -900,7 +977,16 @@ const updateActionToggle = async (key, value) => {
 }
 
 const toggleGalleryExpanded = () => {
+  closeTooltip()
   galleryExpanded.value = !galleryExpanded.value
+}
+
+const toggleTooltip = (key) => {
+  activeTooltipKey.value = activeTooltipKey.value === key ? '' : key
+}
+
+const closeTooltip = () => {
+  activeTooltipKey.value = ''
 }
 
 const startStatusPolling = () => {
@@ -989,11 +1075,18 @@ watch(cardBlurControl, (value, oldValue) => {
   scheduleProfileStyleSave('blur')
 })
 
+watch(wallpaperMaskControl, (value, oldValue) => {
+  if (!profileStyleLoaded.value || value === oldValue) return
+  scheduleProfileStyleSave('mask')
+})
+
 onMounted(() => {
   tokenInfo.value = getUserInfoFromToken()
   const userId = tokenInfo.value?.userid
+  cardOpacityControl.value = loadCardOpacityPreference()
   cardBlurControl.value = loadCardBlurPreference()
   wallpaperMaskControl.value = loadWallpaperMaskPreference()
+  document.addEventListener('click', closeTooltip)
 
   bindScrollContainer()
   fetchProfileDefaultOptions()
@@ -1012,6 +1105,7 @@ onUnmounted(() => {
   stopStatusPolling()
   unbindScrollContainer()
   clearSaveTimers()
+  document.removeEventListener('click', closeTooltip)
 })
 </script>
 
@@ -1057,7 +1151,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.95;
+  opacity: 1;
   will-change: transform;
   transform-origin: center top;
   transition: transform 0.18s ease-out;
@@ -1077,9 +1171,9 @@ onUnmounted(() => {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.16)) 0%,
-    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.04)) 32%,
-    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) + 0.12)) 100%
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.9)) 0%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.36)) 32%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.72)) 100%
   );
 }
 
@@ -1152,8 +1246,8 @@ onUnmounted(() => {
   background: linear-gradient(
     180deg,
     rgba(240, 244, 251, 0) 0%,
-    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.52 + 0.16)) 56%,
-    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.82 + 0.28)) 100%
+    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.52)) 56%,
+    rgba(240, 244, 251, calc(var(--page-wallpaper-mask-alpha) * 0.82)) 100%
   );
 }
 
@@ -1303,6 +1397,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: visible;
 }
 
 .gallery-settings {
@@ -1330,6 +1425,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .gallery-toggle-title,
@@ -1343,69 +1439,83 @@ onUnmounted(() => {
   position: relative;
   display: inline-flex;
   align-items: center;
+  z-index: 12;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .help-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(100, 116, 139, 0.28);
-  background: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 700;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.96) 100%);
+  color: #5b6b86;
   line-height: 1;
-  cursor: help;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
-.help-icon-wrap:hover .help-icon {
+.help-icon-wrap:hover .help-icon,
+.help-icon-wrap.active .help-icon {
   transform: scale(1.08);
   border-color: rgba(79, 134, 247, 0.45);
   color: #4f86f7;
-  box-shadow: 0 4px 10px rgba(79, 134, 247, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
+  box-shadow: 0 8px 18px rgba(79, 134, 247, 0.16);
 }
 
 .help-tooltip {
   position: absolute;
-  left: 50%;
-  top: calc(100% + 10px);
-  transform: translateX(-50%) translateY(-4px);
+  left: 0;
+  top: calc(100% + 12px);
+  transform: translateY(-4px);
+  width: min(280px, calc(100vw - 48px));
   min-width: 220px;
-  max-width: 280px;
   padding: 8px 10px;
   border-radius: 10px;
   background: rgba(15, 23, 42, 0.9);
   color: #fff;
   font-size: 12px;
   line-height: 1.5;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.2);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
-  z-index: 10;
+  z-index: 40;
+  text-align: left;
 }
 
 .help-tooltip::before {
   content: '';
   position: absolute;
-  left: 50%;
-  top: -5px;
+  left: 10px;
+  top: -6px;
   width: 10px;
   height: 10px;
-  transform: translateX(-50%) rotate(45deg);
+  transform: rotate(45deg);
   background: rgba(15, 23, 42, 0.9);
 }
 
-.help-icon-wrap:hover .help-tooltip {
+.help-icon-wrap:hover .help-tooltip,
+.help-icon-wrap.active .help-tooltip {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
+}
+
+@media (max-width: 520px) {
+  .help-tooltip {
+    width: min(260px, calc(100vw - 40px));
+    min-width: 0;
+  }
 }
 
 .gallery-toggle-arrow {

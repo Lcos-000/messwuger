@@ -232,6 +232,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
   - `wallpaper`
   - `cardOpacity`
   - `cardBlur`
+  - `wallpaperMask`
   - `globalFontEnabled`
 
 示例：
@@ -246,6 +247,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
     "wallpaper": "/wallpaper/wallpaper_default_1.jpg",
     "cardOpacity": 1.00,
     "cardBlur": 14,
+    "wallpaperMask": 1.00,
     "globalFontEnabled": 1
   }
 }
@@ -257,7 +259,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/update-profile" `
   -Method PUT `
   -Headers $headers `
-  -Body '{"cardOpacity":0.72,"cardBlur":8,"globalFontEnabled":1}' `
+  -Body '{"cardOpacity":0.72,"cardBlur":8,"wallpaperMask":0.65,"globalFontEnabled":1}' `
   -ContentType "application/json"
 ```
 
@@ -324,7 +326,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/status" `
 mysql -u root -p1234 -e "
 USE campus_db;
 SELECT student_id, sync_status, punch_status, auto_punch_enabled FROM student_db WHERE student_id='YOUR_STUDENT_ID';
-SELECT student_id, card_opacity, card_blur, global_font_enabled FROM user_profile_style WHERE student_id='YOUR_STUDENT_ID';
+SELECT student_id, card_opacity, card_blur, wallpaper_mask, global_font_enabled FROM user_profile_style WHERE student_id='YOUR_STUDENT_ID';
 SELECT COUNT(*) AS personal_info_count FROM personal_info WHERE student_id='YOUR_STUDENT_ID';
 SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID';
 "
@@ -339,6 +341,7 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 | `student_db.auto_punch_enabled` | `0` 或 `1` |
 | `user_profile_style.card_opacity` | 能与最近一次保存值对应 |
 | `user_profile_style.card_blur` | 能与最近一次保存值对应 |
+| `user_profile_style.wallpaper_mask` | 能与最近一次保存值对应 |
 | `user_profile_style.global_font_enabled` | `0` 或 `1` |
 | `personal_info_count` | `1` |
 | `course_count` | `1` |
@@ -361,6 +364,7 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 
 - 资料卡透明度滑块可拖动
 - 资料卡模糊度滑块可拖动
+- 墙纸蒙版强度滑块可拖动
 - 全局字体开关可切换
 - 默认头像可切换
 - 默认顶部背景可切换
@@ -371,6 +375,8 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 - 透明度变化后资料卡视觉明显变化
 - 模糊度调到 `0` 时接近完全清晰
 - 模糊度调高后磨砂感增强
+- 墙纸蒙版调到 `0` 时更接近清晰原图
+- 墙纸蒙版调高后页面更偏浅灰极简效果
 - 字体开关开启后页面使用 `SourceHanSerifCN-Regular.ttf`
 - 字体开关关闭后恢复系统字体
 
