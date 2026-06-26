@@ -1,7 +1,7 @@
 package com.campusassistant.personalization.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.campusassistant.personalization.pojo.UserProfileStyleEntity;
+import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

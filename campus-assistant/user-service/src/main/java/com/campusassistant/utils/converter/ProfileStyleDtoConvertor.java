@@ -1,7 +1,7 @@
 package com.campusassistant.utils.converter;
 
 import com.campusassistant.common.converter.BaseConvertor;
-import com.campusassistant.personalization.pojo.UserProfileStyleEntity;
+import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
 import org.mapstruct.Mapper;
 

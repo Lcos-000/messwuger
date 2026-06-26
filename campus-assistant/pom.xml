@@ -49,6 +49,7 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version> <!-- Binding 版本 (通常与 MapStruct 保持一致或特定版本) -->
         <skywalking.version>9.0.0</skywalking.version>
         <knife4j.version>4.4.0</knife4j.version>
+        <aliyun-sdk-oss.version>3.17.4</aliyun-sdk-oss.version> <!-- 阿里云 OSS SDK 版本 -->
     </properties>
 
     <!--  只统一锁定版本，不强制引入-->
@@ -135,6 +136,11 @@
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aliyun.oss</groupId>
+                <artifactId>aliyun-sdk-oss</artifactId>
+                <version>${aliyun-sdk-oss.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

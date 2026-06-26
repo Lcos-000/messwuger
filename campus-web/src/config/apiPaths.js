@@ -14,7 +14,9 @@ export const API_PATHS = {
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',
     UPDATE_PROFILE: '/personalization/update-profile',
-    GET_DEFAULT_OPTIONS: '/personalization/get-default-options'
+    GET_DEFAULT_OPTIONS: '/personalization/get-default-options',
+    GET_CUSTOM_ASSETS: '/personalization/get-custom-assets',
+    UPLOAD_CUSTOM_ASSET: '/personalization/upload-custom-asset'
   },
   SCHEDULE: {
     GET: '/user/schedule/get'

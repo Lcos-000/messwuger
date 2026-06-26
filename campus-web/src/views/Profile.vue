@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="profile-root" :style="profileRootStyle">
     <div v-if="profileStyle.wallpaper" class="wallpaper-layer" :style="wallpaperLayerStyle"></div>
     <div class="profile-shell">
@@ -229,14 +229,37 @@
               <div class="gallery-grid" :class="group.gridClass">
                 <button
                   v-for="option in group.options"
-                  :key="option"
+                  :key="option.key"
                   type="button"
                   class="gallery-option"
-                  :class="[group.optionClass, { active: profileStyle[group.key] === option }]"
-                  @click="persistProfileSelection(group.key, option)"
+                  :style="option.style || null"
+                  :data-upload-label="option.type === 'upload' && option.previewUrl && group.key !== 'avatar' ? PROFILE_VIEW_CONFIG.REPLACE_TILE_TEXT : ''"
+                  :class="[
+                    group.optionClass,
+                    `gallery-option--${option.type}`,
+                    { active: isGalleryOptionActive(group.key, option), 'gallery-option--custom': option.source === 'custom' }
+                  ]"
+                  @click="handleGalleryOptionClick(group.key, option)"
                 >
-                  <img :src="option" :alt="group.imageAlt" />
+                  <template v-if="option.type === 'upload'">
+                    <span class="upload-option-body">
+                      <span class="upload-option-icon">+</span>
+                      <span v-if="!option.previewUrl" class="upload-option-title">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_TEXT }}</span>
+                      <span v-if="!option.previewUrl" class="upload-option-subtitle">{{ PROFILE_VIEW_CONFIG.UPLOAD_TILE_SUBTEXT }}</span>
+                    </span>
+                  </template>
+                  <template v-else>
+                    <img :src="option.url" :alt="group.imageAlt" />
+                    <span v-if="option.source === 'custom'" class="custom-badge">{{ PROFILE_VIEW_CONFIG.CUSTOM_BADGE_TEXT }}</span>
+                  </template>
                 </button>
+                <input
+                  :ref="(element) => setFileInputRef(group.key, element)"
+                  class="gallery-file-input"
+                  type="file"
+                  accept="image/*"
+                  @change="handleLocalFileChange(group.key, $event)"
+                />
               </div>
             </div>
           </div>
@@ -357,19 +380,37 @@
 
       <p class="footer-hint">{{ PROFILE_VIEW_CONFIG.FOOTER_HINT }}</p>
     </div>
+    <ImageCropUploadModal
+      :visible="cropModalVisible"
+      :source-url="cropSourceUrl"
+      :title="`${PROFILE_VIEW_CONFIG.CROP_MODAL_TITLE} · ${getCropPreset(cropTargetType).label}`"
+      :hint="PROFILE_VIEW_CONFIG.CROP_MODAL_HINT"
+      :aspect-ratio="getCropPreset(cropTargetType).aspectRatio"
+      :max-viewport-width="getCropPreset(cropTargetType).maxWidth"
+      :max-viewport-height="getCropPreset(cropTargetType).maxHeight"
+      :output-width="getCropPreset(cropTargetType).outputWidth"
+      :output-height="getCropPreset(cropTargetType).outputHeight"
+      :file-name="cropSourceFileName"
+      :confirming="cropUploading"
+      @cancel="closeCropModal"
+      @confirm="handleCropConfirm"
+    />
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import ImageCropUploadModal from '@/components/ImageCropUploadModal.vue'
 import {
   deleteAccount,
   getPersonalInfo,
+  getProfileCustomAssets,
   getProfileDefaultOptions,
   getProfileStyle,
   getUserStatus,
   logout,
+  uploadProfileCustomAsset,
   updateAutoPunch,
   updateProfileStyle
 } from '@/api/index'
@@ -413,6 +454,19 @@ const profileDefaultOptions = ref({
   wallpapers: []
 })
 
+const customAssets = ref({
+  customAvatar: '',
+  customBackground: '',
+  customWallpaper: ''
+})
+
+const cropModalVisible = ref(false)
+const cropUploading = ref(false)
+const cropTargetType = ref('avatar')
+const cropSourceUrl = ref('')
+const cropSourceFileName = ref('upload-image.jpg')
+const fileInputRefs = {}
+
 const cardOpacityControl = ref(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT)
 const cardBlurControl = ref(PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT)
 const wallpaperMaskControl = ref(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT)
@@ -428,12 +482,33 @@ let wallpaperMaskSaveTimer = null
 let globalFontSaveTimer = null
 
 const galleryGroups = computed(() => {
-  return PROFILE_VIEW_CONFIG.OPTION_GROUPS
-    .map((group) => ({
+  return PROFILE_VIEW_CONFIG.OPTION_GROUPS.map((group) => {
+    const customUrl = customAssets.value[group.customField] || ''
+    const defaultOptions = profileDefaultOptions.value[group.optionField] || []
+    const options = [
+      {
+        key: `${group.key}-upload`,
+        type: 'upload',
+        source: customUrl ? 'custom' : 'upload',
+        previewUrl: customUrl,
+        style: customUrl ? { backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0.18)), url(${customUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : null
+      }
+    ]
+
+    defaultOptions.forEach((option, index) => {
+      options.push({
+        key: `${group.key}-default-${index}`,
+        type: 'image',
+        source: 'default',
+        url: option
+      })
+    })
+
+    return {
       ...group,
-      options: profileDefaultOptions.value[group.optionField] || []
-    }))
-    .filter((group) => group.options.length)
+      options
+    }
+  })
 })
 
 const displaySettings = computed(() => {
@@ -799,7 +874,9 @@ const toRelativeAssetPath = (url) => {
 
   try {
     const parsed = new URL(url)
-    return `${parsed.pathname}${parsed.search}`
+    const isSameHost = parsed.hostname === window.location.hostname
+    const isBackendPort = parsed.port === '8000' || (parsed.port === '' && window.location.port === '8000')
+    return isSameHost && isBackendPort ? `${parsed.pathname}${parsed.search}` : url
   } catch {
     return url
   }
@@ -892,6 +969,22 @@ const fetchProfileDefaultOptions = async () => {
   }
 }
 
+const fetchProfileCustomAssets = async () => {
+  try {
+    const res = await getProfileCustomAssets()
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+      const assetData = Array.isArray(res.data) ? (res.data[0] || {}) : res.data
+      customAssets.value = {
+        customAvatar: resolveAssetUrl(assetData.customAvatar || assetData.avatar),
+        customBackground: resolveAssetUrl(assetData.customBackground || assetData.background),
+        customWallpaper: resolveAssetUrl(assetData.customWallpaper || assetData.wallpaper)
+      }
+    }
+  } catch (error) {
+    console.error('获取自定义图库失败', error)
+  }
+}
+
 const saveProfileStyle = async () => {
   try {
     await updateProfileStyle({
@@ -929,6 +1022,86 @@ const persistProfileSelection = async (field, url) => {
     }
     alert('保存个性化设置失败，请稍后重试')
   }
+}
+
+const setFileInputRef = (key, element) => {
+  if (element) {
+    fileInputRefs[key] = element
+  }
+}
+
+const openUploadPicker = (type) => {
+  fileInputRefs[type]?.click()
+}
+
+const getCropPreset = (type) => PROFILE_VIEW_CONFIG.CROP_PRESETS[type] || PROFILE_VIEW_CONFIG.CROP_PRESETS.avatar
+
+const closeCropModal = () => {
+  if (cropSourceUrl.value) {
+    URL.revokeObjectURL(cropSourceUrl.value)
+  }
+  cropSourceUrl.value = ''
+  cropSourceFileName.value = 'upload-image.jpg'
+  cropModalVisible.value = false
+  cropUploading.value = false
+}
+
+const openCropModal = (type, file) => {
+  cropTargetType.value = type
+  cropSourceFileName.value = file?.name || 'upload-image.jpg'
+  cropSourceUrl.value = URL.createObjectURL(file)
+  cropModalVisible.value = true
+}
+
+const handleLocalFileChange = (type, event) => {
+  const [file] = event.target.files || []
+  event.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    alert('请选择图片文件')
+    return
+  }
+  openCropModal(type, file)
+}
+
+const handleCropConfirm = async (file) => {
+  cropUploading.value = true
+  try {
+    const res = await uploadProfileCustomAsset(cropTargetType.value, file)
+    if (res.code === HTTP_STATUS.SUCCESS && res.data?.url) {
+      const url = resolveAssetUrl(res.data.url)
+      const customField = `custom${cropTargetType.value.charAt(0).toUpperCase()}${cropTargetType.value.slice(1)}`
+      customAssets.value = {
+        ...customAssets.value,
+        [customField]: url
+      }
+      await persistProfileSelection(cropTargetType.value, url)
+      closeCropModal()
+    }
+  } catch (error) {
+    console.error('上传自定义图片失败', error)
+    alert('上传失败，请稍后重试')
+    cropUploading.value = false
+  }
+}
+
+const handleGalleryOptionClick = (groupKey, option) => {
+  if (option.type === 'upload') {
+    if (option.previewUrl && profileStyle.value[groupKey] !== option.previewUrl) {
+      persistProfileSelection(groupKey, option.previewUrl)
+      return
+    }
+    openUploadPicker(groupKey)
+    return
+  }
+  persistProfileSelection(groupKey, option.url)
+}
+
+const isGalleryOptionActive = (groupKey, option) => {
+  if (option.type === 'upload') {
+    return Boolean(option.previewUrl) && profileStyle.value[groupKey] === option.previewUrl
+  }
+  return profileStyle.value[groupKey] === option.url
 }
 
 const updateDisplaySetting = (key, value) => {
@@ -1090,6 +1263,7 @@ onMounted(() => {
 
   bindScrollContainer()
   fetchProfileDefaultOptions()
+  fetchProfileCustomAssets()
 
   if (userId) {
     fetchPersonalInfo()
@@ -1569,6 +1743,10 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+.gallery-head .gallery-title {
+  flex-shrink: 0;
+}
+
 .gallery-tip {
   font-size: 12px;
   color: #94a3b8;
@@ -1576,16 +1754,18 @@ onUnmounted(() => {
 
 .gallery-grid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  align-items: start;
 }
 
 .avatar-gallery {
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(64px, 64px));
+  justify-content: start;
 }
 
 .cover-gallery {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  justify-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: stretch;
 }
 
 .gallery-option {
@@ -1598,6 +1778,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  position: relative;
 }
 
 .gallery-option:hover {
@@ -1618,6 +1799,118 @@ onUnmounted(() => {
   border-radius: 12px;
 }
 
+.gallery-file-input {
+  display: none;
+}
+
+.gallery-option--upload {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 246, 255, 0.92) 100%);
+  border: 1.5px dashed rgba(79, 134, 247, 0.35);
+}
+
+.gallery-option--upload.gallery-option--custom {
+  overflow: hidden;
+  border-style: solid;
+  border-color: rgba(79, 134, 247, 0.24);
+}
+
+.gallery-option--upload.gallery-option--custom::after {
+  content: attr(data-upload-label);
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+  z-index: 2;
+  pointer-events: none;
+  text-shadow: 0 1px 6px rgba(15, 23, 42, 0.35);
+}
+
+.upload-option-body {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: #4f86f7;
+}
+
+.gallery-option--upload.gallery-option--custom .upload-option-body {
+  background: transparent;
+  color: #ffffff;
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+}
+
+.gallery-option--upload.gallery-option--custom .upload-option-title,
+.gallery-option--upload.gallery-option--custom .upload-option-subtitle {
+  display: none;
+}
+
+.upload-option-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 134, 247, 0.12);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.gallery-option--upload.gallery-option--custom .upload-option-icon {
+  position: relative;
+  background: rgba(255, 255, 255, 0.22);
+  color: transparent;
+}
+
+.gallery-option--upload.gallery-option--custom .upload-option-icon::before {
+  content: '↻';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.upload-option-title {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.upload-option-subtitle {
+  font-size: 10px;
+  color: #7c92b8;
+}
+
+.gallery-option--custom {
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.custom-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
 .avatar-option {
   width: 64px;
   height: 64px;
@@ -1625,12 +1918,38 @@ onUnmounted(() => {
   padding: 3px;
 }
 
+.avatar-option.gallery-option--upload {
+  padding: 2px;
+}
+
+.avatar-option .upload-option-title,
+.avatar-option .upload-option-subtitle {
+  display: none;
+}
+
+.avatar-option.gallery-option--upload .upload-option-body {
+  border-radius: 50%;
+  min-height: 58px;
+  padding: 2px;
+}
+
+.avatar-option.gallery-option--upload .upload-option-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+}
+
+.avatar-option .custom-badge {
+  top: -2px;
+  right: -6px;
+}
+
 .avatar-option img {
   border-radius: 50%;
 }
 
 .cover-option {
-  width: min(100%, var(--cover-card-max-width));
+  width: 100%;
   aspect-ratio: 16 / 10;
 }
 
@@ -1812,3 +2131,6 @@ input:checked + .toggle-slider::before {
   font-style: normal;
 }
 </style>
+
+
+

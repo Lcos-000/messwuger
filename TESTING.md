@@ -1,6 +1,6 @@
 # 校园助手系统测试指南
 
-本文档用于验证当前项目的核心链路是否可用，覆盖后端服务、爬虫服务和前端个性化主页相关功能。
+本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源和自动打卡能力。
 
 ---
 
@@ -11,6 +11,7 @@
 - 基础服务启动检查
 - 注册 / 登录 / 同步 / 查询课表
 - 个性化主页接口
+- 自定义图片上传与回显接口
 - 自动打卡开关接口
 - 前端构建验证
 - 前端手工回归检查
@@ -40,7 +41,7 @@ Redis 请确保服务已运行。
 ## 可选：清空测试数据
 
 ```powershell
-mysql -u root -p1234 -e "USE campus_db; TRUNCATE TABLE user_profile_style; TRUNCATE TABLE course_db; TRUNCATE TABLE personal_info; TRUNCATE TABLE student_db;"
+mysql -u root -p1234 -e "USE campus_db; TRUNCATE TABLE user_profile_custom_asset; TRUNCATE TABLE user_profile_style; TRUNCATE TABLE course_db; TRUNCATE TABLE personal_info; TRUNCATE TABLE student_db;"
 ```
 
 ---
@@ -226,32 +227,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
 **期望结果**：
 
 - `code = 200`
-- `data` 包含：
-  - `avatar`
-  - `background`
-  - `wallpaper`
-  - `cardOpacity`
-  - `cardBlur`
-  - `wallpaperMask`
-  - `globalFontEnabled`
-
-示例：
-
-```json
-{
-  "code": 200,
-  "data": {
-    "studentId": "222025321182075",
-    "avatar": "/avatar/avatar_default_1.jpg",
-    "background": "/background/background_default_1.jpg",
-    "wallpaper": "/wallpaper/wallpaper_default_1.jpg",
-    "cardOpacity": 1.00,
-    "cardBlur": 14,
-    "wallpaperMask": 1.00,
-    "globalFontEnabled": 1
-  }
-}
-```
+- `data` 包含：`avatar`、`background`、`wallpaper`、`cardOpacity`、`cardBlur`、`wallpaperMask`、`globalFontEnabled`
 
 ### 2. 更新个性化配置
 
@@ -280,6 +256,34 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-default-option
 
 - `code = 200`
 - `data.avatars`、`data.backgrounds`、`data.wallpapers` 为数组
+
+### 4. 获取自定义图片资源
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-custom-assets" `
+  -Method GET `
+  -Headers $headers
+```
+
+**期望结果**：
+
+- `code = 200`
+- `data` 包含 `customAvatar`、`customBackground`、`customWallpaper`，未上传时允许为 `null`
+
+### 5. 上传自定义图片
+
+```powershell
+curl.exe -X POST "http://127.0.0.1:8000/personalization/upload-custom-asset" ^
+  -H "Authorization: Bearer $token" ^
+  -F "type=background" ^
+  -F "file=@C:\tmp\profile-bg.jpg"
+```
+
+**期望结果**：
+
+- `code = 200`
+- `data.url` 返回可访问的 OSS URL
+- 再次调用 `get-custom-assets` 时，对应字段已更新
 
 ---
 
@@ -327,6 +331,7 @@ mysql -u root -p1234 -e "
 USE campus_db;
 SELECT student_id, sync_status, punch_status, auto_punch_enabled FROM student_db WHERE student_id='YOUR_STUDENT_ID';
 SELECT student_id, card_opacity, card_blur, wallpaper_mask, global_font_enabled FROM user_profile_style WHERE student_id='YOUR_STUDENT_ID';
+SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_profile_custom_asset WHERE student_id='YOUR_STUDENT_ID';
 SELECT COUNT(*) AS personal_info_count FROM personal_info WHERE student_id='YOUR_STUDENT_ID';
 SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID';
 "
@@ -343,6 +348,7 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 | `user_profile_style.card_blur` | 能与最近一次保存值对应 |
 | `user_profile_style.wallpaper_mask` | 能与最近一次保存值对应 |
 | `user_profile_style.global_font_enabled` | `0` 或 `1` |
+| `user_profile_custom_asset.custom_*` | 上传后应为对应 OSS URL，未上传可为空 |
 | `personal_info_count` | `1` |
 | `course_count` | `1` |
 
@@ -369,6 +375,7 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 - 默认头像可切换
 - 默认顶部背景可切换
 - 默认壁纸可切换
+- 自定义头像 / 顶部背景 / 墙纸可上传并回显
 
 ### 3. 显示效果检查
 
@@ -395,31 +402,6 @@ SELECT COUNT(*) AS course_count FROM course_db WHERE student_id='YOUR_STUDENT_ID
 
 ---
 
-## 打卡功能测试（可选）
-
-如果需要直接验证 Go 端打卡逻辑，可调用：
-
-```powershell
-$encryptedPwd = (python -c "from Crypto.Cipher import AES; from Crypto.Util.Padding import pad; import base64; key = b'YOUR_AES_SECRET_KEY'; iv = key[:16]; cipher = AES.new(key, AES.MODE_CBC, iv); pwd = b'YOUR_PUNCH_PASSWORD'; enc = base64.b64encode(cipher.encrypt(pad(pwd, 16))).decode(); print(enc, end='')")
-
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/punch-card" `
-  -Method POST `
-  -Headers @{
-    "X-Student-Id" = "YOUR_STUDENT_ID"
-    "X-Password" = $encryptedPwd
-    "X-TYPE" = "PUNCH_CARD"
-  } `
-  -ContentType "application/json"
-```
-
-随后检查：
-
-```powershell
-mysql -u root -p1234 -e "USE campus_db; SELECT student_id, punch_status FROM student_db WHERE student_id='YOUR_STUDENT_ID';"
-```
-
----
-
 ## 已知说明
 
 ### 1. 前端测试方式
@@ -436,6 +418,8 @@ mysql -u root -p1234 -e "USE campus_db; SELECT student_id, punch_status FROM stu
 - `npm run build`
 - 浏览器手工回归
 - 接口手工联调
+
+> 当前自定义图片上传成功后，历史 OSS 对象不会自动删除；这不影响功能验证，但测试结束后如需控量需手动清理 Bucket。
 
 ### 2. 鉴权头格式
 
