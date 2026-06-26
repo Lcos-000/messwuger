@@ -34,6 +34,7 @@
 - 个性化设置面板：
   - 资料卡透明度
   - 资料卡模糊度
+  - 墙纸蒙版强度
   - 全局字体开关
   - 默认头像选择
   - 默认顶部背景选择
@@ -229,6 +230,7 @@ CREATE TABLE IF NOT EXISTS user_profile_style (
     wallpaper VARCHAR(255) NOT NULL COMMENT '墙纸地址',
     card_opacity DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '资料卡透明度',
     card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
+    wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
     global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -244,6 +246,7 @@ ALTER TABLE student_db
 
 ALTER TABLE user_profile_style
   ADD COLUMN card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
+  ADD COLUMN wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
   ADD COLUMN global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启';
 ```
 
@@ -384,6 +387,7 @@ npm run build
   "wallpaper": "/wallpaper/wallpaper_default_1.jpg",
   "cardOpacity": 1.00,
   "cardBlur": 14,
+  "wallpaperMask": 1.00,
   "globalFontEnabled": 1
 }
 ```
@@ -441,9 +445,10 @@ netstat -ano | findstr ":5173 "
 优先检查：
 
 - `user_profile_style.card_blur` 是否存在并有值
+- `user_profile_style.wallpaper_mask` 是否存在并有值
 - `user_profile_style.global_font_enabled` 是否存在并有值
 - 前端 `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf` 是否存在
-- 后端返回字段是否为 `cardBlur` 与 `globalFontEnabled`
+- 后端返回字段是否为 `cardBlur`、`wallpaperMask` 与 `globalFontEnabled`
 
 ### Q3：自动打卡开关点击后无效果
 
