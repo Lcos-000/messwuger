@@ -1,4 +1,4 @@
-package com.campusassistant.personalization.pojo;
+package com.campusassistant.personalization.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -26,5 +26,11 @@ public class UserProfileStyleEntity extends BaseEntity {
     private String wallpaper;
     //资料卡片透明度
     private BigDecimal cardOpacity;
+    // 资料卡片模糊度
+    private BigDecimal cardBlur;
+    // 是否启用全局字体：0否 1是
+    private Integer globalFontEnabled;
+    // 墙纸蒙版强度
+    private BigDecimal wallpaperMask;
 
 }

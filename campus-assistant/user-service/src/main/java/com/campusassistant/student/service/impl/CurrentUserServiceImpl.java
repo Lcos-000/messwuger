@@ -7,6 +7,7 @@ import com.campusassistant.remote.spider.mapper.SyncMapper;
 import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
 import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.remote.spider.service.SpiderService;
+import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.ThreadLocalUtil;
 import com.campusassistant.common.UserContext;
 import com.campusassistant.utils.redistool.CommonCacheService;
@@ -31,6 +32,7 @@ import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 public class CurrentUserServiceImpl implements CurrentUserService {
     private final UserMapper userMapper;
     private final UserReadSupport userReadSupport;
+    private final UserWriteSupport userWriteSupport;
     private final UserStatusVoConvertor userStatusVoConvertor;
     private final CommonCacheService commonCacheService;
     private final UserStatusCacheKey userStatusCacheKey;
@@ -67,9 +69,11 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     }
 
     @Override
-    public UserStatusVO getStatusByStudentId(String studentId) {
+    public UserStatusVO getStatusByStudentId() {
+        UserContext userContext = ThreadLocalUtil.get();
+        String studentId = userContext.getStudentId();
         if (studentId == null) {
-            return null;
+            throw new BusinessException(UNAUTHORIZED);
         }
         return commonCacheService.getWithCache(
                 userStatusCacheKey.getKey(studentId),
@@ -82,9 +86,11 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     }
 
     @Override
-    public PersonalInfoVO getPersonalByStudentId(String studentId) {
+    public PersonalInfoVO getPersonalByStudentId() {
+        UserContext userContext = ThreadLocalUtil.get();
+        String studentId = userContext.getStudentId();
         if (studentId == null) {
-            return null;
+            throw new BusinessException(UNAUTHORIZED);
         }
         return commonCacheService.getWithCache(
                 userPersonalCacheKey.getKey(studentId),
@@ -105,6 +111,9 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     public void refreshData() {
         UserContext userContext = ThreadLocalUtil.get();
         String studentId = userContext.getStudentId();
+        if (studentId == null) {
+            throw new BusinessException(UNAUTHORIZED);
+        }
         // 从 Redis 中取出之前缓存的明文密码
         String redisKey = userPwdCacheKey.getKey(studentId);
         String encryptedPassword = stringRedisTemplate.opsForValue().get(redisKey);
@@ -115,6 +124,17 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         }
         // 密码完好，直接异步触发爬虫
         spiderService.asyncStartFullCrawl(studentId, encryptedPassword);
+    }
+
+    @Override
+    public void updateAutoPunchEnabled(Integer enabled) {
+        UserContext userContext = ThreadLocalUtil.get();
+        String studentId = userContext.getStudentId();
+        if (studentId == null) {
+            throw new BusinessException(UNAUTHORIZED);
+        }
+        userWriteSupport.updateAutoPunchEnabled(studentId, enabled);
+        commonCacheService.deleteCache(userStatusCacheKey.getKey(studentId));
     }
 
 }

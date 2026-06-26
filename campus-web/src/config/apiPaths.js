@@ -8,12 +8,15 @@ export const API_PATHS = {
   USER: {
     STATUS: '/user/status',
     PERSONAL: '/user/personal',
-    DELETE: '/user/delete'
+    DELETE: '/user/delete',
+    AUTO_PUNCH: '/user/auto-punch'
   },
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',
     UPDATE_PROFILE: '/personalization/update-profile',
-    GET_DEFAULT_OPTIONS: '/personalization/get-default-options'
+    GET_DEFAULT_OPTIONS: '/personalization/get-default-options',
+    GET_CUSTOM_ASSETS: '/personalization/get-custom-assets',
+    UPLOAD_CUSTOM_ASSET: '/personalization/upload-custom-asset'
   },
   SCHEDULE: {
     GET: '/user/schedule/get'

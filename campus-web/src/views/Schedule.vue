@@ -1,5 +1,7 @@
 <template>
-  <div class="schedule-root">
+  <div class="schedule-root" :style="scheduleRootStyle">
+    <div v-if="scheduleWallpaper" class="schedule-wallpaper" :style="scheduleWallpaperStyle"></div>
+    <div class="schedule-shell">
     <!-- ===== 顶栏 ===== -->
     <header class="top-bar">
       <div class="top-bar__left">
@@ -203,13 +205,14 @@
         </div>
       </div>
     </transition>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { getSchedule, refreshSchedule, getUserStatus } from '@/api/index'
-import { APP_CONFIG, HTTP_STATUS, POLLING_CONFIG, SCHEDULE_CONFIG, SYNC_STATUS } from '@/config'
+import { getProfileStyle, getSchedule, refreshSchedule, getUserStatus } from '@/api/index'
+import { APP_CONFIG, HTTP_STATUS, POLLING_CONFIG, PROFILE_VIEW_CONFIG, SCHEDULE_CONFIG, STORAGE_KEYS, SYNC_STATUS } from '@/config'
 
 const days = SCHEDULE_CONFIG.DAYS
 const periodTime = SCHEDULE_CONFIG.PERIOD_TIME
@@ -235,8 +238,84 @@ const detailCourse = ref(null)
 const stackGroup = ref(null)
 const rowHeight = ref(SCHEDULE_CONFIG.DESKTOP_ROW_HEIGHT)
 const isMobile = ref(false)
+const scheduleWallpaper = ref('')
+const wallpaperMask = ref(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT)
 
 let statusTimer = null
+
+const scheduleRootStyle = computed(() => ({
+  '--page-wallpaper-mask-alpha': wallpaperMask.value
+}))
+
+const scheduleWallpaperStyle = computed(() => ({
+  backgroundImage: `url(${scheduleWallpaper.value})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  opacity: 1 - wallpaperMask.value
+}))
+
+const resolveAssetUrl = (path) => {
+  if (!path) return ''
+  if (/^https?:\/\//.test(path)) return path
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${window.location.protocol}//${window.location.hostname}:8000${normalizedPath}`
+}
+
+const clampWallpaperMaskValue = (value) => {
+  const normalized = Number(value)
+  if (Number.isNaN(normalized)) {
+    return PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
+  }
+  return Math.min(
+    PROFILE_VIEW_CONFIG.WALLPAPER_MASK_MAX,
+    Math.max(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_MIN, normalized)
+  )
+}
+
+const loadWallpaperPreference = () => {
+  return localStorage.getItem(STORAGE_KEYS.PROFILE_WALLPAPER) || ''
+}
+
+const loadWallpaperMaskPreference = () => {
+  const savedValue = localStorage.getItem(STORAGE_KEYS.PROFILE_WALLPAPER_MASK)
+  if (savedValue === null) {
+    return PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
+  }
+  return clampWallpaperMaskValue(savedValue)
+}
+
+const saveWallpaperPreference = (value) => {
+  if (!value) return
+  localStorage.setItem(STORAGE_KEYS.PROFILE_WALLPAPER, value)
+}
+
+const saveWallpaperMaskPreference = (value) => {
+  localStorage.setItem(
+    STORAGE_KEYS.PROFILE_WALLPAPER_MASK,
+    clampWallpaperMaskValue(value).toFixed(2)
+  )
+}
+
+const fetchScheduleWallpaper = async () => {
+  scheduleWallpaper.value = loadWallpaperPreference()
+  wallpaperMask.value = loadWallpaperMaskPreference()
+  try {
+    const res = await getProfileStyle()
+    if (res.code === HTTP_STATUS.SUCCESS && res.data) {
+      if (res.data.wallpaper) {
+        scheduleWallpaper.value = resolveAssetUrl(res.data.wallpaper)
+        saveWallpaperPreference(scheduleWallpaper.value)
+      }
+      if (res.data.wallpaperMask !== null && res.data.wallpaperMask !== undefined) {
+        wallpaperMask.value = clampWallpaperMaskValue(res.data.wallpaperMask)
+        saveWallpaperMaskPreference(wallpaperMask.value)
+      }
+    }
+  } catch (error) {
+    console.error('获取课表墙纸失败:', error)
+  }
+}
 
 function updateLayout() {
   const w = window.innerWidth
@@ -249,11 +328,13 @@ function updateLayout() {
 onMounted(() => {
   updateLayout()
   window.addEventListener('resize', updateLayout)
+  fetchScheduleWallpaper()
   fetchSchedule()
 })
 
 onUnmounted(() => {
   stopStatusPolling()
+  window.removeEventListener('resize', updateLayout)
 })
 
 const stopStatusPolling = () => {
@@ -463,8 +544,40 @@ const closeStackDetail = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f0f4fb;
+  background: #e9eef8;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  min-height: 100vh;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.schedule-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100vh;
+}
+
+.schedule-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.schedule-wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.9)) 0%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.36)) 32%,
+    rgba(233, 238, 248, calc(var(--page-wallpaper-mask-alpha) * 0.72)) 100%
+  );
 }
 
 /* ============================================================
@@ -475,11 +588,12 @@ const closeStackDetail = () => {
   align-items: center;
   padding: 0 12px;
   height: 52px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.78);
   border-bottom: 1px solid #e8edf5;
   box-shadow: 0 1px 8px rgba(79,134,247,.08);
   flex-shrink: 0;
   gap: 8px;
+  backdrop-filter: blur(14px) saturate(1.05);
 }
 .top-bar__left, .top-bar__right {
   display: flex;
@@ -535,7 +649,9 @@ const closeStackDetail = () => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  background: #f0f4fb;
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 .pulse-ring {
   width: 44px;
@@ -578,13 +694,16 @@ const closeStackDetail = () => {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .grid-header {
   display: flex;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.72);
   border-bottom: 1px solid #e8edf5;
   flex-shrink: 0;
+  backdrop-filter: blur(12px) saturate(1.04);
 }
 .th-corner {
   width: 36px;
@@ -625,14 +744,16 @@ const closeStackDetail = () => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 /* 节次列 */
 .period-col {
   width: 36px;
   flex-shrink: 0;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.72);
   border-right: 1px solid #e8edf5;
+  backdrop-filter: blur(12px) saturate(1.04);
 }
 .period-cell {
   height: 58px;

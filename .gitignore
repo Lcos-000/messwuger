@@ -54,3 +54,4 @@ desktop.ini
 *.env.local
 *.env.production
 campus-spider-service/go_callback.json
+campus-assistant/user-service/src/main/resources/application-aliyun.yml
