@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campusassistant.common.UserContext;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
-import com.campusassistant.personalization.common.CustomAssetTypeEnum;
+import com.campusassistant.common.CustomAssetTypeEnum;
 import com.campusassistant.personalization.mapper.UserProfileCustomAssetMapper;
 import com.campusassistant.personalization.pojo.entity.UserProfileCustomAssetEntity;
 import com.campusassistant.personalization.pojo.vo.UploadCustomAssetVO;

@@ -3,7 +3,7 @@ package com.campusassistant.student.service.impl.support;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
-import com.campusassistant.student.common.PunchStatusEnum;
+import com.campusassistant.common.PunchStatusEnum;
 import com.campusassistant.utils.converter.UserDtoConvertor;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
@@ -16,9 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import static com.campusassistant.enums.ResultCodeEnum.USER_ALREADY_EXISTS;
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.NOT_SYNCED;
-import static com.campusassistant.student.common.PunchStatusEnum.AUTO_PUNCH_ENABLED;
-import static com.campusassistant.student.common.PunchStatusEnum.NOT_PUNCHED;
+import static com.campusassistant.common.SyncStatusEnum.NOT_SYNCED;
+import static com.campusassistant.common.PunchStatusEnum.AUTO_PUNCH_ENABLED;
 
 @Service
 @Slf4j

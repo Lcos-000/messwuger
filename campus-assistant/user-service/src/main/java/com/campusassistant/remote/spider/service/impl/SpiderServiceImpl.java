@@ -12,11 +12,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING_FAILED;
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING;
-import static com.campusassistant.remote.spider.common.constant.*;
-import static com.campusassistant.student.common.PunchStatusEnum.PUNCHING;
-import static com.campusassistant.student.common.PunchStatusEnum.PUNCH_FAILED;
+import static com.campusassistant.common.SyncStatusEnum.SYNCING_FAILED;
+import static com.campusassistant.common.SyncStatusEnum.SYNCING;
+import static com.campusassistant.common.constant.*;
+import static com.campusassistant.common.PunchStatusEnum.PUNCHING;
+import static com.campusassistant.common.PunchStatusEnum.PUNCH_FAILED;
 
 @Service
 @Slf4j
