@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-import static com.campusassistant.remote.spider.common.constant.*;
+import static com.campusassistant.common.constant.*;
 
 @FeignClient(
         name = "campus-spider-service", // 注册中心里 Go 服务的名字

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.NOT_SYNCED;
+import static com.campusassistant.common.SyncStatusEnum.NOT_SYNCED;
 
 @Slf4j
 @Component

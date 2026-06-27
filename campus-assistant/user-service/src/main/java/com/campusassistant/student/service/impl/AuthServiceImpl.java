@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.constant.SystemConstants.*;
 import static com.campusassistant.enums.ResultCodeEnum.*;
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING_SUCCESS;
+import static com.campusassistant.common.SyncStatusEnum.SYNCING_SUCCESS;
 
 @Slf4j
 @Service
