@@ -8,7 +8,7 @@
   CARD_BG_OPACITY_MIN: 0,
   CARD_BG_OPACITY_DEFAULT: 1,
   CARD_OPACITY_SCROLL_DELTA: 0.08,
-  CARD_OPACITY_SAVE_DEBOUNCE: 350,
+  CARD_OPACITY_SAVE_DEBOUNCE: 2000,
   CARD_OPACITY_MAX: 1,
   CARD_OPACITY_STEP: 0.01,
 
@@ -45,6 +45,8 @@
   HERO_FRAME_RADIUS_BOTTOM: 44,
   HERO_FRAME_BG: '#ffffff',
   HERO_FRAME_SHADOW: '0 10px 22px rgba(15, 25, 50, 0.04)',
+  EMPTY_HERO_BG: '#ffffff',
+  EMPTY_WALLPAPER_BG: '#e9eef8',
   HERO_BLEND_HEIGHT: 174,
   HERO_GLOW_SIZE: 220,
   HERO_GLOW_TOP: '-12%',
@@ -55,6 +57,8 @@
   GALLERY_TITLE: '个性化设置',
   GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置，以及头像、顶部背景和墙纸。你可以直接上传自定义图片，也可以继续使用系统预置图片。',
   OPTION_GROUP_HINT: '点击即可切换',
+  RESET_PROFILE_TEXT: '重置为极简默认',
+  RESET_PROFILE_CONFIRM: '确认将头像、顶部背景、墙纸重置为空，并恢复当前默认显示参数吗？',
 
   DISPLAY_SETTINGS: [
     {
@@ -122,12 +126,19 @@
   REPLACE_TILE_TEXT: '点击替换',
   UPLOAD_TILE_TEXT: '上传图片',
   UPLOAD_TILE_SUBTEXT: '点击上传',
+  AVATAR_CAPTIONS: [
+    '@飞鸟の♫',
+    '@吃掉一块奶酪？',
+    '默认头像 3',
+    '默认头像 4',
+    '默认头像 5'
+  ],
   CROP_MODAL_TITLE: '裁剪图片',
   CROP_MODAL_HINT: '拖动图片调整位置，滑动缩放控制取景范围。',
   CROP_PRESETS: {
     avatar: { aspectRatio: 1, maxWidth: 260, maxHeight: 260, outputWidth: 720, outputHeight: 720, label: '头像' },
     background: { aspectRatio: 16 / 10, maxWidth: 320, maxHeight: 220, outputWidth: 1600, outputHeight: 1000, label: '顶部背景' },
-    wallpaper: { aspectRatio: 9 / 16, maxWidth: 240, maxHeight: 420, outputWidth: 1080, outputHeight: 1920, label: '墙纸' }
+    wallpaper: { aspectRatio: 16 / 9, maxWidth: 320, maxHeight: 220, outputWidth: 1920, outputHeight: 1080, label: '墙纸' }
   },
 
   OPTION_GROUPS: [
@@ -222,4 +233,7 @@ export const PROFILE_THEME_CONFIG = {
   END: '#6366f1',
   GLOW: 'rgba(255,255,255,0.16)'
 }
+
+
+
 

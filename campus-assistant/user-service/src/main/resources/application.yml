@@ -13,11 +13,9 @@ spring:
     include:
       - mybatis
       - jwt
-      - weblog
       - userweblog
       - nacos
       - openfeign
       - sentinel
       - aes
       - static
-      - aliyun

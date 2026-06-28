@@ -7,7 +7,7 @@ spring:
             logger-level: full
             connect-timeout: 3000
             read-timeout: 5000
-          order-service:
+          campus-course-service:
             logger-level: full
             connect-timeout: 3000
             read-timeout: 5000

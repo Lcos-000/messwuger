@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="schedule-root" :style="scheduleRootStyle">
-    <div v-if="scheduleWallpaper" class="schedule-wallpaper" :style="scheduleWallpaperStyle"></div>
+    <div class="schedule-wallpaper" :style="scheduleWallpaperStyle"></div>
     <div class="schedule-shell">
     <!-- ===== 顶栏 ===== -->
     <header class="top-bar">
@@ -248,11 +248,12 @@ const scheduleRootStyle = computed(() => ({
 }))
 
 const scheduleWallpaperStyle = computed(() => ({
-  backgroundImage: `url(${scheduleWallpaper.value})`,
+  backgroundImage: scheduleWallpaper.value ? `url(${scheduleWallpaper.value})` : 'none',
+  backgroundColor: scheduleWallpaper.value ? 'transparent' : PROFILE_VIEW_CONFIG.EMPTY_WALLPAPER_BG,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
-  opacity: 1 - wallpaperMask.value
+  opacity: scheduleWallpaper.value ? 1 - wallpaperMask.value : 1
 }))
 
 const resolveAssetUrl = (path) => {
@@ -286,7 +287,10 @@ const loadWallpaperMaskPreference = () => {
 }
 
 const saveWallpaperPreference = (value) => {
-  if (!value) return
+  if (!value) {
+    localStorage.removeItem(STORAGE_KEYS.PROFILE_WALLPAPER)
+    return
+  }
   localStorage.setItem(STORAGE_KEYS.PROFILE_WALLPAPER, value)
 }
 
@@ -303,10 +307,8 @@ const fetchScheduleWallpaper = async () => {
   try {
     const res = await getProfileStyle()
     if (res.code === HTTP_STATUS.SUCCESS && res.data) {
-      if (res.data.wallpaper) {
-        scheduleWallpaper.value = resolveAssetUrl(res.data.wallpaper)
-        saveWallpaperPreference(scheduleWallpaper.value)
-      }
+      scheduleWallpaper.value = resolveAssetUrl(res.data.wallpaper)
+      saveWallpaperPreference(scheduleWallpaper.value)
       if (res.data.wallpaperMask !== null && res.data.wallpaperMask !== undefined) {
         wallpaperMask.value = clampWallpaperMaskValue(res.data.wallpaperMask)
         saveWallpaperMaskPreference(wallpaperMask.value)
@@ -1095,3 +1097,5 @@ const closeStackDetail = () => {
   .card-meta { font-size: 8.5px; }
 }
 </style>
+
+

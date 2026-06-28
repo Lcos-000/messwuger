@@ -37,8 +37,11 @@ export const HTTP_CONFIG = {
 }
 
 export const REQUEST_MESSAGES = {
-  DEFAULT_ERROR: 'Error',
   UNAUTHORIZED: '登录状态已过期，请重新登录',
+  DEFAULT_ERROR: '请求失败，请稍后再试',
   SERVER_ERROR: '网络或服务器错误',
-  NETWORK_ERROR: '网络异常，请稍后再试'
+  NETWORK_ERROR: '网络异常，请稍后再试',
+  FLOW_LIMIT: '当前访问人数较多，请稍后再试',
+  SPIDER_REMOTE_ERROR: '同步或打卡服务暂时不可用，请稍后再试',
+  COURSE_REMOTE_ERROR: '课表服务暂时不可用，请稍后再试'
 }

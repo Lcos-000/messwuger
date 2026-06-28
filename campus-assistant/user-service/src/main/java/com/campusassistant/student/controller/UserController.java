@@ -1,12 +1,10 @@
 package com.campusassistant.student.controller;
 
-import com.campusassistant.common.UserContext;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.student.pojo.UserStatusVO;
 import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.student.pojo.dto.AutoPunchSwitchDTO;
 import com.campusassistant.student.service.CurrentUserService;
-import com.campusassistant.utils.ThreadLocalUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
