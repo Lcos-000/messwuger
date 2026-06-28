@@ -172,7 +172,7 @@ CREATE DATABASE IF NOT EXISTS campus_db
 USE campus_db;
 ```
 
-### 建表 SQL（新环境推荐直接使用）
+### 建表 SQL
 
 ```sql
 CREATE TABLE IF NOT EXISTS student_db (
@@ -236,41 +236,9 @@ CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
 ```
 
-### 旧环境升级 SQL（已有表时执行）
-
-```sql
-ALTER TABLE student_db
-  ADD COLUMN auto_punch_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启自动打卡：0关闭 1开启';
-
-ALTER TABLE user_profile_style
-  ADD COLUMN card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
-  ADD COLUMN wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
-  ADD COLUMN global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启';
-
-ALTER TABLE user_profile_style
-  MODIFY avatar VARCHAR(255) DEFAULT NULL,
-  MODIFY background VARCHAR(255) DEFAULT NULL,
-  MODIFY wallpaper VARCHAR(255) DEFAULT NULL;
-
-CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  student_id VARCHAR(32) NOT NULL COMMENT '学号',
-  custom_avatar VARCHAR(255) DEFAULT NULL COMMENT '自定义头像 OSS 地址',
-  custom_background VARCHAR(255) DEFAULT NULL COMMENT '自定义顶部背景 OSS 地址',
-  custom_wallpaper VARCHAR(255) DEFAULT NULL COMMENT '自定义墙纸 OSS 地址',
-  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_student_id (student_id)
-);
-```
-
-> 如果列已存在，请根据数据库实际状态手动跳过对应 `ALTER TABLE` 语句。
-
----
-
 ## Nacos 配置
 
-在 `dev` 命名空间下创建以下配置。
+在 `dev` 命名空间下创建以下配置。当前仓库也提供了本地示例目录：`nacos_config/`。
 
 ### `datasource-mysql.yaml`（group: `DATASOURCE_GROUP`）
 
@@ -321,7 +289,7 @@ logging:
     cloudstructuretemplate: info
 ```
 
-### `application-aliyun.yml`（建议外置）
+### `aliyun-oss.yaml`（group: `DEFAULT_GROUP`，建议外置）
 
 ```yaml
 aliyun:
@@ -332,6 +300,8 @@ aliyun:
     bucket-name: <your-bucket-name>
     url-prefix: https://<your-bucket-name>.oss-cn-beijing.aliyuncs.com
 ```
+
+仓库中的示例文件位置：`nacos_config/DEFAULT_GROUP/aliyun-oss.yaml`。
 
 > 建议不要把生产环境 OSS 凭据直接提交到仓库，优先使用外部配置或配置中心注入。
 

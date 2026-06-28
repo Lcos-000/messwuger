@@ -230,7 +230,7 @@ aliyun:
 ### 6.1 推荐做法
 
 - 不要把真实 AK / SK 直接提交到仓库
-- 服务器上外置 `application-aliyun.yml`
+- 服务器上外置 `application-aliyun.yml`，或在配置中心使用等价的 `aliyun.oss` 配置
 - 或通过环境变量 / Nacos 配置中心注入
 - 优先使用 RAM 子账号最小权限 AK / SK
 

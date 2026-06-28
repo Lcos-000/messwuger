@@ -3,24 +3,18 @@ spring:
     name: student-service
   cloud:
     nacos:
-
-      config:
-        import-check:
-          enabled: false # 关闭 Nacos 配置导入检查
-
       server-addr: localhost:8848
       discovery: #注册名称空间
         namespace: dev
         metadata: #元数据
           version: stable
-#
-#      config: #获取配置名称空间
-#        namespace: dev
-#        group: DEFAULT_GROUP
-#        file-extension: yaml # 拼接配置文件 user-service-dev.yaml
-#  config:
-#    import:
-#      - nacos:datasource-mysql.yaml?group=DATASOURCE_GROUP
-#      - nacos:datasource-redis.yaml?group=DATASOURCE_GROUP
-#      - nacos:gateway-auth.yaml?group=GATEWAY_GROUP
-#      - nacos:common-log.yaml
+
+      config: #获取配置名称空间
+        namespace: dev
+        group: DEFAULT_GROUP
+        file-extension: yaml # 拼接配置文件 user-service-dev.yaml
+  config:
+    import:
+      - nacos:datasource-mysql.yaml?group=DATASOURCE_GROUP
+      - nacos:datasource-redis.yaml?group=DATASOURCE_GROUP
+      - nacos:common-log.yaml?group=DEFAULT_GROUP

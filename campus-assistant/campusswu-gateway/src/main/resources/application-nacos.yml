@@ -10,7 +10,7 @@ spring:
         namespace: dev
         group: GATEWAY_GROUP
         file-extension: yaml
-#  config:
-#    import:
-#      - nacos:gateway-auth.yaml
-#      - nacos:common-log.yaml?group=DEFAULT_GROUP
+  config:
+    import:
+      - nacos:gateway-auth.yaml
+      - nacos:common-log.yaml?group=DEFAULT_GROUP

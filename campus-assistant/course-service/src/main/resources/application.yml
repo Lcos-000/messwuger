@@ -12,5 +12,4 @@ spring:
       - jwt
       - nacos
       - sentinel
-      - weblog
       - aes
