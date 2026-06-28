@@ -1,6 +1,6 @@
 package com.campusassistant.interceptors;
 
-import com.campusassistant.common.UserContext;
+import com.campusassistant.pojo.UserContext;
 import com.campusassistant.constant.SystemConstants;
 import com.campusassistant.utils.ThreadLocalUtil;
 import jakarta.servlet.http.HttpServletRequest;

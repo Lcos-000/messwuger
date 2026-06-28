@@ -4,6 +4,7 @@ import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.client.CourseServiceClient;
 import com.campusassistant.remote.course.pojo.RemoteCourseVO;
 import com.campusassistant.remote.course.service.UserCourseService;
+import com.campusassistant.utils.UserContextUtil;
 import com.campusassistant.utils.redistool.CommonCacheService;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,8 @@ public class UserCourseServiceImpl implements UserCourseService {
     private final CourseMixCacheKey courseMixCacheKey;
 
     @Override
-    public RemoteCourseVO getScheduleWithCache(String studentId) {
+    public RemoteCourseVO getScheduleWithCache() {
+        String studentId = UserContextUtil.requireStudentId();
         return commonCacheService.getWithCache(
                 courseMixCacheKey.getKey(studentId),
                 RemoteCourseVO.class,      // 返回类型

@@ -1,4 +1,4 @@
-package com.campusassistant.common;
+package com.campusassistant.pojo;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

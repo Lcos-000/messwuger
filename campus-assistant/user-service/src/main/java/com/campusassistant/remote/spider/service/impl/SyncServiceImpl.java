@@ -10,7 +10,7 @@ import com.campusassistant.remote.spider.mapper.SyncMapper;
 import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
 import com.campusassistant.remote.spider.pojo.SyncDataDTO;
 import com.campusassistant.remote.spider.service.SyncService;
-import com.campusassistant.student.common.PunchStatusEnum;
+import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
@@ -23,7 +23,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING_SUCCESS;
+import static com.campusassistant.student.code.SyncStatusEnum.SYNCING_SUCCESS;
 
 @Slf4j
 @Service

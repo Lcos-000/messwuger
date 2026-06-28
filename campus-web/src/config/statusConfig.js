@@ -4,6 +4,19 @@ export const HTTP_STATUS = {
   UNAUTHORIZED: 401
 }
 
+export const REMOTE_ERROR_CODE = {
+  SPIDER_MIN: 531,
+  SPIDER_MAX: 537,
+  COURSE_MIN: 541,
+  COURSE_MAX: 547,
+  FLOW_LIMIT: 429,
+  SERVICE_DEGRADE: 503
+}
+
+export const isSpiderRemoteError = (code) => code >= REMOTE_ERROR_CODE.SPIDER_MIN && code <= REMOTE_ERROR_CODE.SPIDER_MAX
+export const isCourseRemoteError = (code) => code >= REMOTE_ERROR_CODE.COURSE_MIN && code <= REMOTE_ERROR_CODE.COURSE_MAX
+export const isRemoteFlowLimited = (code) => code === REMOTE_ERROR_CODE.FLOW_LIMIT || code === REMOTE_ERROR_CODE.SERVICE_DEGRADE
+
 export const SYNC_STATUS = {
   NOT_SYNCED: 0,
   SYNCING: 1,

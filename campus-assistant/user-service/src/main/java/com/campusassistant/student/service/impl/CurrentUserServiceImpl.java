@@ -9,7 +9,7 @@ import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.ThreadLocalUtil;
-import com.campusassistant.common.UserContext;
+import com.campusassistant.pojo.UserContext;
 import com.campusassistant.utils.redistool.CommonCacheService;
 import com.campusassistant.utils.converter.PersonalInfoVoConvertor;
 import com.campusassistant.utils.converter.UserStatusVoConvertor;

@@ -1,6 +1,7 @@
 package com.campusassistant.student.service.impl;
 
-import com.campusassistant.common.UserContext;
+import com.campusassistant.pojo.UserContext;
+import com.campusassistant.student.code.UserEnteringEnum;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.personalization.service.impl.support.ProfileWriteSupport;
@@ -32,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.constant.SystemConstants.*;
 import static com.campusassistant.enums.ResultCodeEnum.*;
-import static com.campusassistant.remote.spider.common.SyncStatusEnum.SYNCING_SUCCESS;
+import static com.campusassistant.student.code.SyncStatusEnum.SYNCING_SUCCESS;
 
 @Slf4j
 @Service
@@ -60,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserEntity existingUser = userReadSupport.findEntityByStudentId(studentId);
         if (existingUser != null) {
-            throw new BusinessException(USER_ALREADY_EXISTS);
+            throw new BusinessException(UserEnteringEnum.USER_ALREADY_EXISTS);
         }
 
         String encryptedPassword;
@@ -72,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
 
         boolean isValid = spiderService.validateCredentials(studentId, encryptedPassword);
         if (!isValid) {
-            throw new BusinessException(INVALID_CREDENTIALS);
+            throw new BusinessException(UserEnteringEnum.INVALID_CREDENTIALS);
         }
         userWriteSupport.addUser(userDTO);
         // 触发异步爬虫任务

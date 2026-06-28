@@ -11,6 +11,4 @@ spring:
       - gateway
       - nacos
       - jwt
-      - weblog
-      - security
       - aes
