@@ -9,18 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/internal/api/v1/sync") // 按照 V3 文档里的路径
+@RequestMapping("/internal/api/v1/sync")
 @RequiredArgsConstructor
 @Tag(name = "内部同步接口")
 public class InternalSyncController {
 
     private final SyncService syncService;
 
-    /**
-     * 接收 Go 爬虫回调的综合学生数据
-     * TODO
-     * 添加参数校验
-     */
+    // 接收 Go 爬虫回调的综合学生数据
     @Operation(summary = "接收综合学生数据")
     @PostMapping("/student-data")
     public Result<?> receiveStudentData(@RequestBody SyncDataDTO syncDataDTO) {
@@ -28,9 +24,7 @@ public class InternalSyncController {
         return Result.success("数据接收成功");
     }
 
-    /**
-     * 接收 Go 端打卡结果回调
-     */
+    // 接收 Go 端打卡结果回调
     @Operation(summary = "接收打卡结果")
     @PostMapping("/punch-result")
     public Result<?> receivePunchResult(@RequestParam("studentId") String studentId,
