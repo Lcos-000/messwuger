@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SentinelBlockHandlers {
 
+    // 只为特定的、标注了 Sentinel 注解的方法服务，默认处理逻辑
     public static Result<?> defaultBlockHandler(BlockException ex) {
         RemoteCodeEnum blockType = RemoteCodeEnum.getByException(ex);
 

@@ -1,12 +1,11 @@
 package com.campusassistant.personalization.service.impl.support;
 
-import com.campusassistant.common.UserContext;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.personalization.config.ProfileDefaultStyleProperties;
 import com.campusassistant.personalization.mapper.UserProfileStyleMapper;
 import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
 import com.campusassistant.personalization.pojo.UserProfileStyleUpdateDTO;
-import com.campusassistant.utils.ThreadLocalUtil;
+import com.campusassistant.utils.UserContextUtil;
 import com.campusassistant.utils.converter.ProfileStyleDefaultConvertor;
 import com.campusassistant.utils.converter.ProfileStyleDtoConvertor;
 import lombok.RequiredArgsConstructor;
@@ -29,9 +28,7 @@ public class ProfileWriteSupport {
 
     @Transactional(rollbackFor = Exception.class)
     public void initByStudentId() {
-        UserContext userContext = ThreadLocalUtil.get();
-        String studentId = userContext.getStudentId();
-        initByStudentId(studentId);
+        initByStudentId(UserContextUtil.requireStudentId());
     }
 
     @Transactional(rollbackFor = Exception.class)

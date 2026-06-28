@@ -4,7 +4,7 @@ package com.campusassistant.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusassistant.common.UserContext;
+import com.campusassistant.pojo.UserContext;
 import com.campusassistant.converter.CourseDtoConvertor;
 import com.campusassistant.converter.CourseVoConvertor;
 import com.campusassistant.exception.BusinessException;

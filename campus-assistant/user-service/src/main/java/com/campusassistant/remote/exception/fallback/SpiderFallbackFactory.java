@@ -2,10 +2,11 @@ package com.campusassistant.remote.exception.fallback;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.campusassistant.enums.RemoteCodeEnum;
-import com.campusassistant.enums.ResultCodeEnum;
+import com.campusassistant.remote.exception.code.SpiderRemoteCodeEnum;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.spider.client.SpiderServiceClient;
 import feign.FeignException;
+import feign.RetryableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
@@ -19,64 +20,78 @@ public class SpiderFallbackFactory implements FallbackFactory<SpiderServiceClien
 
     @Override
     public SpiderServiceClient create(Throwable cause) {
+        int code;
+        String message;
 
-        if (cause == null){
-            log.error("未知错误，未捕获到异常信息");
-        }
-        else if (cause instanceof com.alibaba.csp.sentinel.slots.block.BlockException) {
-            RemoteCodeEnum blockType = RemoteCodeEnum.getByException((BlockException) cause);
-            log.error("远程调用失败：[{}] {}",blockType.getCode(),blockType.getMessage(),cause);
-        }
-        else if (cause instanceof IOException) {
-            log.error("网络故障：无法连接到爬虫服务，message={}", cause.getMessage(), cause);
-        }
-        // FeignException 是所有 HTTP 错误的父类
-        else if (cause instanceof FeignException) {
-            int status = ((FeignException) cause).status();
+        if (cause instanceof BlockException blockException) {
+            RemoteCodeEnum blockType = RemoteCodeEnum.getByException(blockException);
+            code = blockType.getCode();
+            message = blockType.getMessage();
+            log.error("爬虫服务调用被 Sentinel 拦截：[{}] {}", code, message, cause);
+        } else if (cause instanceof RetryableException || cause instanceof TimeoutException) {
+            code = SpiderRemoteCodeEnum.SPIDER_SERVICE_TIMEOUT.getCode();
+            message = SpiderRemoteCodeEnum.SPIDER_SERVICE_TIMEOUT.getMessage();
+            log.error("爬虫服务调用超时：[{}] {}", code, message, cause);
+        } else if (cause instanceof IOException) {
+            code = SpiderRemoteCodeEnum.SPIDER_SERVICE_UNAVAILABLE.getCode();
+            message = SpiderRemoteCodeEnum.SPIDER_SERVICE_UNAVAILABLE.getMessage();
+            log.error("爬虫服务不可达：[{}] {}", code, message, cause);
+        } else if (cause instanceof FeignException feignException) {
+            int status = feignException.status();
+
             if (status >= 500) {
-                log.error("服务端报错：[{}]爬虫服务内部错误:{}: ", status, cause.getMessage(), cause);
+                code = SpiderRemoteCodeEnum.SPIDER_SERVER_ERROR.getCode();
+                message = SpiderRemoteCodeEnum.SPIDER_SERVER_ERROR.getMessage();
+                log.error("爬虫服务 5xx 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
             } else if (status >= 400) {
                 switch (status) {
-                    case 400:
-                        log.warn("参数校验失败: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 401:
-                        log.warn("认证失效: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 403:
-                        log.warn("权限不足: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 404:
-                        log.error("接口不存在: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    default:
-                        log.error("其他客户端错误: [{}] {}", status, cause.getMessage(), cause);
-                        break;
+                    case 400 -> {
+                        code = SpiderRemoteCodeEnum.SPIDER_BAD_REQUEST.getCode();
+                        message = SpiderRemoteCodeEnum.SPIDER_BAD_REQUEST.getMessage();
+                        log.warn("爬虫服务 400 参数异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    case 401, 403 -> {
+                        code = SpiderRemoteCodeEnum.SPIDER_AUTH_FAILED.getCode();
+                        message = SpiderRemoteCodeEnum.SPIDER_AUTH_FAILED.getMessage();
+                        log.error("爬虫服务鉴权失败：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    case 404 -> {
+                        code = SpiderRemoteCodeEnum.SPIDER_API_NOT_FOUND.getCode();
+                        message = SpiderRemoteCodeEnum.SPIDER_API_NOT_FOUND.getMessage();
+                        log.error("爬虫服务接口不存在：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    default -> {
+                        code = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getCode();
+                        message = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getMessage();
+                        log.error("爬虫服务其他 4xx 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
                 }
-                }
-        }
-        else if (cause instanceof TimeoutException) {
-            log.error("响应超时：{}",  cause.getMessage(), cause);
-        }
-        else {
-            log.error("未知异常：{}", cause.getMessage(), cause);
+            } else {
+                code = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getCode();
+                message = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getMessage();
+                log.error("爬虫服务未知 Feign 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+            }
+        } else {
+            code = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getCode();
+            message = SpiderRemoteCodeEnum.SPIDER_RPC_ERROR.getMessage();
+            log.error("爬虫服务未知异常：[{}] {}", code, message, cause);
         }
 
         return new SpiderServiceClient() {
 
             @Override
             public Result<?> verifyAccount(String studentId, String encryptedPassword, String type) {
-                return Result.error(ResultCodeEnum.RPC_ERROR.getCode(), "教务爬虫系统暂时不可用，账号验证失败，请稍后再试");
+                return Result.error(code, message);
             }
 
             @Override
             public Result<?> startFullSpiderTask(String studentId, String encryptedPassword, String type) {
-                return Result.error(ResultCodeEnum.RPC_ERROR.getCode(), "教务爬虫系统暂时不可用，触发同步失败，请稍后手动刷新");
+                return Result.error(code, message);
             }
 
             @Override
             public Result<?> startPunchCardTask(String studentId, String encryptedPassword, String type) {
-                return Result.error(ResultCodeEnum.RPC_ERROR.getCode(), "教务爬虫系统暂时不可用，自动打卡失败，请稍后再试");
+                return Result.error(code, message);
             }
         };
     }

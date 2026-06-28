@@ -1,6 +1,6 @@
 package com.campusassistant.remote.exception.fallback;
 
-import com.campusassistant.enums.ResultCodeEnum;
+import com.campusassistant.remote.exception.code.CourseRemoteCodeEnum;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.enums.RemoteCodeEnum;
 import com.campusassistant.remote.course.client.CourseServiceClient;
@@ -8,6 +8,7 @@ import com.campusassistant.remote.course.pojo.RemoteCourseDTO;
 import com.campusassistant.remote.course.pojo.RemoteCourseVO;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import feign.FeignException;
+import feign.RetryableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
@@ -21,57 +22,72 @@ public class UserCourseFallbackFactory implements FallbackFactory<CourseServiceC
 
     @Override
     public CourseServiceClient create(Throwable cause) {
-        if (cause == null){
-            log.error("未知错误，未捕获到异常信息");
-        }
-        else if (cause instanceof com.alibaba.csp.sentinel.slots.block.BlockException) {
-            RemoteCodeEnum blockType = RemoteCodeEnum.getByException((BlockException) cause);
-            log.error("远程调用失败：[{}] {}",blockType.getCode(),blockType.getMessage(),cause);
-        }
-        else if (cause instanceof IOException) {
-            log.error("网络故障：无法连接到课程服务，message={}", cause.getMessage(), cause);
-        }
-        // FeignException 是所有 HTTP 错误的父类
-        else if (cause instanceof FeignException) {
-            int status = ((FeignException) cause).status();
+        int code;
+        String message;
+
+        if (cause instanceof BlockException blockException) {
+            RemoteCodeEnum blockType = RemoteCodeEnum.getByException(blockException);
+            code = blockType.getCode();
+            message = blockType.getMessage();
+            log.error("课表服务调用被 Sentinel 拦截：[{}] {}", code, message, cause);
+        } else if (cause instanceof RetryableException || cause instanceof TimeoutException) {
+            code = CourseRemoteCodeEnum.COURSE_SERVICE_TIMEOUT.getCode();
+            message = CourseRemoteCodeEnum.COURSE_SERVICE_TIMEOUT.getMessage();
+            log.error("课表服务调用超时：[{}] {}", code, message, cause);
+        } else if (cause instanceof IOException) {
+            code = CourseRemoteCodeEnum.COURSE_SERVICE_UNAVAILABLE.getCode();
+            message = CourseRemoteCodeEnum.COURSE_SERVICE_UNAVAILABLE.getMessage();
+            log.error("课表服务不可达：[{}] {}", code, message, cause);
+        } else if (cause instanceof FeignException feignException) {
+            int status = feignException.status();
+
             if (status >= 500) {
-                log.error("服务端报错：[{}]课程服务内部错误:{}: ", status, cause.getMessage(), cause);
+                code = CourseRemoteCodeEnum.COURSE_SERVER_ERROR.getCode();
+                message = CourseRemoteCodeEnum.COURSE_SERVER_ERROR.getMessage();
+                log.error("课表服务 5xx 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
             } else if (status >= 400) {
                 switch (status) {
-                    case 400:
-                        log.warn("参数校验失败: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 401:
-                        log.warn("认证失效: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 403:
-                        log.warn("权限不足: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    case 404:
-                        log.error("接口不存在: [{}] {}", status, cause.getMessage(), cause);
-                        break;
-                    default:
-                        log.error("其他客户端错误: [{}] {}", status, cause.getMessage(), cause);
-                        break;
+                    case 400 -> {
+                        code = CourseRemoteCodeEnum.COURSE_BAD_REQUEST.getCode();
+                        message = CourseRemoteCodeEnum.COURSE_BAD_REQUEST.getMessage();
+                        log.warn("课表服务 400 参数异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    case 401, 403 -> {
+                        code = CourseRemoteCodeEnum.COURSE_AUTH_FAILED.getCode();
+                        message = CourseRemoteCodeEnum.COURSE_AUTH_FAILED.getMessage();
+                        log.error("课表服务鉴权失败：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    case 404 -> {
+                        code = CourseRemoteCodeEnum.COURSE_API_NOT_FOUND.getCode();
+                        message = CourseRemoteCodeEnum.COURSE_API_NOT_FOUND.getMessage();
+                        log.error("课表服务接口不存在：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
+                    default -> {
+                        code = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getCode();
+                        message = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getMessage();
+                        log.error("课表服务其他 4xx 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
+                    }
                 }
+            } else {
+                code = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getCode();
+                message = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getMessage();
+                log.error("课表服务未知 Feign 异常：[{}] status={}, message={}", code, status, cause.getMessage(), cause);
             }
-        }
-        else if (cause instanceof TimeoutException) {
-            log.error("响应超时：{}",  cause.getMessage(), cause);
-        }
-        else {
-            log.error("未知异常：{}", cause.getMessage(), cause);
+        } else {
+            code = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getCode();
+            message = CourseRemoteCodeEnum.COURSE_RPC_ERROR.getMessage();
+            log.error("课表服务未知异常：[{}] {}", code, message, cause);
         }
 
         return new CourseServiceClient() {
             @Override
             public Result<RemoteCourseVO> getSchedule(String studentId) {
-                return Result.error(ResultCodeEnum.RPC_ERROR.getCode(), "查询课表失败，请稍后再试");
+                return Result.error(code, message);
             }
 
             @Override
             public Result<String> syncScheduleData(RemoteCourseDTO remoteCourseDTO) {
-                return Result.error(ResultCodeEnum.RPC_ERROR.getCode(), "更新课表失败，请稍后再试");
+                return Result.error(code, message);
             }
         };
     }
