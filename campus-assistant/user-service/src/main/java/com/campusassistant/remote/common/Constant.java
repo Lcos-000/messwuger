@@ -1,6 +1,6 @@
-package com.campusassistant.common;
+package com.campusassistant.remote.common;
 
-public interface constant {
+public interface Constant {
     String TYPE = "X-TYPE";
     String VERIFY = "VERIFY";
     String FULL_CRAWL = "FULL_CRAWL";

@@ -1,4 +1,4 @@
-package com.campusassistant.common;
+package com.campusassistant.personalization.code;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

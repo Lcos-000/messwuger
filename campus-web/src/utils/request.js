@@ -1,11 +1,33 @@
-﻿import axios from 'axios'
+import axios from 'axios'
 import router from '@/router'
-import { HTTP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS, REQUEST_MESSAGES } from '@/config'
+import {
+  HTTP_CONFIG,
+  HTTP_STATUS,
+  ROUTE_PATHS,
+  STORAGE_KEYS,
+  REQUEST_MESSAGES,
+  isSpiderRemoteError,
+  isCourseRemoteError,
+  isRemoteFlowLimited
+} from '@/config'
 
 const service = axios.create({
   baseURL: HTTP_CONFIG.BASE_URL,
   timeout: HTTP_CONFIG.TIMEOUT
 })
+
+const resolveBusinessErrorMessage = (code, fallbackMessage) => {
+  if (isSpiderRemoteError(code)) {
+    return fallbackMessage || REQUEST_MESSAGES.SPIDER_REMOTE_ERROR
+  }
+  if (isCourseRemoteError(code)) {
+    return fallbackMessage || REQUEST_MESSAGES.COURSE_REMOTE_ERROR
+  }
+  if (isRemoteFlowLimited(code)) {
+    return fallbackMessage || REQUEST_MESSAGES.FLOW_LIMIT
+  }
+  return fallbackMessage || REQUEST_MESSAGES.DEFAULT_ERROR
+}
 
 service.interceptors.request.use(
   config => {
@@ -29,8 +51,9 @@ service.interceptors.response.use(
       return Promise.reject(new Error(res.message || REQUEST_MESSAGES.UNAUTHORIZED))
     }
     if (!successCodes.includes(res.code)) {
-      alert(res.message || REQUEST_MESSAGES.DEFAULT_ERROR)
-      return Promise.reject(new Error(res.message || REQUEST_MESSAGES.DEFAULT_ERROR))
+      const errorMessage = resolveBusinessErrorMessage(res.code, res.message)
+      alert(errorMessage)
+      return Promise.reject(new Error(errorMessage))
     } else {
       return res
     }
@@ -43,7 +66,9 @@ service.interceptors.response.use(
         localStorage.removeItem(STORAGE_KEYS.TOKEN)
         router.replace(ROUTE_PATHS.LOGIN)
       } else {
-        alert(error.response.data?.message || REQUEST_MESSAGES.SERVER_ERROR)
+        const responseCode = error.response.data?.code
+        const responseMessage = error.response.data?.message
+        alert(resolveBusinessErrorMessage(responseCode, responseMessage || REQUEST_MESSAGES.SERVER_ERROR))
       }
     } else {
       alert(REQUEST_MESSAGES.NETWORK_ERROR)

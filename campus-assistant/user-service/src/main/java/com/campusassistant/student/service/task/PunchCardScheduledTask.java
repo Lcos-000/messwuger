@@ -1,7 +1,7 @@
 package com.campusassistant.student.service.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.campusassistant.common.PunchStatusEnum;
+import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.campusassistant.common.PunchStatusEnum.AUTO_PUNCH_ENABLED;
+import static com.campusassistant.student.code.PunchStatusEnum.AUTO_PUNCH_ENABLED;
 
 @Slf4j
 @Component

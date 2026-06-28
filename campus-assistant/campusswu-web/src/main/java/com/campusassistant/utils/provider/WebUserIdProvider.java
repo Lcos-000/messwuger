@@ -1,6 +1,6 @@
 package com.campusassistant.utils.provider;
 
-import com.campusassistant.common.UserContext;
+import com.campusassistant.pojo.UserContext;
 import com.campusassistant.provider.UserIdProvider;
 import com.campusassistant.utils.ThreadLocalUtil;
 import org.springframework.stereotype.Component;

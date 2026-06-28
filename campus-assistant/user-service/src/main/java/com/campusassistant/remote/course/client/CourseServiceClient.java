@@ -12,8 +12,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "campus-course-service",
-        url = "http://localhost:9000",
+@FeignClient(contextId = "user-course-service-client",
+        name = "campus-course-service",
+//        url = "http://localhost:9000",
         configuration = FeignConfig.class,
         fallbackFactory = UserCourseFallbackFactory.class)
 public interface CourseServiceClient {
