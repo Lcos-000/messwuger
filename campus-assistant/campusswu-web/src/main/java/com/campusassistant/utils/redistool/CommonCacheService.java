@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -120,16 +119,4 @@ public class CommonCacheService {
         T deserialize(String json) throws Exception;
     }
 
-    // ======================= 缓存删除机制 =======================
-
-    public void deleteCache(String key) {
-        stringRedisTemplate.delete(key);
-    }
-
-    public void deleteByPattern(String pattern) {
-        Set<String> keys = stringRedisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            stringRedisTemplate.delete(keys);
-        }
-    }
 }

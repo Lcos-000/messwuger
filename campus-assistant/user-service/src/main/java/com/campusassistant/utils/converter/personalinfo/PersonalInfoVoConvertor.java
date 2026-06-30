@@ -1,4 +1,4 @@
-package com.campusassistant.utils.converter;
+package com.campusassistant.utils.converter.personalinfo;
 
 import com.campusassistant.common.converter.BaseConvertor;
 import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
