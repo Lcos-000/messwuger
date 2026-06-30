@@ -16,7 +16,6 @@ public class JwtProperties {
     private long adminTtl;
     private String adminTokenName;
     private long redisHours;
-    private long passwordDays;
 
 //    /**
 //     * 用户端微信用户生成jwt令牌相关配置

@@ -1,12 +1,13 @@
 package com.campusassistant.student.service.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.remote.spider.service.SpiderService;
+import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.rediskey.UserPwdCacheKey;
+import com.campusassistant.utils.redistool.ScheduledLockSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,24 +31,32 @@ public class PunchCardScheduledTask {
     private final UserPwdCacheKey userPwdCacheKey;
     private final UserMapper userMapper;
     private final UserWriteSupport userWriteSupport;
+    private final ScheduledLockSupport scheduledLockSupport;
 
     private static final int BATCH_SIZE = 100;
-    private static final long STAGGER_DELAY_MS = 200L;
+    private static final long STAGGER_DELAY_MS = 100L;
+
+    private static final String LOCK_KEY_RESET = "lock:scheduled:punchcard:reset";
+    private static final String LOCK_KEY_LOOP = "lock:scheduled:punchcard:loop";
 
     /**
      * 1. 每日重置任务：每天中午 12:00，将所有人的打卡状态重置为"未打卡" (0)
      */
     @Scheduled(cron = "0 0 12 * * ?")
     public void resetPunchStatusDaily() {
-        String lockKey = "lock:scheduled:punchcard:reset";
-        if (!tryLock(lockKey, 15)) return;
+        boolean executed = scheduledLockSupport.executeWithLock(
+                LOCK_KEY_RESET,
+                60,
+                TimeUnit.MINUTES,
+                () -> {
+                    log.info("开始执行每日打卡状态重置任务");
+                    userWriteSupport.resetAllPunchStatus();
+                    log.info("每日打卡状态重置完成");
+                }
+        );
 
-        try {
-            log.info("开始执行每日打卡状态重置任务");
-            userWriteSupport.resetAllPunchStatus();
-            log.info("每日打卡状态重置完成");
-        } finally {
-            stringRedisTemplate.delete(lockKey);
+        if (!executed) {
+            log.info("任务已被其他实例执行，跳过: {}", LOCK_KEY_RESET);
         }
     }
 
@@ -61,27 +70,27 @@ public class PunchCardScheduledTask {
             return;
         }
 
-        String lockKey = "lock:scheduled:punchcard:loop";
-        if (!tryLock(lockKey, 20)) return;
+        boolean executed = scheduledLockSupport.executeWithLock(
+                LOCK_KEY_LOOP,
+                60,
+                TimeUnit.MINUTES,
+                () -> {
+                    log.info("自动打卡轮询任务开始执行 (当前时间: {})", now);
+                    List<Integer> retryStatuses = Arrays.asList(
+                            PunchStatusEnum.NOT_PUNCHED.getCode(),
+                            PunchStatusEnum.PUNCH_FAILED.getCode()
+                    );
+                    doPunchCardBatch(retryStatuses);
+                }
+        );
 
-        try {
-            log.info("自动打卡轮询任务开始执行 (当前时间: {})", now);
-            // 只查 未打卡(0) 和 打卡失败(3)，跳过"打卡中(1)"避免重复触发
-            List<Integer> retryStatuses = Arrays.asList(
-                    PunchStatusEnum.NOT_PUNCHED.getCode(),
-                    PunchStatusEnum.PUNCH_FAILED.getCode()
-            );
-            doPunchCardBatch(retryStatuses);
-        } finally {
-            stringRedisTemplate.delete(lockKey);
+        if (!executed) {
+            log.info("打卡任务已被其他实例执行，跳过: {}", LOCK_KEY_LOOP);
         }
     }
 
     /**
      * 核心逻辑：基于 ID 游标的滚动分批查询触发打卡
-     *   - 语义更清晰，直接表达"查哪些状态"
-     *   - 消除了 isNotEquals 布尔参数带来的歧义
-     *   不再是可外部注入的变量，保持现有安全性；若将来需动态配置，应改用参数绑定。
      */
     private void doPunchCardBatch(List<Integer> statusList) {
         long lastId = 0L;
@@ -89,7 +98,6 @@ public class PunchCardScheduledTask {
 
         while (true) {
             LambdaQueryWrapper<UserEntity> lqw = new LambdaQueryWrapper<>();
-
             lqw.in(UserEntity::getPunchStatus, statusList);
             lqw.eq(UserEntity::getAutoPunchEnabled, AUTO_PUNCH_ENABLED.getCode());
             lqw.gt(UserEntity::getId, lastId);
@@ -112,7 +120,6 @@ public class PunchCardScheduledTask {
 
                     if (password != null) {
                         spiderService.asyncStartPunchCard(user.getStudentId(), password);
-
                         Thread.sleep(STAGGER_DELAY_MS);
                     } else {
                         log.warn("打卡任务：学号 {} 密码缓存已过期，跳过", user.getStudentId());
@@ -130,18 +137,5 @@ public class PunchCardScheduledTask {
 
             batchCount++;
         }
-    }
-
-    /**
-     * 分布式锁
-     */
-    private boolean tryLock(String lockKey, long minutes) {
-        Boolean locked = stringRedisTemplate.opsForValue()
-                .setIfAbsent(lockKey, "1", minutes, TimeUnit.MINUTES);
-        if (Boolean.FALSE.equals(locked)) {
-            log.info("打卡任务已被其他实例执行，跳过: {}", lockKey);
-            return false;
-        }
-        return true;
     }
 }

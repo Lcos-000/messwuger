@@ -1,4 +1,4 @@
-package com.campusassistant.utils.converter;
+package com.campusassistant.utils.converter.user;
 
 import com.campusassistant.common.converter.BaseConvertor;
 import com.campusassistant.student.pojo.dto.UserDTO;
