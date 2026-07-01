@@ -291,7 +291,6 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/resources" `
 ## SkyWalking 独立界面测试
 联调前确认 Java 服务采用统一探针方案：VM options 只保留 `-javaagent`，服务名通过 `SW_AGENT_NAME` 提供。
 
-
 ### 1. 打开新 UI
 
 浏览器访问：

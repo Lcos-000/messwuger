@@ -1,4 +1,4 @@
-version: "3.8"
+﻿version: "3.8"
 
 services:
   banyandb:
@@ -9,7 +9,7 @@ services:
     ports:
       - "17913:17912"
     volumes:
-      - ./skywalking/banyandb:/tmp
+      - campus_skywalking_banyandb_data:/tmp
     networks:
       - campus-skywalking
 
@@ -42,6 +42,10 @@ services:
       TZ: Asia/Shanghai
     networks:
       - campus-skywalking
+
+volumes:
+  campus_skywalking_banyandb_data:
+    name: campus_skywalking_banyandb_data
 
 networks:
   campus-skywalking:

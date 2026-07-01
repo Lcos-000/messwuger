@@ -111,14 +111,14 @@ nacos_config/
 
 ```bash
 cd /opt/campus/deploy
-mkdir -p mysql/conf mysql/data redis/data nacos/logs nacos/data skywalking/banyandb
+mkdir -p mysql/conf redis/data nacos/logs nacos/data
 ```
 
 ### 4.1 当前对齐的镜像标签
 
 - `mysql:9.7.0`
-- `redis:latest`
-- `bladex/sentinel-dashboard:latest`
+- `redis:8.8.0`
+- `bladex/sentinel-dashboard:1.8.9`
 - `nacos/nacos-server:v2.4.0-slim`
 
 ### 4.2 创建环境变量
