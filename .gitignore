@@ -62,3 +62,4 @@ deploy/mysql/data/
 deploy/nacos/data/
 deploy/nacos/logs/
 deploy/redis/data/
+.tmp/

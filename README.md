@@ -421,6 +421,7 @@ npm run build
 ## 启动顺序
 
 > 本地如果要接入链路追踪，推荐在 IDEA 的 Run Configuration Template 统一填写 `-javaagent`，再在各服务的 Environment variables 里分别填写 `SW_AGENT_NAME`。
+
 | 顺序 | 服务 | 命令 |
 |------|------|------|
 | 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy && docker compose -p campusassistant -f docker-compose.middleware.yml up -d` |
