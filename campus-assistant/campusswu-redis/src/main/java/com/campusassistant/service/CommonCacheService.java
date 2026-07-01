@@ -1,4 +1,4 @@
-package com.campusassistant.utils.redistool;
+package com.campusassistant.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

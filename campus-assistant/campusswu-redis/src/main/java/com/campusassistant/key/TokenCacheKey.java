@@ -1,13 +1,13 @@
-package com.campusassistant.utils.redistool.rediskey;
+package com.campusassistant.key;
 
 import org.springframework.stereotype.Component;
 
 @Component
 public class TokenCacheKey extends AbstractCacheKeyProvider<String>{
-    private final String Token_Pre = "admin_token:";
+    private final String Token_Prefix = "token:";
 
     @Override
     public String getPrefix() {
-        return Token_Pre;
+        return Token_Prefix;
     }
 }

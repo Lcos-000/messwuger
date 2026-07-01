@@ -1,5 +1,6 @@
-package com.campusassistant.utils.redistool.rediskey;
+package com.campusassistant.key;
 
+import com.campusassistant.utils.CacheKeyProvider;
 import org.springframework.lang.Nullable;
 
 public abstract class AbstractCacheKeyProvider<T> implements CacheKeyProvider<T> {

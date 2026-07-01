@@ -1,6 +1,5 @@
 package com.campusassistant.student.service.impl;
 
-import com.campusassistant.pojo.UserContext;
 import com.campusassistant.student.code.UserEnteringEnum;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
@@ -18,9 +17,8 @@ import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.AuthService;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.ThreadLocalUtil;
 import com.campusassistant.utils.rediskey.*;
-import com.campusassistant.utils.redistool.rediskey.TokenCacheKey;
+import com.campusassistant.key.TokenCacheKey;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -106,13 +104,6 @@ public class AuthServiceImpl implements AuthService {
         }
         log.info("学号 {} 密码加密完成", studentId);
 
-        UserContext userContext = UserContext.builder()
-                .userId(userEntity.getId())
-                .studentId(userEntity.getStudentId())
-                .role(ROLE_USER)
-                .build();
-        ThreadLocalUtil.set(userContext);
-
         Map<String,Object> claims = new HashMap<>();//创建一个 Map 集合，存入登录成功的用户关键信息
         claims.put(USER_ID, userEntity.getId());
         claims.put(STUDENT_ID, userEntity.getStudentId());
@@ -122,7 +113,7 @@ public class AuthServiceImpl implements AuthService {
         stringRedisTemplate.opsForValue().
                 set(tokenCacheKey.getKey(token),
                         "",
-                        jwtProperties.getRedisHours(),
+                        jwtProperties.getUserRedisHours(),
                         TimeUnit.HOURS);//实际存入,key为token,value为token（占位即可，可以换），设置有效期1小时
 
         stringRedisTemplate.opsForValue().
@@ -139,10 +130,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(HttpServletRequest request) {
-        String token = request.getHeader(jwtProperties.getAdminTokenName());
+        String token = request.getHeader(jwtProperties.getJwtTokenName());
         String currentStudentId = UserContextUtil.requireStudentId();
         if (token != null) {
-            userCacheSupport.evictLoginContext(currentStudentId, token);
+            userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
         }
     }
 

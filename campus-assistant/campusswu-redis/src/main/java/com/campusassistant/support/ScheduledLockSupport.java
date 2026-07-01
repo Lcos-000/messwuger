@@ -1,4 +1,4 @@
-package com.campusassistant.utils.redistool;
+package com.campusassistant.support;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
