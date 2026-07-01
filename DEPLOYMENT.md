@@ -1,6 +1,6 @@
 ﻿# 校园助手项目部署手册
 
-> 目标：以当前仓库结构为准，在一台 Ubuntu 22.04 服务器上完成中间件、Java 微服务、Go 爬虫服务和前端静态页面部署。
+> 目标：以当前仓库结构为准，在一台 Ubuntu 22.04 服务器上完成中间件、Java 微服务、Go 爬虫服务、前端静态页面以及项目独立 SkyWalking 的部署。
 >
 > 说明：本文档以**后端服务可稳定运行**为主，前端只保留必要的构建与静态托管步骤。
 
@@ -12,14 +12,15 @@
 2. 安装基础环境
 3. 上传项目代码
 4. 部署中间件
-5. 初始化数据库
-6. 配置 OSS
-7. 部署 Java 服务
-8. 部署 Go + Python 服务
-9. 部署前端
-10. 启动与验证
-11. 常见问题
-12. 生产环境加固
+5. 部署独立 SkyWalking
+6. 初始化数据库
+7. 配置 OSS
+8. 部署 Java 服务
+9. 部署 Go + Python 服务
+10. 部署前端
+11. 启动与验证
+12. 常见问题
+13. 生产环境加固
 
 ---
 
@@ -45,11 +46,15 @@
 | 6379 | Redis |
 | 8848 | Nacos 控制台 |
 | 9848/9849 | Nacos 2.x gRPC |
+| 8858 | Sentinel 控制台 |
 | 8082 | Go 爬虫服务 |
 | 8000 | User-Service（仅内网或联调时开放） |
 | 9000 | Course-Service（仅内网或联调时开放） |
+| 18080 | SkyWalking UI（仅运维或管理员访问） |
+| 11810 | SkyWalking OAP gRPC |
+| 12810 | SkyWalking OAP HTTP |
 
-> 若使用云服务器，请同步配置安全组。生产环境建议仅开放 `22`、`80`、`443`，其余端口收敛到内网。
+> 生产环境建议仅对外开放 `80`、`443`，其余端口收敛到内网或堡垒机访问。
 
 ---
 
@@ -86,17 +91,7 @@ pip3 install requests urllib3 pycryptodome -i https://pypi.tuna.tsinghua.edu.cn/
 ```bash
 mkdir -p /opt/campus
 cd /opt/campus
-```
-
-### 3.1 Git 拉取
-
-```bash
 git clone <你的仓库地址> .
-```
-
-### 3.2 检查目录
-
-```bash
 ls -la /opt/campus
 ```
 
@@ -107,113 +102,123 @@ campus-assistant/
 campus-spider-service/
 campus-web/
 deploy/
+nacos_config/
 ```
 
 ---
 
 ## 四、部署中间件
 
-### 4.1 创建目录
-
 ```bash
 cd /opt/campus/deploy
-mkdir -p mysql/conf mysql/data redis/data nacos/logs nacos/data
+mkdir -p mysql/conf mysql/data redis/data nacos/logs nacos/data skywalking/banyandb
 ```
 
-### 4.2 创建 MySQL 配置
+### 4.1 当前对齐的镜像标签
 
-```bash
-cat > mysql/conf/custom.cnf << 'EOF'
-[mysqld]
-max_connections=200
-character-set-server=utf8mb4
-collation-server=utf8mb4_unicode_ci
-default-time-zone='+08:00'
-EOF
-```
+- `mysql:9.7.0`
+- `redis:latest`
+- `bladex/sentinel-dashboard:latest`
+- `nacos/nacos-server:v2.4.0-slim`
 
-### 4.3 创建 Redis 配置
-
-```bash
-cat > redis/redis.conf << 'EOF'
-bind 0.0.0.0
-port 6379
-appendonly yes
-timeout 300
-maxmemory 256mb
-maxmemory-policy allkeys-lru
-EOF
-```
-
-### 4.4 创建环境变量
+### 4.2 创建环境变量
 
 ```bash
 cat > .env << 'EOF'
 MYSQL_ROOT_PASSWORD=1234
+REDIS_PASSWORD=CampusRedis@1234
 EOF
 ```
 
-### 4.5 启动中间件
+### 4.3 启动中间件
 
 ```bash
-docker compose -f docker-compose.middleware.yml up -d
-docker compose -f docker-compose.middleware.yml ps
+docker compose -f docker-compose.middleware.yml pull
+docker compose -p campusassistant -f docker-compose.middleware.yml up -d
+docker compose -p campusassistant -f docker-compose.middleware.yml ps
 ```
 
 ---
 
-## 五、初始化数据库
+## 五、部署独立 SkyWalking
 
-中间件首次启动会自动执行 `deploy/init.sql`。当前仓库内的 `init.sql` 已包含用户、个人信息、课表、自动打卡、个性化配置和自定义图片资源表。
+当前仓库已新增：`deploy/docker-compose.skywalking.yml`。
 
-### 5.1 检查基础表
+### 5.1 当前对齐的镜像标签
+
+- `apache/skywalking-ui:10.0.1`
+- `apache/skywalking-oap-server:10.0.1`
+- `apache/skywalking-banyandb:0.6.0`
+
+### 5.2 这套配置会启动
+
+- `campus-skywalking-banyandb`
+- `campus-skywalking-oap`
+- `campus-skywalking-ui`
+
+并使用以下端口：
+
+- UI：`18080`
+- OAP gRPC：`11810`
+- OAP HTTP：`12810`
+- BanyanDB：`17913`
+
+### 5.3 拉取并启动
+
+```bash
+cd /opt/campus/deploy
+docker compose -f docker-compose.skywalking.yml pull
+docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
+docker compose -p campusassistant -f docker-compose.skywalking.yml ps
+```
+
+### 5.4 重置这套 SkyWalking 数据
+
+```bash
+cd /opt/campus/deploy
+docker compose -p campusassistant -f docker-compose.skywalking.yml down -v
+docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
+```
+
+### 5.5 Java Agent 对齐
+
+如果你的 Java 服务启用了 SkyWalking Agent，必须把 Agent 指向新的 OAP：
+
+```text
+-Dskywalking.collector.backend_service=127.0.0.1:11810
+```
+
+同时建议统一服务名：
+
+```text
+-Dskywalking.agent.service_name=campusassistant-gateway
+-Dskywalking.agent.service_name=campusassistant-user-service
+-Dskywalking.agent.service_name=campusassistant-course-service
+```
+
+否则即便新 UI 已经部署成功，你的服务仍会继续把链路上报到旧的 SkyWalking。
+
+---
+
+## 六、初始化数据库
+
+中间件首次启动会自动执行 `deploy/init.sql`。当前 `init.sql` 已包含：
+
+- `student_db`
+- `personal_info`
+- `course_db`
+- `user_profile_style`
+- `user_profile_custom_asset`
+
+检查方式：
 
 ```bash
 docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SHOW TABLES;"
 ```
 
-### 5.2 执行当前版本扩展 SQL
-
-若数据库是全新初始化，通常不需要额外执行本节。仅在旧环境升级、或你已跳过 `deploy/init.sql` 时使用以下 SQL。
-
-```bash
-docker exec -i campus-mysql mysql -uroot -p1234 campus_db <<'EOF'
-ALTER TABLE student_db
-  ADD COLUMN auto_punch_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启自动打卡：0关闭 1开启';
-
-CREATE TABLE IF NOT EXISTS user_profile_style (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  student_id VARCHAR(32) NOT NULL COMMENT '学号',
-  avatar VARCHAR(255) DEFAULT NULL COMMENT '头像地址，可为空，空时前端使用姓名首字母兜底',
-  background VARCHAR(255) DEFAULT NULL COMMENT '顶部背景地址，可为空，空时前端使用纯白极简背景',
-  wallpaper VARCHAR(255) DEFAULT NULL COMMENT '墙纸地址，可为空，空时前端使用浅灰极简背景',
-  card_opacity DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '资料卡透明度',
-  card_blur INT DEFAULT 14 COMMENT '资料卡模糊度',
-  wallpaper_mask DECIMAL(3,2) NOT NULL DEFAULT 1.00 COMMENT '墙纸蒙版强度(0.00-1.00)',
-  global_font_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用全局字体：0关闭 1开启',
-  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户个性化配置表';
-
-CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  student_id VARCHAR(32) NOT NULL COMMENT '学号',
-  custom_avatar VARCHAR(255) DEFAULT NULL COMMENT '自定义头像 OSS 地址',
-  custom_background VARCHAR(255) DEFAULT NULL COMMENT '自定义顶部背景 OSS 地址',
-  custom_wallpaper VARCHAR(255) DEFAULT NULL COMMENT '自定义墙纸 OSS 地址',
-  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
-EOF
-```
-
-> 若列已存在，请手动去掉重复 SQL 再执行。
-
 ---
 
-## 六、配置 OSS
+## 七、配置 OSS
 
 当前 `user-service` 已集成阿里云 OSS，自定义头像 / 顶部背景 / 墙纸上传依赖以下配置：
 
@@ -227,121 +232,60 @@ aliyun:
     url-prefix: https://<your-bucket-name>.oss-cn-beijing.aliyuncs.com
 ```
 
-### 6.1 推荐做法
+推荐方式：
 
-- 不要把真实 AK / SK 直接提交到仓库
-- 服务器上外置 `application-aliyun.yml`，或在配置中心使用等价的 `aliyun.oss` 配置
-- 或通过环境变量 / Nacos 配置中心注入
-- 优先使用 RAM 子账号最小权限 AK / SK
+- 通过 Nacos 下发 `aliyun-oss.yaml`
+- 或通过外部配置注入
+- 不要把正式环境 AK / SK 提交到仓库
 
-### 6.2 关于图片删除
-
-当前实现会在上传新图片后更新数据库中的最新 URL，但**不会自动删除旧 OSS 对象**。
-
-### 6.3 默认资源与极简兜底
-
-当前版本允许 `avatar`、`background`、`wallpaper` 为空，前端会自动使用极简兜底样式。
-
-- `avatar` 为空：显示姓名首字母头像
-- `background` 为空：显示纯白顶部背景
-- `wallpaper` 为空：显示浅灰背景
-
-若你希望服务初始化时明确写入“空资源”，请在后端配置文件中使用空字符串 `""`，不要只写空冒号，否则 Spring 绑定后通常会得到 `null`。
-
-- 测试环境：可以手动删除，或者暂时保留
-- 生产环境：建议增加旧对象删除逻辑，或为 `profile-custom/` 目录配置生命周期规则
+> 当前上传新图片后仅更新数据库中的最新 URL，不会自动删除旧 OSS 对象。生产环境建议后续补删除逻辑或配置生命周期规则。
 
 ---
 
-## 七、部署 Java 服务
+## 八、部署 Java 服务
 
-### 7.1 编译打包
+### 8.1 编译打包
 
 ```bash
 cd /opt/campus/campus-assistant
 mvn clean package -DskipTests
 ```
 
-### 7.2 创建 systemd 服务
+### 8.2 使用仓库内 systemd 模板
 
-#### Gateway
+当前仓库已提供并修正以下模板：
 
-```bash
-cat > /etc/systemd/system/campus-gateway.service << 'EOF'
-[Unit]
-Description=Campus Gateway
-After=network.target
+- `deploy/systemd/campus-gateway.service`
+- `deploy/systemd/campus-user.service`
+- `deploy/systemd/campus-course.service`
+- `deploy/systemd/campus-spider.service`
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/campus/campus-assistant/campusswu-gateway
-ExecStart=/usr/bin/java -jar -Xms512m -Xmx1024m target/campusswu-gateway-1.0-SNAPSHOT.jar
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-#### User-Service
+复制到系统目录：
 
 ```bash
-cat > /etc/systemd/system/campus-user.service << 'EOF'
-[Unit]
-Description=Campus User Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/campus/campus-assistant/user-service
-ExecStart=/usr/bin/java -jar -Xms512m -Xmx1024m target/user-service-1.0-SNAPSHOT.jar
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-#### Course-Service
-
-```bash
-cat > /etc/systemd/system/campus-course.service << 'EOF'
-[Unit]
-Description=Campus Course Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/campus/campus-assistant/course-service
-ExecStart=/usr/bin/java -jar -Xms512m -Xmx1024m target/course-service-1.0-SNAPSHOT.jar
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-### 7.3 启动服务
-
-```bash
+cp /opt/campus/deploy/systemd/campus-*.service /etc/systemd/system/
+mkdir -p /opt/campus/logs
 systemctl daemon-reload
 systemctl enable --now campus-gateway campus-user campus-course
-systemctl status campus-gateway --no-pager
-systemctl status campus-user --no-pager
-systemctl status campus-course --no-pager
 ```
+
+### 8.3 如需接入 SkyWalking Agent
+
+最稳妥的方式是在 `ExecStart` 里显式加入：
+
+```text
+-javaagent:/opt/campus/tools/skywalking-agent/skywalking-agent.jar
+-Dskywalking.agent.service_name=campusassistant-user-service
+-Dskywalking.collector.backend_service=127.0.0.1:11810
+```
+
+这部分当前仓库没有强行写死到模板中，因为每台机器的 Agent 安装路径未必一致。
 
 ---
 
-## 八、部署 Go + Python 服务
+## 九、部署 Go + Python 服务
 
-### 8.1 编译
+### 9.1 编译
 
 ```bash
 cd /opt/campus/campus-spider-service
@@ -349,66 +293,19 @@ go mod tidy
 go build -o server ./cmd/server
 ```
 
-### 8.2 创建环境变量文件
-
-```bash
-cat > /opt/campus/campus-spider-service/.env << 'EOF'
-HTTP_ADDR=0.0.0.0:8082
-REDIS_ADDR=127.0.0.1:6379
-REDIS_DB=0
-WORKER_CONCURRENCY=4
-JAVA_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/student-data
-PUNCH_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/punch-result
-JAVA_INTERNAL_TOKEN=internal-token
-PYTHON_PATH=python3
-SPIDER_SCRIPT=./scripts/spider_cli.py
-CHECKIN_SCRIPT=./scripts/checkin_cli.py
-SESSION_DIR=./data/sessions
-SPIDER_TIMEOUT_MINUTES=20
-CHECKIN_TIMEOUT_MINUTES=5
-DEFAULT_ACADEMIC_YEAR=2025
-DEFAULT_SEMESTER=12
-EOF
-```
-
-### 8.3 创建 systemd 服务
-
-```bash
-cat > /etc/systemd/system/campus-spider.service << 'EOF'
-[Unit]
-Description=Campus Spider Service
-After=network.target redis.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/campus/campus-spider-service
-EnvironmentFile=/opt/campus/campus-spider-service/.env
-ExecStart=/opt/campus/campus-spider-service/server
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-### 8.4 启动服务
+### 9.2 启动
 
 ```bash
 mkdir -p /opt/campus/campus-spider-service/data/sessions
-systemctl daemon-reload
 systemctl enable --now campus-spider
 systemctl status campus-spider --no-pager
 ```
 
 ---
 
-## 九、部署前端
+## 十、部署前端
 
-> 前端只保留静态页面托管，核心状态与资源路径以后端接口返回为准。
-
-### 9.1 构建前端
+### 10.1 构建前端
 
 ```bash
 cd /opt/campus/campus-web
@@ -416,56 +313,45 @@ npm install
 npm run build
 ```
 
-### 9.2 配置 Nginx
+### 10.2 使用仓库内 Nginx 配置
+
+当前仓库已修正：`deploy/nginx.conf`
 
 ```bash
-cat > /etc/nginx/sites-available/campus << 'EOF'
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        root /opt/campus/campus-web/dist;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:80/gateway/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    client_max_body_size 50M;
-}
-EOF
-
+cp /opt/campus/deploy/nginx.conf /etc/nginx/sites-available/campus
 ln -sf /etc/nginx/sites-available/campus /etc/nginx/sites-enabled/campus
 nginx -t
 systemctl restart nginx
 ```
 
+该配置约定：
+
+- 静态页面目录：`/opt/campus/campus-web/dist`
+- 前端 API 前缀：`/api/`
+- 反向代理目标：`http://127.0.0.1:8080/gateway/`
+
 ---
 
-## 十、启动与验证
+## 十一、启动与验证
 
-### 10.1 启动顺序
+### 11.1 启动顺序
 
 ```bash
 cd /opt/campus/deploy
-docker compose -f docker-compose.middleware.yml up -d
+docker compose -p campusassistant -f docker-compose.middleware.yml up -d
+docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
 systemctl start campus-gateway campus-user campus-course
 systemctl start campus-spider
 systemctl start nginx
 ```
 
-### 10.2 验证
+### 11.2 验证
 
 ```bash
 curl http://127.0.0.1:8082/health
 curl http://127.0.0.1:8848/nacos
+curl http://127.0.0.1:8858
+curl http://127.0.0.1:18080
 systemctl status campus-gateway --no-pager
 systemctl status campus-user --no-pager
 systemctl status campus-course --no-pager
@@ -479,11 +365,38 @@ systemctl status nginx --no-pager
 http://你的服务器IP
 ```
 
+管理员资源入口如果使用 Nacos 配置，记得把 `admin-resources.yaml` 中的 URL 改成服务器可访问地址，而不是 `127.0.0.1`。
+
 ---
 
-## 十一、常见问题
+## 十二、常见问题
 
-### 11.1 OSS 图片上传成功但页面空白
+### 12.1 新 SkyWalking UI 打开后没有当前项目数据
+
+优先检查：
+
+- Java 进程是否真的挂载了 SkyWalking Agent
+- `collector.backend_service` 是否已改为 `127.0.0.1:11810`
+- 服务名是否已切换为当前项目前缀
+
+### 12.2 新 SkyWalking UI 里仍然看到旧项目
+
+通常是因为：
+
+- Java Agent 还在向旧 OAP 上报
+- 你打开的仍是旧 UI 地址
+- 旧容器并未停掉，资源配置仍指向旧地址
+
+### 12.3 Nacos 配置显示 empty，服务起不来
+
+优先检查：
+
+- `datasource-mysql.yaml` 是否已发布到正确 namespace
+- `datasource-redis.yaml` 是否已发布到正确 namespace
+- group 是否为 `DATASOURCE_GROUP`
+- 应用连接的 namespace 是否与 Nacos 页面中的配置一致
+
+### 12.4 OSS 图片上传成功但页面空白
 
 优先检查：
 
@@ -492,51 +405,38 @@ http://你的服务器IP
 - Bucket 是否允许当前访问方式读取
 - OSS CORS 是否允许浏览器加载图片
 
-### 11.2 Java 调用 Go 失败
+### 12.5 Java 调用 Go 失败
 
 ```bash
 curl http://127.0.0.1:8082/health
 journalctl -u campus-spider -f
 ```
 
-### 11.3 自动打卡不触发
-
-```bash
-journalctl -u campus-user -f
-docker exec -it campus-redis redis-cli keys "user:pwd:*"
-```
-
-### 11.4 MySQL 连接失败
-
-```bash
-docker ps | grep campus-mysql
-docker logs campus-mysql
-```
-
 ---
 
-## 十二、生产环境加固
+## 十三、生产环境加固
 
-### 12.1 数据与密钥
+### 13.1 数据与密钥
 
 - 修改 MySQL 密码
 - 为 Redis 增加密码
 - 修改内部调用 Token
-- 使用外部配置管理敏感信息
+- 使用 Nacos 或其他外部配置管理敏感信息
 
-### 12.2 OSS
+### 13.2 OSS
 
 - Bucket 不要长期使用公共读
 - 优先使用私有读写 + 签名 URL / CDN 鉴权 / 后端中转访问
 - 为 `profile-custom/` 配置生命周期规则
 - 若要控制存量，补充“替换成功后删除旧对象”逻辑
 
-### 12.3 网络暴露
+### 13.3 网络暴露
 
-- 3306、6379、8848、8082、8000、9000 仅保留内网访问
+- `3306`、`6379`、`8848`、`8858`、`8082`、`8000`、`9000`、`11810`、`12810` 建议仅保留内网访问
+- `18080` 仅供管理员或运维访问
 - 对外仅暴露 `80/443`
 
-### 12.4 备份
+### 13.4 备份
 
 ```bash
 mkdir -p /opt/backup
@@ -545,6 +445,4 @@ docker exec campus-mysql mysqldump -uroot -p1234 campus_db > /opt/backup/campus_
 
 ---
 
-按当前文档完成后，项目应能以“后端服务为主、前端静态托管为辅”的方式稳定部署。
-
-
+按当前文档完成后，项目应能以“后端服务为主、前端静态托管为辅、SkyWalking 独立隔离”的方式部署。

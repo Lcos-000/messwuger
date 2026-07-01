@@ -42,4 +42,7 @@ public class UserEntity extends BaseEntity {
      * 1-开启
      */
     private Integer autoPunchEnabled;
+
+    private String role;
+
 }

@@ -4,31 +4,26 @@
 
 set -e
 
-APP_DIR="/opt/campus-assistant"
-LOG_DIR="$APP_DIR/logs"
+ROOT_DIR="/opt/campus"
+LOG_DIR="$ROOT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-# ---------- Java 服务 ----------
-cd "$APP_DIR"
+cd "$ROOT_DIR"
 
-# Gateway：监听 8080，Nginx 反向代理 80 -> 8080
-nohup java -jar "$APP_DIR/campus-assistant/campusswu-gateway/target/campusswu-gateway-1.0-SNAPSHOT.jar" \
+nohup java -jar "$ROOT_DIR/campus-assistant/campusswu-gateway/target/campusswu-gateway-1.0-SNAPSHOT.jar" \
   --server.port=8080 \
   >> "$LOG_DIR/gateway.log" 2>&1 &
 echo "Gateway started (PID $!)"
 
-# User-Service
-nohup java -jar "$APP_DIR/campus-assistant/user-service/target/user-service-1.0-SNAPSHOT.jar" \
+nohup java -jar "$ROOT_DIR/campus-assistant/user-service/target/user-service-1.0-SNAPSHOT.jar" \
   >> "$LOG_DIR/user-service.log" 2>&1 &
 echo "User-Service started (PID $!)"
 
-# Course-Service
-nohup java -jar "$APP_DIR/campus-assistant/course-service/target/course-service-1.0-SNAPSHOT.jar" \
+nohup java -jar "$ROOT_DIR/campus-assistant/course-service/target/course-service-1.0-SNAPSHOT.jar" \
   >> "$LOG_DIR/course-service.log" 2>&1 &
 echo "Course-Service started (PID $!)"
 
-# ---------- Go 爬虫服务 ----------
-cd "$APP_DIR/campus-spider-service"
+cd "$ROOT_DIR/campus-spider-service"
 export REDIS_ADDR="127.0.0.1:6379"
 export REDIS_PASSWORD="CampusRedis@1234"
 export REDIS_DB="0"
@@ -42,7 +37,7 @@ export CHECKIN_SCRIPT="./scripts/checkin_cli.py"
 export SESSION_DIR="./data/sessions"
 export WORKER_CONCURRENCY="4"
 
-nohup "$APP_DIR/campus-spider-service/server" \
+nohup "$ROOT_DIR/campus-spider-service/server" \
   >> "$LOG_DIR/spider-service.log" 2>&1 &
 echo "Spider-Service started (PID $!)"
 

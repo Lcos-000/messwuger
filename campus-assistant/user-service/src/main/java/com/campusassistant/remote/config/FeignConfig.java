@@ -1,4 +1,4 @@
-package com.campusassistant.config;
+package com.campusassistant.remote.config;
 
 import feign.Logger;
 import feign.Retryer;

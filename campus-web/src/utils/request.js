@@ -47,6 +47,7 @@ service.interceptors.response.use(
     if (res.code === HTTP_STATUS.UNAUTHORIZED) {
       alert(res.message || REQUEST_MESSAGES.UNAUTHORIZED)
       localStorage.removeItem(STORAGE_KEYS.TOKEN)
+      localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
       router.replace(ROUTE_PATHS.LOGIN)
       return Promise.reject(new Error(res.message || REQUEST_MESSAGES.UNAUTHORIZED))
     }
@@ -64,6 +65,7 @@ service.interceptors.response.use(
       if (error.response.status === HTTP_STATUS.UNAUTHORIZED) {
         alert(REQUEST_MESSAGES.UNAUTHORIZED)
         localStorage.removeItem(STORAGE_KEYS.TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
         router.replace(ROUTE_PATHS.LOGIN)
       } else {
         const responseCode = error.response.data?.code

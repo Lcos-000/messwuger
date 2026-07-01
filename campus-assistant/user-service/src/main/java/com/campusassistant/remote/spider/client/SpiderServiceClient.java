@@ -1,6 +1,6 @@
 package com.campusassistant.remote.spider.client;
 
-import com.campusassistant.config.FeignConfig;
+import com.campusassistant.remote.config.FeignConfig;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.exception.fallback.SpiderFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;

@@ -1,10 +1,13 @@
-﻿import request from '../utils/request'
+import request from '../utils/request'
 import { API_PATHS } from '@/config'
 
 export const login = (data) => request({ url: API_PATHS.AUTH.LOGIN, method: 'post', data })
+export const adminLogin = (data) => request({ url: API_PATHS.AUTH.ADMIN_LOGIN, method: 'post', data })
 export const register = (data) => request({ url: API_PATHS.AUTH.REGISTER, method: 'post', data })
 export const logout = () => request({ url: API_PATHS.AUTH.LOGOUT, method: 'post' })
+export const adminLogout = () => request({ url: API_PATHS.AUTH.ADMIN_LOGOUT, method: 'post' })
 export const refreshSchedule = () => request({ url: API_PATHS.AUTH.REFRESH, method: 'post' })
+export const getAdminResources = () => request({ url: API_PATHS.ADMIN.RESOURCES, method: 'get' })
 export const getSchedule = () => request({ url: API_PATHS.SCHEDULE.GET, method: 'get' })
 export const getPersonalInfo = () => request({ url: API_PATHS.USER.PERSONAL, method: 'get' })
 export const getUserStatus = () => request({ url: API_PATHS.USER.STATUS, method: 'get' })
