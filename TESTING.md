@@ -1,4 +1,4 @@
-# 校园助手系统测试指南
+﻿# 校园助手系统测试指南
 
 本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源、管理员资源和自动打卡能力。
 
@@ -289,6 +289,8 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/resources" `
 ---
 
 ## SkyWalking 独立界面测试
+联调前确认 Java 服务采用统一探针方案：VM options 只保留 `-javaagent`，服务名通过 `SW_AGENT_NAME` 提供。
+
 
 ### 1. 打开新 UI
 
@@ -305,6 +307,7 @@ http://127.0.0.1:18080
 - 只应看到当前这套新 OAP 收到的数据
 - 若仍出现旧项目服务，说明 Java Agent 仍在向旧 OAP 上报
 - 若页面为空，优先检查 Java 进程是否真的挂载了 Agent，且 `collector.backend_service` 是否已改为 `127.0.0.1:11810`
+- 若服务名不对，优先检查对应 Run Configuration 的 `SW_AGENT_NAME` 是否填写正确
 
 ---
 
