@@ -17,6 +17,11 @@
             <artifactId>campusswu-core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github</groupId>
+            <artifactId>campusswu-redis</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Spring Cloud Gateway 核心 -->
         <dependency>
@@ -41,7 +46,11 @@
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
-
+        <!-- 进行token校验 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

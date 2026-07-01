@@ -5,8 +5,8 @@ After=network.target campus-user.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/campus-assistant/campus-spider-service
-ExecStart=/opt/campus-assistant/campus-spider-service/server
+WorkingDirectory=/opt/campus/campus-spider-service
+ExecStart=/opt/campus/campus-spider-service/server
 Environment="REDIS_ADDR=127.0.0.1:6379"
 Environment="REDIS_PASSWORD=CampusRedis@1234"
 Environment="REDIS_DB=0"
@@ -21,8 +21,8 @@ Environment="SESSION_DIR=./data/sessions"
 Environment="WORKER_CONCURRENCY=4"
 Restart=always
 RestartSec=5
-StandardOutput=append:/opt/campus-assistant/logs/spider-service.log
-StandardError=append:/opt/campus-assistant/logs/spider-service.log
+StandardOutput=append:/opt/campus/logs/spider-service.log
+StandardError=append:/opt/campus/logs/spider-service.log
 
 [Install]
 WantedBy=multi-user.target

@@ -47,8 +47,14 @@ service.interceptors.response.use(
     if (res.code === HTTP_STATUS.UNAUTHORIZED) {
       alert(res.message || REQUEST_MESSAGES.UNAUTHORIZED)
       localStorage.removeItem(STORAGE_KEYS.TOKEN)
+      localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
       router.replace(ROUTE_PATHS.LOGIN)
       return Promise.reject(new Error(res.message || REQUEST_MESSAGES.UNAUTHORIZED))
+    }
+    if (res.code === HTTP_STATUS.FORBIDDEN) {
+      const errorMessage = resolveBusinessErrorMessage(res.code, res.message)
+      alert(errorMessage)
+      return Promise.reject(new Error(errorMessage))
     }
     if (!successCodes.includes(res.code)) {
       const errorMessage = resolveBusinessErrorMessage(res.code, res.message)
@@ -61,14 +67,19 @@ service.interceptors.response.use(
   error => {
     console.error('Response Error:', error)
     if (error.response) {
-      if (error.response.status === HTTP_STATUS.UNAUTHORIZED) {
-        alert(REQUEST_MESSAGES.UNAUTHORIZED)
+      const responseStatus = error.response.status
+      const responseCode = error.response.data?.code
+      const responseMessage = error.response.data?.message
+      const errorMessage = resolveBusinessErrorMessage(responseCode, responseMessage || REQUEST_MESSAGES.SERVER_ERROR)
+      if (responseStatus === HTTP_STATUS.UNAUTHORIZED) {
+        alert(responseMessage || REQUEST_MESSAGES.UNAUTHORIZED)
         localStorage.removeItem(STORAGE_KEYS.TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
         router.replace(ROUTE_PATHS.LOGIN)
+      } else if (responseStatus === HTTP_STATUS.FORBIDDEN) {
+        alert(errorMessage)
       } else {
-        const responseCode = error.response.data?.code
-        const responseMessage = error.response.data?.message
-        alert(resolveBusinessErrorMessage(responseCode, responseMessage || REQUEST_MESSAGES.SERVER_ERROR))
+        alert(errorMessage)
       }
     } else {
       alert(REQUEST_MESSAGES.NETWORK_ERROR)

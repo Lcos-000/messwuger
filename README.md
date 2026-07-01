@@ -1,6 +1,6 @@
 ﻿# 校园助手系统
 
-本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源与自动打卡开关等能力。
+本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源、管理员资源入口与自动打卡开关等能力。
 
 ---
 
@@ -9,11 +9,11 @@
 | 模块 | 技术栈 | 职责 |
 |------|--------|------|
 | `campus-assistant/campusswu-gateway` | Spring Cloud Gateway | 统一入口、JWT 鉴权、路由转发 |
-| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置、自定义资源管理 |
+| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置、自定义资源管理、管理员资源查询 |
 | `campus-assistant/course-service` | Spring Boot 3 + MyBatis Plus | 课表存储与查询 |
 | `campus-spider-service` | Go 1.24 + Python 3 | 教务系统登录、数据抓取、打卡任务调度 |
-| `campus-web` | Vue 3 + Vite + Axios | 登录页、课表页、个人主页、个性化设置 |
-| 基础设施 | MySQL、Redis、Nacos、OSS | 持久化、缓存、注册发现与配置中心、图片对象存储 |
+| `campus-web` | Vue 3 + Vite + Axios | 登录页、课表页、个人主页、管理员页 |
+| 基础设施 | MySQL、Redis、Nacos、OSS、SkyWalking | 持久化、缓存、注册发现与配置中心、图片对象存储、链路追踪 |
 
 ---
 
@@ -28,14 +28,15 @@
 - 用户个性化主页配置保存
 - 用户自定义头像、顶部背景、墙纸上传与地址持久化
 - 阿里云 OSS 上传接入
+- 管理员登录与资源入口查询
 
 ### 前端侧
 
-- 登录页、课表页、个人主页
+- 登录页、课表页、个人主页、管理员页
 - 个性化设置：资料卡透明度 / 模糊度 / 墙纸蒙版 / 全局字体
 - 默认图片切换、自定义图片上传裁剪与回显
-- 头像默认图库支持前端配置化说明文案
 - 自动打卡开关与登录失效统一处理
+- 管理员资源页从后端 / Nacos 动态渲染资源链接
 
 ---
 
@@ -54,6 +55,8 @@
 | MySQL | 8.0+ |
 | Redis | 5.0+ |
 | Nacos | 2.x |
+| Docker Desktop | 当前本机已验证可使用 |
+| Docker Compose | v2 |
 
 ### Java 主要依赖
 
@@ -130,31 +133,23 @@ node -v
 npm -v
 ```
 
-#### 1.6 MySQL 8.0
+#### 1.6 Docker Desktop
 
 ```powershell
-winget install Oracle.MySQL
-net start MySQL80
+winget install Docker.DockerDesktop
+docker version
+docker compose version
 ```
 
-#### 1.7 Redis
+当前项目本地已对齐的镜像标签示例：
 
-```powershell
-winget install Memurai.Memurai
-```
-
-#### 1.8 Nacos 2.x
-
-1. 下载 `nacos-server-2.3.2.zip` 并解压到 `C:\nacos`
-2. 启动：
-
-```powershell
-cd C:\nacos\bin
-startup.cmd -m standalone
-```
-
-3. 访问 [http://localhost:8848/nacos](http://localhost:8848/nacos)
-4. 新建命名空间：`dev`
+- `mysql:9.7.0`
+- `redis:8.8.0`
+- `bladex/sentinel-dashboard:1.8.9`
+- `nacos/nacos-server:v2.4.0-slim`
+- `apache/skywalking-ui:10.0.1`
+- `apache/skywalking-oap-server:10.0.1`
+- `apache/skywalking-banyandb:0.6.0`
 
 ---
 
@@ -179,6 +174,7 @@ CREATE TABLE IF NOT EXISTS student_db (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(32) NOT NULL COMMENT '教务学号',
     password VARCHAR(128) NOT NULL COMMENT 'BCrypt加密后的密码',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER' COMMENT '角色：USER-普通用户，ADMIN-管理员',
     sync_status TINYINT DEFAULT 0 COMMENT '0未同步 1同步中 2成功 3失败',
     punch_status TINYINT DEFAULT 0 COMMENT '打卡状态：0未打卡 1打卡中 2打卡成功 3打卡失败',
     auto_punch_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启自动打卡：0关闭 1开启',
@@ -236,6 +232,8 @@ CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
 ```
 
+---
+
 ## Nacos 配置
 
 在 `dev` 命名空间下创建以下配置。当前仓库也提供了本地示例目录：`nacos_config/`。
@@ -272,6 +270,7 @@ gatewaylist:
   whitelist:
     - /gateway/auth/login
     - /gateway/auth/register
+    - /gateway/admin/login
   adminlist:
     - /gateway/admin/**
 
@@ -286,10 +285,10 @@ logging:
   file:
     name: logs/${spring.application.name}.log
   level:
-    cloudstructuretemplate: info
+    campusassistant: info
 ```
 
-### `aliyun-oss.yaml`（group: `DEFAULT_GROUP`，建议外置）
+### `aliyun-oss.yaml`（group: `DEFAULT_GROUP`）
 
 ```yaml
 aliyun:
@@ -301,9 +300,87 @@ aliyun:
     url-prefix: https://<your-bucket-name>.oss-cn-beijing.aliyuncs.com
 ```
 
-仓库中的示例文件位置：`nacos_config/DEFAULT_GROUP/aliyun-oss.yaml`。
+### `admin-resources.yaml`（group: `DEFAULT_GROUP`）
 
-> 建议不要把生产环境 OSS 凭据直接提交到仓库，优先使用外部配置或配置中心注入。
+```yaml
+admin:
+  resources:
+    items:
+      - code: skywalking
+        name: SkyWalking
+        url: http://127.0.0.1:18080
+      - code: nacos
+        name: Nacos
+        url: http://127.0.0.1:8848/nacos
+      - code: sentinel
+        name: Sentinel
+        url: http://127.0.0.1:8858
+```
+
+仓库中的示例文件位置：
+
+- `nacos_config/DEFAULT_GROUP/aliyun-oss.yaml`
+- `nacos_config/DEFAULT_GROUP/admin-resources.yaml`
+
+---
+
+## SkyWalking 独立界面
+
+如果你当前本机的 SkyWalking 复用了旧项目，最直接的隔离方式是为本项目单独起一套新的 SkyWalking 容器。
+
+### 新增的部署文件
+
+- `deploy/docker-compose.skywalking.yml`
+
+### 推荐端口
+
+| 组件 | 端口 |
+|------|------|
+| SkyWalking UI | `18080` |
+| SkyWalking OAP gRPC | `11810` |
+| SkyWalking OAP HTTP | `12810` |
+| BanyanDB | `17913` |
+
+### 启动新的独立 SkyWalking
+
+```powershell
+cd deploy
+docker compose -f docker-compose.skywalking.yml pull
+docker compose -f docker-compose.skywalking.yml up -d
+```
+
+### 停止并清空这套 SkyWalking 数据
+
+```powershell
+cd deploy
+docker compose -f docker-compose.skywalking.yml down -v
+```
+
+### Java Agent 需要对齐的点
+
+如果你的 Java 服务启用了 SkyWalking Agent，当前仓库已统一通过 `tools/skywalking-agent/config/agent.config` 承担公共配置。
+
+当前建议每个服务的 VM options 只保留：
+
+```text
+-javaagent:"E:\develop\idea\collaborative project\messwuger\tools\skywalking-agent\skywalking-agent.jar"
+```
+
+公共配置默认已包含本地 OAP 地址：
+
+```text
+collector.backend_service=127.0.0.1:11810
+```
+
+每个服务再单独提供自己的环境变量 `SW_AGENT_NAME`，例如：
+
+```text
+SW_AGENT_NAME=campusassistant-user-service
+SW_AGENT_NAME=campusassistant-course-service
+SW_AGENT_NAME=campusassistant-gateway-service
+```
+
+如果不改 Agent 上报地址，而仍然继续指向旧的 `11800`，那么新 UI 里也不会有你当前项目的数据。
 
 ---
 
@@ -343,16 +420,17 @@ npm run build
 
 ## 启动顺序
 
+> 本地如果要接入链路追踪，推荐在 IDEA 的 Run Configuration Template 统一填写 `-javaagent`，再在各服务的 Environment variables 里分别填写 `SW_AGENT_NAME`。
+
 | 顺序 | 服务 | 命令 |
 |------|------|------|
-| 1 | MySQL | `net start MySQL80` |
-| 2 | Redis | 确认 Memurai / Redis 服务已运行 |
-| 3 | Nacos | `C:\nacos\bin\startup.cmd -m standalone` |
-| 4 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
-| 5 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
-| 6 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |
-| 7 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
-| 8 | 前端开发服务 | `cd campus-web && npm run dev` |
+| 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy && docker compose -p campusassistant -f docker-compose.middleware.yml up -d` |
+| 2 | SkyWalking（可选） | `cd deploy && docker compose -p campusassistant -f docker-compose.skywalking.yml up -d` |
+| 3 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
+| 4 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
+| 5 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |
+| 6 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
+| 7 | 前端开发服务 | `cd campus-web && npm run dev` |
 
 > Go 爬虫服务启动前必须设置 `PYTHON_PATH`。
 
@@ -364,6 +442,9 @@ npm run build
 
 - 前端开发地址：`http://localhost:5173`
 - User-Service 文档地址：`http://localhost:8000/doc.html`
+- SkyWalking UI：`http://127.0.0.1:18080`
+- Nacos：`http://127.0.0.1:8848/nacos`
+- Sentinel：`http://127.0.0.1:8858`
 
 ### 个性化配置接口
 
@@ -374,18 +455,11 @@ npm run build
 - `POST /personalization/upload-custom-asset`
 - `PUT /user/auto-punch`
 
-### 关键字段约定
+### 管理员接口
 
-`GET /personalization/get-profile` 依赖字段：`avatar`、`background`、`wallpaper`、`cardOpacity`、`cardBlur`、`wallpaperMask`、`globalFontEnabled`。
-
-`GET /user/status` / `PUT /user/auto-punch` 依赖字段：`autoPunchEnabled`，当前按 `0/1` 数值与后端对齐。
-
-`GET /personalization/get-custom-assets` 建议返回字段：`customAvatar`、`customBackground`、`customWallpaper`。若为空可返回 `null`。
-
-`POST /personalization/upload-custom-asset` 当前使用 `multipart/form-data`，字段包括：
-
-- `type`：`avatar` / `background` / `wallpaper`
-- `file`：上传后的裁剪图片文件
+- `POST /admin/login`
+- `POST /admin/logout`
+- `GET /admin/resources`
 
 ### OSS 配置
 
@@ -403,10 +477,6 @@ npm run build
 
 > 当前实现只负责上传新对象并更新数据库记录，不会自动删除历史 OSS 图片。测试环境可手动清理，生产环境建议增加旧对象删除逻辑或配置生命周期规则。
 
-### 字体资源
-
-- `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf`
-
 ---
 
 ## 服务验证
@@ -418,46 +488,46 @@ netstat -ano | findstr ":80 "
 netstat -ano | findstr ":8000 "
 netstat -ano | findstr ":9000 "
 netstat -ano | findstr ":8082 "
+netstat -ano | findstr ":8848 "
+netstat -ano | findstr ":18080 "
 netstat -ano | findstr ":5173 "
 ```
 
 | 端口 | 服务 |
 |------|------|
-| 80 | Gateway |
+| 80 | Gateway 入口 / 前端反向代理 |
 | 8000 | User-Service |
 | 9000 | Course-Service |
 | 8082 | Go 爬虫服务 |
+| 8848 | Nacos |
+如果你已经统一改成 `agent.config + SW_AGENT_NAME` 方案，优先检查各服务是否仍残留旧的 `-Dskywalking.collector.backend_service` 或旧服务名。
+
+| 18080 | SkyWalking UI |
 | 5173 | 前端开发服务 |
 
 ---
 
 ## 常见问题
 
-### Q1：前端页面接口返回 HTTP 200，但页面仍跳回登录页
+### Q1：SkyWalking UI 里为什么还会看到历史项目
+
+因为历史项目和当前项目如果共用同一个 OAP 和存储，SkyWalking UI 会一起展示。要彻底隔离，必须单独起一套新的 OAP / UI / 存储，并把当前项目 Agent 改为上报到新的 OAP。
+
+### Q2：前端页面接口返回 HTTP 200，但页面仍跳回登录页
 
 这是预期行为之一。前端已统一处理“HTTP 200 但响应体 `code = 401`”的场景，会主动清除 token 并跳转登录页。
 
-### Q2：前端是否区分远程服务错误
-
-当前前端已对远程错误做轻量分类处理：
-
-- `531~537`：同步/打卡相关远程服务错误
-- `541~547`：课表相关远程服务错误
-- `429` / `503`：限流、降级或系统繁忙
-
-前端会按上述范围给出不同提示，但不会直接暴露底层 Feign / Sentinel 异常细节。
-
-### Q2：资料卡模糊度或字体开关保存后不生效
+### Q3：资料卡模糊度或字体开关保存后不生效
 
 优先检查：
 
 - `user_profile_style.card_blur` 是否存在并有值
 - `user_profile_style.wallpaper_mask` 是否存在并有值
 - `user_profile_style.global_font_enabled` 是否存在并有值
-- 前端 `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf` 是否存在
+- `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf` 是否存在
 - 后端返回字段是否为 `cardBlur`、`wallpaperMask` 与 `globalFontEnabled`
 
-### Q3：自动打卡开关点击后无效果
+### Q4：自动打卡开关点击后无效果
 
 优先检查：
 
@@ -466,7 +536,7 @@ netstat -ano | findstr ":5173 "
 - `GET /user/status` 是否返回 `autoPunchEnabled`
 - 前后端是否统一使用 `0/1` 而非 `true/false`
 
-### Q4：自定义图片已上传到 OSS，但页面显示为空白
+### Q5：自定义图片已上传到 OSS，但页面显示为空白
 
 优先检查：
 
@@ -475,17 +545,13 @@ netstat -ano | findstr ":5173 "
 - `user_profile_custom_asset` 表中是否已正确落库
 - OSS Bucket/CORS/读权限是否允许浏览器访问
 
-### Q5：Go 爬虫服务调用 Python 脚本失败
+### Q6：Go 爬虫服务调用 Python 脚本失败
 
 启动前显式设置：
 
 ```powershell
 $env:PYTHON_PATH="C:\Users\xxx\AppData\Local\Programs\Python\Python312\python.exe"
 ```
-
-### Q6：Course-Service 返回 503
-
-检查 Nacos 服务发现、Gateway 路由以及 `course-service` 注册状态是否正常。
 
 ---
 
@@ -494,5 +560,3 @@ $env:PYTHON_PATH="C:\Users\xxx\AppData\Local\Programs\Python\Python312\python.ex
 完整链路测试请查看根目录：
 
 - `E:\develop\idea\collaborative project\messwuger\TESTING.md`
-
-

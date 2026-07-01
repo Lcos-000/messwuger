@@ -7,6 +7,7 @@ import com.campusassistant.student.pojo.dto.AutoPunchSwitchDTO;
 import com.campusassistant.student.service.CurrentUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -36,8 +37,8 @@ public class UserController {
 
     @Operation(summary = "用户取消订阅")
     @DeleteMapping("/delete")
-    public Result<Void> unsubscribe() {
-        currentUserService.self_unsubscribe();
+    public Result<Void> unsubscribe(HttpServletRequest request) {
+        currentUserService.self_unsubscribe(request);
         return Result.success();
     }
 

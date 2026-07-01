@@ -4,22 +4,18 @@ package com.campusassistant.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusassistant.pojo.UserContext;
 import com.campusassistant.converter.CourseDtoConvertor;
 import com.campusassistant.converter.CourseVoConvertor;
-import com.campusassistant.exception.BusinessException;
 import com.campusassistant.mapper.CourseMapper;
 import com.campusassistant.pojo.CourseDTO;
 import com.campusassistant.pojo.CourseEntity;
 import com.campusassistant.pojo.CourseVO;
 import com.campusassistant.service.UserCourseService;
-import com.campusassistant.utils.ThreadLocalUtil;
+import com.campusassistant.utils.UserContextUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
-import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 
 @Service
 @RequiredArgsConstructor
@@ -51,11 +47,7 @@ public class UserCourseServiceImpl implements UserCourseService {
 
     @Override
     public CourseVO getSchedule() {
-        UserContext userContext = ThreadLocalUtil.get();
-        if (userContext==null){
-            throw new BusinessException(UNAUTHORIZED);
-        }
-        String studentId = userContext.getStudentId();
+        String studentId = UserContextUtil.requireStudentId();
         LambdaQueryWrapper<CourseEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(CourseEntity::getStudentId, studentId);
 //                .eq(CourseEntity::getAcademicYear, academicYear)
@@ -69,11 +61,7 @@ public class UserCourseServiceImpl implements UserCourseService {
 
     @Override
     public CourseVO getCurrentSchedule() {
-        UserContext userContext = ThreadLocalUtil.get();
-        if (userContext==null){
-            throw new BusinessException(UNAUTHORIZED);
-        }
-        String studentId = userContext.getStudentId();
+        String studentId = UserContextUtil.requireStudentId();
         // 取出该学生最新的一条课表记录 (按 ID 倒序排)
         LambdaQueryWrapper<CourseEntity> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(CourseEntity::getStudentId, studentId)

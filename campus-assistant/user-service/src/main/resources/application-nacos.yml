@@ -19,3 +19,4 @@ spring:
       - nacos:datasource-redis.yaml?group=DATASOURCE_GROUP
       - nacos:common-log.yaml?group=DEFAULT_GROUP
       - nacos:aliyun-oss.yaml?group=DEFAULT_GROUP
+      - nacos:admin-resources.yaml?group=DEFAULT_GROUP

@@ -1,0 +1,52 @@
+﻿version: "3.8"
+
+services:
+  banyandb:
+    image: apache/skywalking-banyandb:0.6.0
+    container_name: campus-skywalking-banyandb
+    restart: unless-stopped
+    command: standalone
+    ports:
+      - "17913:17912"
+    volumes:
+      - campus_skywalking_banyandb_data:/tmp
+    networks:
+      - campus-skywalking
+
+  oap:
+    image: apache/skywalking-oap-server:10.0.1
+    container_name: campus-skywalking-oap
+    restart: unless-stopped
+    depends_on:
+      - banyandb
+    ports:
+      - "11810:11800"
+      - "12810:12800"
+    environment:
+      SW_STORAGE: banyandb
+      SW_STORAGE_BANYANDB_TARGETS: banyandb:17912
+      TZ: Asia/Shanghai
+    networks:
+      - campus-skywalking
+
+  ui:
+    image: apache/skywalking-ui:10.0.1
+    container_name: campus-skywalking-ui
+    restart: unless-stopped
+    depends_on:
+      - oap
+    ports:
+      - "18080:8080"
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+      TZ: Asia/Shanghai
+    networks:
+      - campus-skywalking
+
+volumes:
+  campus_skywalking_banyandb_data:
+    name: campus_skywalking_banyandb_data
+
+networks:
+  campus-skywalking:
+    driver: bridge

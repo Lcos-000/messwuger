@@ -1,0 +1,12 @@
+admin:
+  resources:
+    items:
+      - code: skywalking
+        name: SkyWalking
+        url: http://127.0.0.1:18080
+      - code: nacos
+        name: Nacos
+        url: http://127.0.0.1:8848/nacos
+      - code: sentinel
+        name: Sentinel
+        url: http://127.0.0.1:8858

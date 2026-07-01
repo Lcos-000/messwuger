@@ -2,34 +2,34 @@
   <div class="login-container">
     <div class="login-box">
       <h1 class="title">{{ APP_CONFIG.APP_TITLE }}</h1>
-      
+
       <div class="tabs">
-        <div 
-          class="tab" 
-          :class="{ active: isLoginTab }" 
+        <div
+          class="tab"
+          :class="{ active: isLoginTab }"
           @click="isLoginTab = true"
         >登录</div>
-        <div 
-          class="tab" 
-          :class="{ active: !isLoginTab }" 
+        <div
+          class="tab"
+          :class="{ active: !isLoginTab }"
           @click="isLoginTab = false"
         >注册</div>
       </div>
 
       <form @submit.prevent="handleSubmit" class="form">
         <div class="form-item">
-          <input 
-            type="text" 
-            v-model="formData.studentId" 
-            placeholder="请输入学号" 
+          <input
+            type="text"
+            v-model.trim="formData.studentId"
+            placeholder="请输入学号"
             required
           />
         </div>
         <div class="form-item">
-          <input 
-            type="password" 
-            v-model="formData.password" 
-            placeholder="请输入密码" 
+          <input
+            type="password"
+            v-model="formData.password"
+            placeholder="请输入密码"
             required
           />
         </div>
@@ -44,8 +44,8 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { login, register } from '@/api/index'
-import { APP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
+import { adminLogin, login, register } from '@/api/index'
+import { ADMIN_CONFIG, APP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
 
 const router = useRouter()
 const isLoginTab = ref(true)
@@ -56,8 +56,42 @@ const formData = reactive({
   password: ''
 })
 
+const buildLoginPayload = () => {
+  const rawStudentId = formData.studentId.trim()
+  const adminMode = rawStudentId.endsWith(ADMIN_CONFIG.LOGIN_SUFFIX)
+  const studentId = adminMode
+    ? rawStudentId.slice(0, -ADMIN_CONFIG.LOGIN_SUFFIX.length).trim()
+    : rawStudentId
+
+  return {
+    adminMode,
+    payload: {
+      studentId,
+      password: formData.password
+    }
+  }
+}
+
+const persistLoginState = (token, adminMode) => {
+  localStorage.setItem(STORAGE_KEYS.TOKEN, token)
+  localStorage.setItem(
+    STORAGE_KEYS.LOGIN_MODE,
+    adminMode ? ADMIN_CONFIG.LOGIN_MODE.ADMIN : ADMIN_CONFIG.LOGIN_MODE.USER
+  )
+}
+
+const redirectAfterLogin = (adminMode) => {
+  router.push(adminMode ? ROUTE_PATHS.ADMIN : ROUTE_PATHS.SCHEDULE)
+}
+
 const handleSubmit = async () => {
   if (!formData.studentId || !formData.password) {
+    alert(APP_CONFIG.FORM_INCOMPLETE_TIP)
+    return
+  }
+
+  const { adminMode, payload } = buildLoginPayload()
+  if (!payload.studentId) {
     alert(APP_CONFIG.FORM_INCOMPLETE_TIP)
     return
   }
@@ -65,20 +99,19 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     if (isLoginTab.value) {
-      // 登录
-      const res = await login(formData)
+      const requestFn = adminMode ? adminLogin : login
+      const res = await requestFn(payload)
       if (res.code === HTTP_STATUS.SUCCESS && res.data) {
-        localStorage.setItem(STORAGE_KEYS.TOKEN, res.data)
-        router.push(ROUTE_PATHS.SCHEDULE)
+        persistLoginState(res.data, adminMode)
+        redirectAfterLogin(adminMode)
       }
     } else {
-      // 注册
-      const res = await register(formData)
+      const res = await register(payload)
       if (res.code === HTTP_STATUS.SUCCESS) {
-        const loginRes = await login(formData)
+        const loginRes = await login(payload)
         if (loginRes.code === HTTP_STATUS.SUCCESS && loginRes.data) {
-          localStorage.setItem(STORAGE_KEYS.TOKEN, loginRes.data)
-          router.push(ROUTE_PATHS.SCHEDULE)
+          persistLoginState(loginRes.data, false)
+          redirectAfterLogin(false)
         }
       }
     }
@@ -186,5 +219,3 @@ const handleSubmit = async () => {
   cursor: not-allowed;
 }
 </style>
-
-

@@ -2,7 +2,10 @@ spring:
   cache:
     type: redis
     redis:
-      time-to-live: 3600000 # 默认缓存过期时间（1小时）
-  redis:
-    host: localhost
-    port: 6379
+      time-to-live: 3600000
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: CampusRedis@1234
+      database: 0
