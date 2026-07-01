@@ -144,8 +144,8 @@ docker compose version
 当前项目本地已对齐的镜像标签示例：
 
 - `mysql:9.7.0`
-- `redis:latest`
-- `bladex/sentinel-dashboard:latest`
+- `redis:8.8.0`
+- `bladex/sentinel-dashboard:1.8.9`
 - `nacos/nacos-server:v2.4.0-slim`
 - `apache/skywalking-ui:10.0.1`
 - `apache/skywalking-oap-server:10.0.1`
@@ -270,6 +270,7 @@ gatewaylist:
   whitelist:
     - /gateway/auth/login
     - /gateway/auth/register
+    - /gateway/admin/login
   adminlist:
     - /gateway/admin/**
 
