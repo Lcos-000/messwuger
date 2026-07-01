@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS student_db (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(32) NOT NULL COMMENT '教务学号',
     password VARCHAR(128) NOT NULL COMMENT 'BCrypt加密后的密码',
+    role VARCHAR(20) NOT NULL DEFAULT 'USER' COMMENT '角色：USER-普通用户，ADMIN-管理员',
     sync_status TINYINT DEFAULT 0 COMMENT '0未同步 1同步中 2成功 3失败',
     punch_status TINYINT DEFAULT 0 COMMENT '打卡状态：0未打卡 1打卡中 2打卡成功 3打卡失败',
     auto_punch_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否开启自动打卡：0关闭 1开启',

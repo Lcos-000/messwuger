@@ -1,7 +1,5 @@
 package com.campusassistant.interceptors;
 
-import com.campusassistant.enums.ResultCodeEnum;
-import com.campusassistant.exception.BusinessException;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,10 +37,8 @@ public class FeignHeaderInterceptor implements RequestInterceptor {
                 template.header(HEADER_USER_ID, userId);
                 template.header(HEADER_STUDENT_ID, studentId);
                 template.header(HEADER_USER_ROLE, userRole);
-            }else {
-                log.error("Feign 内部调用，用户信息缺失");
-                throw new BusinessException(ResultCodeEnum.UNAUTHORIZED.getCode(), "用户信息缺失");
             }
+
             log.debug("Feign 内部调用，追踪 TraceId: {}", traceId);
         }
     }

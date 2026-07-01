@@ -4,3 +4,4 @@ jwt:
   admin-ttl: 43200000 #token有效时间
   admin-token-name: "student_login"
   redis-hours: 12 #redis存储时间
+  admin-redis-hours: 2 #管理员redis存储时间

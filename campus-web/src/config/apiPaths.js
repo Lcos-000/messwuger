@@ -1,9 +1,14 @@
 export const API_PATHS = {
   AUTH: {
     LOGIN: '/auth/login',
+    ADMIN_LOGIN: '/admin/login',
     REGISTER: '/auth/register',
     LOGOUT: '/auth/logout',
+    ADMIN_LOGOUT: '/admin/logout',
     REFRESH: '/auth/refresh'
+  },
+  ADMIN: {
+    RESOURCES: '/admin/resources'
   },
   USER: {
     STATUS: '/user/status',

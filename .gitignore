@@ -55,3 +55,10 @@ desktop.ini
 *.env.production
 campus-spider-service/go_callback.json
 campus-assistant/user-service/src/main/resources/application-aliyun.yml
+
+# data volume
+deploy/skywalking/
+deploy/mysql/data/
+deploy/nacos/data/
+deploy/nacos/logs/
+deploy/redis/data/

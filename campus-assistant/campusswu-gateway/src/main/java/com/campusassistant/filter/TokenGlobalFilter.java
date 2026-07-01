@@ -97,22 +97,22 @@ public class TokenGlobalFilter implements GlobalFilter {
             log.info("Token 验证成功，提取用户身份: id={}, name={}, role={}", userId, studentId, userRole);
 
             ServerWebExchange finalExchange = exchange.mutate().request(finalRequest).build();
-//            // 验证管理员身份
-//            boolean needAdminCheck =
-//                    whitelistProperties.getAdminlist() != null &&
-//                    whitelistProperties.getAdminlist().stream().anyMatch(pattern -> antPathMatcher.match(pattern, path));
-//            if (needAdminCheck) {
-//                if (!ROLE_ADMIN.equals(userRole)) {
-//                    log.warn("权限拒绝: 用户ID:[{}] NAME:[{}] 尝试访问管理员接口[{}]", userId, studentId, path);
-//                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-//                    // 这里简单返回，实际项目建议写一个返回 JSON 的工具方法
-//                    return exchange.getResponse().setComplete();
-//                }
-//                log.info("管理员权限验证通过: {}", path);
-//            }
-//             else {
-//            log.info("普通用户路径验证通过: 用户[{}]", studentId);
-//            }
+            // 验证管理员身份
+            boolean needAdminCheck =
+                    whitelistProperties.getAdminlist() != null &&
+                    whitelistProperties.getAdminlist().stream().anyMatch(pattern -> antPathMatcher.match(pattern, path));
+            if (needAdminCheck) {
+                if (!ROLE_ADMIN.equals(userRole)) {
+                    log.warn("权限拒绝: 用户ID:[{}] NAME:[{}] 尝试访问管理员接口[{}]", userId, studentId, path);
+                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                    // 这里简单返回，实际项目建议写一个返回 JSON 的工具方法
+                    return exchange.getResponse().setComplete();
+                }
+                log.info("管理员权限验证通过: {}", path);
+            }
+             else {
+            log.info("普通用户路径验证通过: 用户[{}]", studentId);
+            }
 
             // 放行
             return chain.filter(finalExchange);

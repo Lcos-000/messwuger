@@ -1,4 +1,4 @@
-package com.campusassistant.config;
+package com.campusassistant.student.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
