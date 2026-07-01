@@ -357,18 +357,26 @@ docker compose -f docker-compose.skywalking.yml down -v
 
 ### Java Agent 需要对齐的点
 
-如果你的 Java 服务启用了 SkyWalking Agent，需要把它们都指向新的 OAP：
+如果你的 Java 服务启用了 SkyWalking Agent，当前仓库已统一通过 `tools/skywalking-agent/config/agent.config` 承担公共配置。
+
+当前建议每个服务的 VM options 只保留：
 
 ```text
--Dskywalking.collector.backend_service=127.0.0.1:11810
+-javaagent:"E:\develop\idea\collaborative project\messwuger\tools\skywalking-agent\skywalking-agent.jar"
 ```
 
-并建议给当前项目统一设置新的服务名前缀，例如：
+公共配置默认已包含本地 OAP 地址：
 
 ```text
--Dskywalking.agent.service_name=campus-assistant-user-service
--Dskywalking.agent.service_name=campus-assistant-course-service
--Dskywalking.agent.service_name=campus-assistant-gateway
+collector.backend_service=127.0.0.1:11810
+```
+
+每个服务再单独提供自己的环境变量 `SW_AGENT_NAME`，例如：
+
+```text
+SW_AGENT_NAME=campusassistant-user-service
+SW_AGENT_NAME=campusassistant-course-service
+SW_AGENT_NAME=campusassistant-gateway-service
 ```
 
 如果不改 Agent 上报地址，而仍然继续指向旧的 `11800`，那么新 UI 里也不会有你当前项目的数据。
@@ -411,6 +419,7 @@ npm run build
 
 ## 启动顺序
 
+> 本地如果要接入链路追踪，推荐在 IDEA 的 Run Configuration Template 统一填写 `-javaagent`，再在各服务的 Environment variables 里分别填写 `SW_AGENT_NAME`。
 | 顺序 | 服务 | 命令 |
 |------|------|------|
 | 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy && docker compose -p campusassistant -f docker-compose.middleware.yml up -d` |
@@ -489,6 +498,8 @@ netstat -ano | findstr ":5173 "
 | 9000 | Course-Service |
 | 8082 | Go 爬虫服务 |
 | 8848 | Nacos |
+如果你已经统一改成 `agent.config + SW_AGENT_NAME` 方案，优先检查各服务是否仍残留旧的 `-Dskywalking.collector.backend_service` 或旧服务名。
+
 | 18080 | SkyWalking UI |
 | 5173 | 前端开发服务 |
 

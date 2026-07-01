@@ -182,18 +182,26 @@ docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
 
 ### 5.5 Java Agent 对齐
 
-如果你的 Java 服务启用了 SkyWalking Agent，必须把 Agent 指向新的 OAP：
+如果你的 Java 服务启用了 SkyWalking Agent，推荐把公共配置收敛到 `tools/skywalking-agent/config/agent.config`，只在服务启动入口保留 `-javaagent`。
 
 ```text
--Dskywalking.collector.backend_service=127.0.0.1:11810
+-javaagent:/opt/campus/tools/skywalking-agent/skywalking-agent.jar
 ```
 
-同时建议统一服务名：
+当前仓库里的 `agent.config` 默认已包含：
 
 ```text
--Dskywalking.agent.service_name=campusassistant-gateway
--Dskywalking.agent.service_name=campusassistant-user-service
--Dskywalking.agent.service_name=campusassistant-course-service
+collector.backend_service=127.0.0.1:11810
+agent.namespace=campusassistant
+agent.service_name=${SW_AGENT_NAME:unknown-service}
+```
+
+因此每个服务只需单独提供自己的 `SW_AGENT_NAME`：
+
+```text
+SW_AGENT_NAME=campusassistant-gateway-service
+SW_AGENT_NAME=campusassistant-user-service
+SW_AGENT_NAME=campusassistant-course-service
 ```
 
 否则即便新 UI 已经部署成功，你的服务仍会继续把链路上报到旧的 SkyWalking。
@@ -261,21 +269,23 @@ mvn clean package -DskipTests
 - `deploy/systemd/campus-spider.service`
 
 复制到系统目录：
-
-```bash
-cp /opt/campus/deploy/systemd/campus-*.service /etc/systemd/system/
-mkdir -p /opt/campus/logs
-systemctl daemon-reload
-systemctl enable --now campus-gateway campus-user campus-course
-```
-
 ### 8.3 如需接入 SkyWalking Agent
 
-最稳妥的方式是在 `ExecStart` 里显式加入：
+最稳妥的方式是在 `ExecStart` 或启动脚本里显式加入：
 
 ```text
 -javaagent:/opt/campus/tools/skywalking-agent/skywalking-agent.jar
--Dskywalking.agent.service_name=campusassistant-user-service
+```
+
+然后为每个服务分别设置环境变量：
+
+```text
+SW_AGENT_NAME=campusassistant-user-service
+```
+
+这部分当前仓库没有强行写死到模板中，因为每台机器的 Agent 安装路径未必一致。
+
+---
 -Dskywalking.collector.backend_service=127.0.0.1:11810
 ```
 
@@ -361,11 +371,12 @@ systemctl status nginx --no-pager
 
 浏览器访问：
 
-```text
-http://你的服务器IP
-```
+优先检查：
 
-管理员资源入口如果使用 Nacos 配置，记得把 `admin-resources.yaml` 中的 URL 改成服务器可访问地址，而不是 `127.0.0.1`。
+- Java 进程是否真的挂载了 SkyWalking Agent
+- `tools/skywalking-agent/config/agent.config` 中的 `collector.backend_service` 是否为 `127.0.0.1:11810`
+- 当前服务是否设置了正确的 `SW_AGENT_NAME`
+- 是否仍残留旧的 `-Dskywalking.collector.backend_service` 或旧的 `-Dskywalking.agent.service_name`
 
 ---
 
