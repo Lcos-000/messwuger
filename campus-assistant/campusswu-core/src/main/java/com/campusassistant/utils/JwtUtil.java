@@ -19,16 +19,16 @@ public class JwtUtil {
 
     public String genToken(Map<String, Object> claims) {
         return JWT.create()
-                .withClaim(jwtProperties.getAdminTokenName(), claims)
-                .withExpiresAt(new Date(System.currentTimeMillis() + jwtProperties.getAdminTtl()))
-                .sign(Algorithm.HMAC256(jwtProperties.getAdminSecretKey()));
+                .withClaim(jwtProperties.getJwtTokenName(), claims)
+                .withExpiresAt(new Date(System.currentTimeMillis() + jwtProperties.getJwtTtl()))
+                .sign(Algorithm.HMAC256(jwtProperties.getJwtSecretKey()));
     }
 
     public Map<String, Object> parseToken(String token) {
-        return JWT.require(Algorithm.HMAC256(jwtProperties.getAdminSecretKey()))
+        return JWT.require(Algorithm.HMAC256(jwtProperties.getJwtSecretKey()))
                 .build()
                 .verify(token)
-                .getClaim(jwtProperties.getAdminTokenName())
+                .getClaim(jwtProperties.getJwtTokenName())
                 .asMap();
     }
 }

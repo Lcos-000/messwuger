@@ -7,7 +7,7 @@ import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.rediskey.UserPwdCacheKey;
-import com.campusassistant.utils.redistool.ScheduledLockSupport;
+import com.campusassistant.support.ScheduledLockSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

@@ -1,7 +1,7 @@
 package com.campusassistant.student.service.task;
 
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.redistool.ScheduledLockSupport;
+import com.campusassistant.support.ScheduledLockSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

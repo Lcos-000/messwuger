@@ -2,13 +2,14 @@ package com.campusassistant.student.service.impl;
 
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
+import com.campusassistant.properties.JwtProperties;
 import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
 import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.remote.spider.service.SpiderService;
 import com.campusassistant.student.service.impl.support.UserCacheSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.UserContextUtil;
-import com.campusassistant.utils.redistool.CommonCacheService;
+import com.campusassistant.service.CommonCacheService;
 import com.campusassistant.utils.converter.personalinfo.PersonalInfoVoConvertor;
 import com.campusassistant.utils.converter.user.UserStatusVoConvertor;
 import com.campusassistant.student.pojo.UserEntity;
@@ -16,6 +17,7 @@ import com.campusassistant.student.pojo.UserStatusVO;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.CurrentUserService;
 import com.campusassistant.utils.rediskey.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -38,9 +40,11 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final PersonalInfoVoConvertor personalInfoVoConvertor;
     private final UserCacheSupport userCacheSupport;
+    private final JwtProperties jwtProperties;
 
     @Override
-    public void self_unsubscribe() {
+    public void self_unsubscribe(HttpServletRequest request) {
+        String token = request.getHeader(jwtProperties.getJwtTokenName());
         String currentStudentId = UserContextUtil.requireStudentId();
         UserEntity userEntity = userReadSupport.findEntityByStudentId(currentStudentId);
         if (userEntity == null) {
@@ -54,7 +58,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         }
 
         if (!currentStudentId.isEmpty()) {
-            userCacheSupport.evictByStudentId(currentStudentId);
+            userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
         } else {
             log.warn("用户注销时发现用户名为空，跳过缓存删除, userId: {}", userId);
         }

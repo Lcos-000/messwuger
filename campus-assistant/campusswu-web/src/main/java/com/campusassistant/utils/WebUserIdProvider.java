@@ -1,4 +1,4 @@
-package com.campusassistant.utils.provider;
+package com.campusassistant.utils;
 
 import com.campusassistant.pojo.UserContext;
 import com.campusassistant.provider.UserIdProvider;
