@@ -4,6 +4,6 @@
 pkill -f "campusswu-gateway-1.0-SNAPSHOT.jar" || true
 pkill -f "user-service-1.0-SNAPSHOT.jar" || true
 pkill -f "course-service-1.0-SNAPSHOT.jar" || true
-pkill -f "campus-spider-service/server" || true
+pkill -f "/opt/campus/campus-spider-service/server" || true
 
 echo "所有服务已停止"

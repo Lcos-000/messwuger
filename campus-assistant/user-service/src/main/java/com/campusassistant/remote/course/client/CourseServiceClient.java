@@ -1,7 +1,7 @@
 package com.campusassistant.remote.course.client;
 
 
-import com.campusassistant.config.FeignConfig;
+import com.campusassistant.remote.config.FeignConfig;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.pojo.RemoteCourseDTO;
 import com.campusassistant.remote.course.pojo.RemoteCourseVO;

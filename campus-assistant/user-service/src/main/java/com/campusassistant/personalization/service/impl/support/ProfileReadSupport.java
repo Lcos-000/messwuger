@@ -8,7 +8,7 @@ import com.campusassistant.personalization.pojo.vo.ProfileDefaultOptionsVO;
 import com.campusassistant.utils.UserContextUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import com.campusassistant.utils.converter.DefaultOptionsConvertor;
+import com.campusassistant.utils.converter.profile.DefaultOptionsConvertor;
 
 @Component
 @RequiredArgsConstructor

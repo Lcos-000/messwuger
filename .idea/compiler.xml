@@ -3,6 +3,11 @@
   <component name="CompilerConfiguration">
     <annotationProcessing>
       <profile default="true" name="Default" enabled="true" />
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+      </profile>
       <profile name="Annotation profile for campus-assistant" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -14,10 +19,11 @@
         </processorPath>
         <module name="course-service" />
         <module name="campusswu-mybatis" />
-        <module name="user-service" />
-        <module name="campusswu-core" />
         <module name="campusswu-gateway" />
         <module name="campusswu-web" />
+        <module name="campusswu-redis" />
+        <module name="user-service" />
+        <module name="campusswu-core" />
       </profile>
     </annotationProcessing>
   </component>

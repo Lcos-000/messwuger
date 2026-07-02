@@ -7,7 +7,7 @@
         </transition>
       </router-view>
     </main>
-    <NavBar v-if="!isLoginPage" />
+    <NavBar v-if="!isLoginPage && !isAdminPage" />
   </div>
 </template>
 
@@ -21,6 +21,10 @@ const route = useRoute()
 
 const isLoginPage = computed(() => {
   return route.path === ROUTE_PATHS.LOGIN || route.name === ROUTE_NAMES.LOGIN
+})
+
+const isAdminPage = computed(() => {
+  return route.path === ROUTE_PATHS.ADMIN || route.name === ROUTE_NAMES.ADMIN
 })
 
 const transitionName = ref('slide-left')

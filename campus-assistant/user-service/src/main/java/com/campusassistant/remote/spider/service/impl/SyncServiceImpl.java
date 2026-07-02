@@ -14,7 +14,7 @@ import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.converter.PersonalInfoConvertor;
+import com.campusassistant.utils.converter.personalinfo.PersonalInfoConvertor;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

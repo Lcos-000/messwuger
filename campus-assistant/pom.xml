@@ -20,6 +20,7 @@
     <modules>
         <module>campusswu-core</module>
         <module>campusswu-mybatis</module>
+        <module>campusswu-redis</module>
         <module>campusswu-web</module>
         <module>campusswu-gateway</module>
         <module>user-service</module>
