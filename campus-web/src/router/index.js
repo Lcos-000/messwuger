@@ -13,16 +13,22 @@ const routes = [
     meta: { title: '登录', index: 0 }
   },
   {
+    path: ROUTE_PATHS.ADMIN,
+    name: ROUTE_NAMES.ADMIN,
+    component: () => import('../views/Admin.vue'),
+    meta: { title: '管理员控制台', requiresAuth: true, adminOnly: true, index: 1 }
+  },
+  {
     path: ROUTE_PATHS.SCHEDULE,
     name: ROUTE_NAMES.SCHEDULE,
     component: () => import('../views/Schedule.vue'),
-    meta: { title: '我的课表', requiresAuth: true, index: 1 }
+    meta: { title: '我的课表', requiresAuth: true, index: 2 }
   },
   {
     path: ROUTE_PATHS.PROFILE,
     name: ROUTE_NAMES.PROFILE,
     component: () => import('../views/Profile.vue'),
-    meta: { title: '个人中心', requiresAuth: true, index: 2 }
+    meta: { title: '个人中心', requiresAuth: true, index: 3 }
   }
 ]
 
@@ -31,26 +37,27 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
 router.beforeEach((to, from, next) => {
-  // 设置标题
   if (to.meta.title) {
     document.title = to.meta.title
   }
 
   const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+  const loginMode = localStorage.getItem(STORAGE_KEYS.LOGIN_MODE)
 
   if (to.meta.requiresAuth) {
-    // 需要登录
     if (token) {
+      if (to.meta.adminOnly && loginMode !== 'admin') {
+        next(ROUTE_PATHS.SCHEDULE)
+        return
+      }
       next()
     } else {
       next(ROUTE_PATHS.LOGIN)
     }
   } else {
-    // 不需要登录的页面（如 login 或者 catch-all）
     if (to.path === ROUTE_PATHS.LOGIN && token) {
-      next(ROUTE_PATHS.SCHEDULE)
+      next(loginMode === 'admin' ? ROUTE_PATHS.ADMIN : ROUTE_PATHS.SCHEDULE)
     } else {
       next()
     }
@@ -58,5 +65,3 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
-
-

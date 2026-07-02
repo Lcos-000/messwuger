@@ -4,10 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.student.code.PunchStatusEnum;
-import com.campusassistant.utils.converter.UserDtoConvertor;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
-import com.campusassistant.student.pojo.dto.UserDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -27,15 +25,13 @@ public class UserWriteSupport {
     private final UserMapper userMapper;
     private final UserReadSupport userReadSupport;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final UserDtoConvertor UserDtoConvertor;
 
     @Transactional
-    public void addUser(UserDTO UserDTO) {
-        if (userReadSupport.findEntityByStudentId(UserDTO.getStudentId()) != null) {
+    public void addUser(UserEntity userEntity) {
+        if (userReadSupport.findEntityByStudentId(userEntity.getStudentId()) != null) {
             throw new BusinessException(USER_ALREADY_EXISTS);
         }
-        UserEntity userEntity = UserDtoConvertor.toSource(UserDTO);
-        String hash = passwordEncoder.encode(UserDTO.getPassword());
+        String hash = passwordEncoder.encode(userEntity.getPassword());
         userEntity.setPassword(hash);
         userEntity.setSyncStatus(NOT_SYNCED.getCode());
         userEntity.setAutoPunchEnabled(AUTO_PUNCH_ENABLED.getCode());
@@ -47,17 +43,19 @@ public class UserWriteSupport {
         }
     }
 
+    public int deleteUserById(Long id) {
+        return userMapper.deleteById(id);
+    }
+
+
     public void updateSyncStatus(String studentId, Integer status) {
         try {
-            // 构建更新条件：WHERE student_id = ?
             LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(UserEntity::getStudentId, studentId);
 
-            // 构建更新内容：SET sync_status = ?
             UserEntity updateUser = new UserEntity();
             updateUser.setSyncStatus(status);
 
-            // 执行更新
             int rows = userMapper.update(updateUser, updateWrapper);
 
             if (rows == 0) {
@@ -91,7 +89,8 @@ public class UserWriteSupport {
             UserEntity updateUser = new UserEntity();
             updateUser.setPunchStatus(status);
 
-            userMapper.update(updateUser, updateWrapper);
+            int rows = userMapper.update(updateUser, updateWrapper);
+            log.info("用户 {} 的打卡状态已更新为: {}", studentId, status);
         } catch (Exception e) {
             log.error("更新打卡状态异常, studentId: {}, status: {}", studentId, status, e);
         }
@@ -100,7 +99,7 @@ public class UserWriteSupport {
     public void resetAllPunchStatus() {
         try {
             LambdaUpdateWrapper<UserEntity> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.gt(UserEntity::getId, 0);  // 绕过 BlockAttackInnerInterceptor
+            updateWrapper.gt(UserEntity::getId, 0);
             updateWrapper.set(UserEntity::getPunchStatus, PunchStatusEnum.NOT_PUNCHED.getCode());
             int rows = userMapper.update(null, updateWrapper);
             log.info("已批量重置 {} 个用户的打卡状态为未打卡", rows);
@@ -121,6 +120,8 @@ public class UserWriteSupport {
             int rows = userMapper.update(updateUser, updateWrapper);
             if (rows == 0) {
                 log.warn("更新自动打卡开关失败，未找到学号为 {} 的用户", studentId);
+            } else {
+                log.info("用户 {} 的自动打卡开关已更新为: {}", studentId, enabled);
             }
         } catch (Exception e) {
             log.error("更新自动打卡开关异常 studentId: {}, enabled: {}", studentId, enabled, e);

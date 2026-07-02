@@ -7,7 +7,7 @@ import com.campusassistant.personalization.pojo.vo.UserProfileStyleVO;
 import com.campusassistant.personalization.service.UserProfileStyleService;
 import com.campusassistant.personalization.service.impl.support.ProfileReadSupport;
 import com.campusassistant.personalization.service.impl.support.ProfileWriteSupport;
-import com.campusassistant.utils.converter.ProfileStyleVoConvertor;
+import com.campusassistant.utils.converter.profile.ProfileStyleVoConvertor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,24 +1,23 @@
 package com.campusassistant.student.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
-import com.campusassistant.remote.spider.mapper.SyncMapper;
+import com.campusassistant.properties.JwtProperties;
 import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
 import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
 import com.campusassistant.remote.spider.service.SpiderService;
+import com.campusassistant.student.service.impl.support.UserCacheSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.ThreadLocalUtil;
-import com.campusassistant.pojo.UserContext;
-import com.campusassistant.utils.redistool.CommonCacheService;
-import com.campusassistant.utils.converter.PersonalInfoVoConvertor;
-import com.campusassistant.utils.converter.UserStatusVoConvertor;
-import com.campusassistant.student.mapper.UserMapper;
+import com.campusassistant.utils.UserContextUtil;
+import com.campusassistant.service.CommonCacheService;
+import com.campusassistant.utils.converter.personalinfo.PersonalInfoVoConvertor;
+import com.campusassistant.utils.converter.user.UserStatusVoConvertor;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.pojo.UserStatusVO;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.CurrentUserService;
 import com.campusassistant.utils.rediskey.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -30,7 +29,6 @@ import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 @Service
 @RequiredArgsConstructor
 public class CurrentUserServiceImpl implements CurrentUserService {
-    private final UserMapper userMapper;
     private final UserReadSupport userReadSupport;
     private final UserWriteSupport userWriteSupport;
     private final UserStatusVoConvertor userStatusVoConvertor;
@@ -40,41 +38,36 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     private final StringRedisTemplate stringRedisTemplate;
     private final SpiderService spiderService;
     private final UserPersonalCacheKey userPersonalCacheKey;
-    private final SyncMapper syncMapper;
     private final PersonalInfoVoConvertor personalInfoVoConvertor;
+    private final UserCacheSupport userCacheSupport;
+    private final JwtProperties jwtProperties;
 
     @Override
-    public void self_unsubscribe() {
-        UserContext userContext = ThreadLocalUtil.get();
-        Long currentUserId = userContext.getUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(UNAUTHORIZED);
+    public void self_unsubscribe(HttpServletRequest request) {
+        String token = request.getHeader(jwtProperties.getJwtTokenName());
+        String currentStudentId = UserContextUtil.requireStudentId();
+        UserEntity userEntity = userReadSupport.findEntityByStudentId(currentStudentId);
+        if (userEntity == null) {
+            throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(),"用户不存在");
         }
-        UserEntity currentUser = userReadSupport.findEntityById(currentUserId);
-        log.info("用户正在执行注销操作，用户id：[{}]，用户学号：[{}]",currentUser.getId(),currentUser.getStudentId());
-        int rows = userMapper.deleteById(currentUserId);
+        Long userId = userEntity.getId();
+        log.info("用户正在执行注销操作，用户id：[{}]，用户学号：[{}]",userId,currentStudentId);
+        int rows = userWriteSupport.deleteUserById(userId);
         if (rows == 0) {
             throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(),"操作失败");
         }
-        
-        String studentId = currentUser.getStudentId();
-        if (studentId != null && !studentId.isEmpty()) {
-            commonCacheService.deleteCache(userStatusCacheKey.getKey(studentId));
-            commonCacheService.deleteCache(userPwdCacheKey.getKey(studentId));
-            commonCacheService.deleteCache(userPersonalCacheKey.getKey(studentId));
+
+        if (!currentStudentId.isEmpty()) {
+            userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
         } else {
-            log.warn("用户注销时发现用户名为空，跳过缓存删除, userId: {}", currentUserId);
+            log.warn("用户注销时发现用户名为空，跳过缓存删除, userId: {}", userId);
         }
-        log.info("用户已注销；[{}]",currentUser);
+        log.info("用户已注销；[{}]",userEntity);
     }
 
     @Override
     public UserStatusVO getStatusByStudentId() {
-        UserContext userContext = ThreadLocalUtil.get();
-        String studentId = userContext.getStudentId();
-        if (studentId == null) {
-            throw new BusinessException(UNAUTHORIZED);
-        }
+        String studentId = UserContextUtil.requireStudentId();
         return commonCacheService.getWithCache(
                 userStatusCacheKey.getKey(studentId),
                 UserStatusVO.class,
@@ -87,34 +80,20 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
     @Override
     public PersonalInfoVO getPersonalByStudentId() {
-        UserContext userContext = ThreadLocalUtil.get();
-        String studentId = userContext.getStudentId();
-        if (studentId == null) {
-            throw new BusinessException(UNAUTHORIZED);
-        }
+        String studentId = UserContextUtil.requireStudentId();
         return commonCacheService.getWithCache(
                 userPersonalCacheKey.getKey(studentId),
                 PersonalInfoVO.class,
                 () -> {
-                    LambdaQueryWrapper<PersonalInfoEntity> lqw = new LambdaQueryWrapper<>();
-                    lqw.eq(PersonalInfoEntity::getStudentId, studentId);
-                    PersonalInfoEntity personalInfoEntity = syncMapper.selectOne(lqw);
-                    if (personalInfoEntity == null) {
-                        return null;
-                    }
-                    return personalInfoVoConvertor.toTarget(personalInfoEntity);
+                    PersonalInfoEntity personalInfoEntity = userReadSupport.findPersonalInfoByStudentId(studentId);
+                    return personalInfoEntity == null ? null : personalInfoVoConvertor.toTarget(personalInfoEntity);
                 }
         );
     }
 
     @Override
     public void refreshData() {
-        UserContext userContext = ThreadLocalUtil.get();
-        String studentId = userContext.getStudentId();
-        if (studentId == null) {
-            throw new BusinessException(UNAUTHORIZED);
-        }
-        // 从 Redis 中取出之前缓存的明文密码
+        String studentId = UserContextUtil.requireStudentId();
         String redisKey = userPwdCacheKey.getKey(studentId);
         String encryptedPassword = stringRedisTemplate.opsForValue().get(redisKey);
         // 判断密码是否还在缓存中
@@ -128,13 +107,9 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
     @Override
     public void updateAutoPunchEnabled(Integer enabled) {
-        UserContext userContext = ThreadLocalUtil.get();
-        String studentId = userContext.getStudentId();
-        if (studentId == null) {
-            throw new BusinessException(UNAUTHORIZED);
-        }
+        String studentId = UserContextUtil.requireStudentId();
         userWriteSupport.updateAutoPunchEnabled(studentId, enabled);
-        commonCacheService.deleteCache(userStatusCacheKey.getKey(studentId));
+        stringRedisTemplate.delete(userStatusCacheKey.getKey(studentId));
     }
 
 }

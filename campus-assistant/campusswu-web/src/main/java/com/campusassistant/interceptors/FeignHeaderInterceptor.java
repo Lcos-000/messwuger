@@ -30,15 +30,15 @@ public class FeignHeaderInterceptor implements RequestInterceptor {
             String userId = request.getHeader(HEADER_USER_ID);
             String studentId = request.getHeader(HEADER_STUDENT_ID);
             String userRole = request.getHeader(HEADER_USER_ROLE);
-            if (userId != null) {
+            if (userId != null && !userId.isEmpty()
+                && studentId != null && !studentId.isEmpty()
+                && userRole != null && !userRole.isEmpty()
+            ) {
                 template.header(HEADER_USER_ID, userId);
-            }
-            if (studentId != null) {
                 template.header(HEADER_STUDENT_ID, studentId);
-            }
-            if (userRole != null) {
                 template.header(HEADER_USER_ROLE, userRole);
             }
+
             log.debug("Feign 内部调用，追踪 TraceId: {}", traceId);
         }
     }
