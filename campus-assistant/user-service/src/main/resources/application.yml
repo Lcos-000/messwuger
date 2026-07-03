@@ -19,3 +19,4 @@ spring:
       - sentinel
       - aes
       - static
+      - adminlog

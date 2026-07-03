@@ -1,4 +1,4 @@
-﻿# 校园助手项目部署手册
+# 校园助手项目部署手册
 
 > 目标：以当前仓库结构为准，在一台 Ubuntu 22.04 服务器上完成中间件、Java 微服务、Go 爬虫服务、前端静态页面以及项目独立 SkyWalking 的部署。
 >
@@ -286,12 +286,6 @@ SW_AGENT_NAME=campusassistant-user-service
 这部分当前仓库没有强行写死到模板中，因为每台机器的 Agent 安装路径未必一致。
 
 ---
--Dskywalking.collector.backend_service=127.0.0.1:11810
-```
-
-这部分当前仓库没有强行写死到模板中，因为每台机器的 Agent 安装路径未必一致。
-
----
 
 ## 九、部署 Go + Python 服务
 
@@ -326,6 +320,8 @@ npm run build
 ### 10.2 使用仓库内 Nginx 配置
 
 当前仓库已修正：`deploy/nginx.conf`
+
+> 当前前端管理员页与用户页采用双 token 存储；这属于浏览器本地会话隔离策略，不额外增加部署依赖。
 
 ```bash
 cp /opt/campus/deploy/nginx.conf /etc/nginx/sites-available/campus
@@ -416,7 +412,17 @@ systemctl status nginx --no-pager
 - Bucket 是否允许当前访问方式读取
 - OSS CORS 是否允许浏览器加载图片
 
-### 12.5 Java 调用 Go 失败
+### 12.5 管理员页日志轮询后日志量明显增加
+
+优先检查：
+
+- `WebLogAspect` 是否已对 `/admin/logs/**` 切换为单行精简日志
+- 是否仍打印 `Request Start / URL / URI / Request Args` 这类多行内容
+- 前端是否只在手动开启时才轮询日志
+- `LOG_POLLING_INTERVAL` 是否过小
+- 前端是否因日志显示上限截断而需要手动“重置控制台”恢复最新窗口
+
+### 12.6 Java 调用 Go 失败
 
 ```bash
 curl http://127.0.0.1:8082/health

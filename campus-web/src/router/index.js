@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { ROUTE_NAMES, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
+import { ROUTE_NAMES, ROUTE_PATHS } from '@/config'
+import { getDefaultAuthedRoute, hasAdminSession, hasSessionForPath, hasUserSession } from '@/utils/auth'
 
 const routes = [
   {
@@ -42,25 +43,25 @@ router.beforeEach((to, from, next) => {
     document.title = to.meta.title
   }
 
-  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
-  const loginMode = localStorage.getItem(STORAGE_KEYS.LOGIN_MODE)
+  const hasUserToken = hasUserSession()
+  const hasAdminToken = hasAdminSession()
 
   if (to.meta.requiresAuth) {
-    if (token) {
-      if (to.meta.adminOnly && loginMode !== 'admin') {
-        next(ROUTE_PATHS.SCHEDULE)
-        return
-      }
-      next()
-    } else {
+    if (!hasSessionForPath(to.path)) {
       next(ROUTE_PATHS.LOGIN)
+      return
     }
+    if (to.meta.adminOnly && !hasAdminToken) {
+      next(hasUserToken ? ROUTE_PATHS.SCHEDULE : ROUTE_PATHS.LOGIN)
+      return
+    }
+    next()
   } else {
-    if (to.path === ROUTE_PATHS.LOGIN && token) {
-      next(loginMode === 'admin' ? ROUTE_PATHS.ADMIN : ROUTE_PATHS.SCHEDULE)
-    } else {
-      next()
+    if (to.path === ROUTE_PATHS.LOGIN && (hasUserToken || hasAdminToken)) {
+      next(getDefaultAuthedRoute())
+      return
     }
+    next()
   }
 })
 

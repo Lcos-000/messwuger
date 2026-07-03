@@ -10,6 +10,13 @@ export const API_PATHS = {
   ADMIN: {
     RESOURCES: '/admin/resources'
   },
+  ADMIN_LOGS: {
+    FILES: '/admin/logs/files',
+    TAIL_INIT: '/admin/logs/tail/init',
+    TAIL_POLL: '/admin/logs/tail/poll',
+    TAIL_HISTORY: '/admin/logs/tail/history',
+    DOWNLOAD: '/admin/logs/download'
+  },
   USER: {
     STATUS: '/user/status',
     PERSONAL: '/user/personal',

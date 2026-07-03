@@ -1,4 +1,4 @@
-﻿# 校园助手系统测试指南
+# 校园助手系统测试指南
 
 本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源、管理员资源和自动打卡能力。
 
@@ -14,6 +14,7 @@
 - 自定义图片上传与回显接口
 - 自动打卡开关接口
 - 管理员登录与资源接口
+- 管理员日志初始化、历史加载与下载能力
 - SkyWalking 独立界面检查
 - 前端构建验证
 - 前端手工回归检查
@@ -280,6 +281,30 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/resources" `
   -Headers $adminHeaders
 ```
 
+### 3. 获取管理员日志文件列表
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/files" `
+  -Method GET `
+  -Headers $adminHeaders
+```
+
+### 4. 初始化读取某个日志文件
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/tail/init?fileName=student-service.log" `
+  -Method GET `
+  -Headers $adminHeaders
+```
+
+### 5. 向前加载历史日志
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/tail/history?fileName=student-service.log&beforeOffset=10240" `
+  -Method GET `
+  -Headers $adminHeaders
+```
+
 **期望结果**：
 
 - `code = 200`
@@ -337,9 +362,15 @@ SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_
 
 - 输入学号后缀 `/admin` 仍使用普通登录界面
 - 管理员登录成功后进入 `/admin`
+- 用户页与管理员页可在同一浏览器同时保持登录，不应互相顶掉 token
 - 资源列表按单列展示
 - 链接显示为 `Nacos：http://...` 形式
 - 悬浮时链接有明显 hover 反馈
+- 日志列表分为“当天文件 / 历史压缩”
+- 默认仅初始化加载一次，只有手动打开开关后才持续轮询
+- 当天日志支持“到顶部 / 加载更早日志 / 重置控制台 / 单次刷新 / 到底部”
+- 日志显示触发前端上限后，会出现对应提示，且可通过“重置控制台”恢复最新窗口
+- 历史压缩日志仅下载，不进入实时预览
 
 ---
 
