@@ -45,7 +45,8 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { adminLogin, login, register } from '@/api/index'
-import { ADMIN_CONFIG, APP_CONFIG, HTTP_STATUS, ROUTE_PATHS, STORAGE_KEYS } from '@/config'
+import { ADMIN_CONFIG, APP_CONFIG, HTTP_STATUS, ROUTE_PATHS } from '@/config'
+import { persistLoginState } from '@/utils/auth'
 
 const router = useRouter()
 const isLoginTab = ref(true)
@@ -72,13 +73,6 @@ const buildLoginPayload = () => {
   }
 }
 
-const persistLoginState = (token, adminMode) => {
-  localStorage.setItem(STORAGE_KEYS.TOKEN, token)
-  localStorage.setItem(
-    STORAGE_KEYS.LOGIN_MODE,
-    adminMode ? ADMIN_CONFIG.LOGIN_MODE.ADMIN : ADMIN_CONFIG.LOGIN_MODE.USER
-  )
-}
 
 const redirectAfterLogin = (adminMode) => {
   router.push(adminMode ? ROUTE_PATHS.ADMIN : ROUTE_PATHS.SCHEDULE)

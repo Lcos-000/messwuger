@@ -4,12 +4,12 @@ import {
   HTTP_CONFIG,
   HTTP_STATUS,
   ROUTE_PATHS,
-  STORAGE_KEYS,
   REQUEST_MESSAGES,
   isSpiderRemoteError,
   isCourseRemoteError,
   isRemoteFlowLimited
 } from '@/config'
+import { clearSessionByPath, getTokenByPath } from '@/utils/auth'
 
 const service = axios.create({
   baseURL: HTTP_CONFIG.BASE_URL,
@@ -31,7 +31,7 @@ const resolveBusinessErrorMessage = (code, fallbackMessage) => {
 
 service.interceptors.request.use(
   config => {
-    const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+    const token = getTokenByPath(window.location.pathname)
     if (token) {
       config.headers[HTTP_CONFIG.AUTH_HEADER] = `${HTTP_CONFIG.AUTH_PREFIX} ${token}`
     }
@@ -46,8 +46,7 @@ service.interceptors.response.use(
     const successCodes = [HTTP_STATUS.SUCCESS, HTTP_STATUS.NO_CONTENT]
     if (res.code === HTTP_STATUS.UNAUTHORIZED) {
       alert(res.message || REQUEST_MESSAGES.UNAUTHORIZED)
-      localStorage.removeItem(STORAGE_KEYS.TOKEN)
-      localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
+      clearSessionByPath(window.location.pathname)
       router.replace(ROUTE_PATHS.LOGIN)
       return Promise.reject(new Error(res.message || REQUEST_MESSAGES.UNAUTHORIZED))
     }
@@ -73,8 +72,7 @@ service.interceptors.response.use(
       const errorMessage = resolveBusinessErrorMessage(responseCode, responseMessage || REQUEST_MESSAGES.SERVER_ERROR)
       if (responseStatus === HTTP_STATUS.UNAUTHORIZED) {
         alert(responseMessage || REQUEST_MESSAGES.UNAUTHORIZED)
-        localStorage.removeItem(STORAGE_KEYS.TOKEN)
-        localStorage.removeItem(STORAGE_KEYS.LOGIN_MODE)
+        clearSessionByPath(window.location.pathname)
         router.replace(ROUTE_PATHS.LOGIN)
       } else if (responseStatus === HTTP_STATUS.FORBIDDEN) {
         alert(errorMessage)
