@@ -1,4 +1,4 @@
-﻿# 校园助手系统
+# 校园助手系统
 
 本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源、管理员资源入口与自动打卡开关等能力。
 
@@ -37,6 +37,8 @@
 - 默认图片切换、自定义图片上传裁剪与回显
 - 自动打卡开关与登录失效统一处理
 - 管理员资源页从后端 / Nacos 动态渲染资源链接
+- 用户端与管理员端采用双 token 存储，支持同一浏览器同时保持两套登录态
+- 管理员日志页支持日志文件分组、初始化窗口、向前加载历史、重置控制台、单次刷新、手动开启轮询与压缩日志下载
 
 ---
 
@@ -460,6 +462,11 @@ npm run build
 - `POST /admin/login`
 - `POST /admin/logout`
 - `GET /admin/resources`
+- `GET /admin/logs/files`
+- `GET /admin/logs/tail/init`
+- `GET /admin/logs/tail/poll`
+- `GET /admin/logs/tail/history`
+- `GET /admin/logs/download`
 
 ### OSS 配置
 
@@ -517,6 +524,10 @@ netstat -ano | findstr ":5173 "
 
 这是预期行为之一。前端已统一处理“HTTP 200 但响应体 `code = 401`”的场景，会主动清除 token 并跳转登录页。
 
+当前前端会按页面类型分别清理登录态：
+- 用户页只清理 `campus_user_token`
+- 管理员页只清理 `campus_admin_token`
+
 ### Q3：资料卡模糊度或字体开关保存后不生效
 
 优先检查：
@@ -545,7 +556,17 @@ netstat -ano | findstr ":5173 "
 - `user_profile_custom_asset` 表中是否已正确落库
 - OSS Bucket/CORS/读权限是否允许浏览器访问
 
-### Q6：Go 爬虫服务调用 Python 脚本失败
+### Q6：管理员日志页为什么不会无限显示所有日志
+
+这是当前版本的前端保护策略。管理员日志控制台默认存在前端显示上限，避免长时间轮询后浏览器内存和渲染压力持续上涨。
+
+当前行为：
+
+- 默认最多保留 `3000` 行显示内容
+- 超限后前端会截断显示，并提示“已触发前端显示上限”
+- 如需恢复到最新完整窗口，可点击“重置控制台”重新初始化
+
+### Q7：Go 爬虫服务调用 Python 脚本失败
 
 启动前显式设置：
 
