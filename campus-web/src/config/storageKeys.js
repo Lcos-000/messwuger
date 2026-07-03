@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
-  TOKEN: 'campus_token',
+  USER_TOKEN: 'campus_user_token',
+  ADMIN_TOKEN: 'campus_admin_token',
   LOGIN_MODE: 'campus_login_mode',
   PROFILE_WALLPAPER: 'profile_wallpaper',
   PROFILE_WALLPAPER_MASK: 'profile_wallpaper_mask',
