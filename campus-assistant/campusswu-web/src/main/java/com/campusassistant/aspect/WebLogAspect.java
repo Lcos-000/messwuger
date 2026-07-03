@@ -25,79 +25,135 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebLogAspect {
 
-    private final ObjectMapper objectMapper;
     private static final int MAX_LOG_LENGTH = 1000;
+    private static final String ADMIN_LOGS_PREFIX = "/admin/logs";
 
+    private final ObjectMapper objectMapper;
 
-    // 拦截所有类上带有 @RestController 注解的方法
     @Pointcut("@within(org.springframework.web.bind.annotation.RestController)")
     public void webLog() {
     }
 
-    // 环绕通知：在方法执行前和执行后都会走这里
     @Around("webLog()")
     public Object doAround(ProceedingJoinPoint joinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
 
-        // 获取当前 HTTP 请求信息
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        assert attributes != null; // 断言不可能为空
-        HttpServletRequest request = attributes.getRequest();
+        ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
-        // 打印请求前置日志
+        if (attributes == null) {
+            return joinPoint.proceed();
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+        String requestUri = request.getRequestURI();
+
+        if (shouldUseCompactLog(requestUri)) {
+            return doCompactLogAround(joinPoint, request, requestUri, startTime);
+        }
+
+        return doNormalLogAround(joinPoint, request, requestUri, startTime);
+    }
+
+    private Object doCompactLogAround(ProceedingJoinPoint joinPoint,
+                                      HttpServletRequest request,
+                                      String requestUri,
+                                      long startTime) throws Throwable {
+        try {
+            Object result = joinPoint.proceed();
+            log.info("ADMIN_LOG_ACCESS uri={} method={} handler={}.{} ip={} cost={}ms",
+                    requestUri,
+                    request.getMethod(),
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    request.getRemoteAddr(),
+                    System.currentTimeMillis() - startTime);
+            return result;
+        } catch (Throwable ex) {
+            log.warn("ADMIN_LOG_ACCESS uri={} method={} handler={}.{} ip={} cost={}ms error={}",
+                    requestUri,
+                    request.getMethod(),
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    request.getRemoteAddr(),
+                    System.currentTimeMillis() - startTime,
+                    ex.getClass().getSimpleName());
+            throw ex;
+        }
+    }
+
+    private Object doNormalLogAround(ProceedingJoinPoint joinPoint,
+                                     HttpServletRequest request,
+                                     String requestUri,
+                                     long startTime) throws Throwable {
         log.info("================== Request Start ==================");
         log.info("URL            : {}", request.getRequestURL().toString());
+        log.info("URI            : {}", requestUri);
         log.info("HTTP Method    : {}", request.getMethod());
-        log.info("Class Method   : {}.{}", joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
+        log.info("Class Method   : {}.{}",
+                joinPoint.getSignature().getDeclaringTypeName(),
+                joinPoint.getSignature().getName());
         log.info("IP             : {}", request.getRemoteAddr());
 
-        // 过滤无法序列化的参数对象，防止抛出 JsonProcessingException
-        Object[] args = joinPoint.getArgs();
-        List<Object> logArgs = new ArrayList<>();
-        for (Object arg : args) {
-            if (arg instanceof HttpServletRequest || arg instanceof HttpServletResponse || arg instanceof MultipartFile) {
-                // 如果是特殊对象，只打印类型名称，不序列化它的内容
-                log.info("Skipping non-serializable arg: {}", arg.getClass().getSimpleName());
-                continue; // 直接跳过本次循环，不加入 logArgs
-            }
-            // 判断字符串长度，太长截断
-            if (arg instanceof String strArg) {
-                if (strArg.length() > MAX_LOG_LENGTH) {
-                    logArgs.add(strArg.substring(0, MAX_LOG_LENGTH) + "... [Truncated]");
-                } else {
-                    logArgs.add(strArg);
-                }
-            }
-            else {
-                logArgs.add(arg);
-            }
-        }
-        // 打印过滤后的安全参数
-        try {
-            String argsJson = objectMapper.writeValueAsString(logArgs);
-            // 【核心修改】如果太长，就截断
-            if (argsJson.length() > MAX_LOG_LENGTH) {
-                argsJson = argsJson.substring(0, MAX_LOG_LENGTH) + "... [Truncated]";
-            }
-            log.info("Request Args   : {}", argsJson);
-        } catch (Exception e) {
-            log.warn("Request Args   : [参数无法序列化为JSON]");
-        }
+        logRequestArgs(joinPoint.getArgs());
 
         Object result = joinPoint.proceed();
 
-        // 打印响应结果（如果结果为 null，防止序列化报错）
-        try {
-            log.info("Response Result: {}", result == null ? "null" : objectMapper.writeValueAsString(result));
-        } catch (Exception e) {
-            log.warn("Response Result: [结果无法序列化为JSON]");
-        }
+        logResponseResult(result);
 
         log.info("Time Consuming : {} ms", System.currentTimeMillis() - startTime);
         log.info("================== Request End ====================");
 
-
-        //  将结果返回给前端
         return result;
+    }
+
+    private boolean shouldUseCompactLog(String requestUri) {
+        return requestUri != null && requestUri.startsWith(ADMIN_LOGS_PREFIX);
+    }
+
+    private void logRequestArgs(Object[] args) {
+        List<Object> logArgs = new ArrayList<>();
+
+        for (Object arg : args) {
+            if (arg instanceof HttpServletRequest
+                    || arg instanceof HttpServletResponse
+                    || arg instanceof MultipartFile) {
+                log.info("Skipping non-serializable arg: {}", arg.getClass().getSimpleName());
+                continue;
+            }
+
+            if (arg instanceof String strArg) {
+                logArgs.add(truncate(strArg));
+                continue;
+            }
+
+            logArgs.add(arg);
+        }
+
+        try {
+            String argsJson = objectMapper.writeValueAsString(logArgs);
+            log.info("Request Args   : {}", truncate(argsJson));
+        } catch (Exception e) {
+            log.warn("Request Args   : [参数无法序列化为JSON]");
+        }
+    }
+
+    private void logResponseResult(Object result) {
+        try {
+            String resultJson = result == null ? "null" : objectMapper.writeValueAsString(result);
+            log.info("Response Result: {}", truncate(resultJson));
+        } catch (Exception e) {
+            log.warn("Response Result: [结果无法序列化为JSON]");
+        }
+    }
+
+    private String truncate(String content) {
+        if (content == null) {
+            return null;
+        }
+        if (content.length() <= MAX_LOG_LENGTH) {
+            return content;
+        }
+        return content.substring(0, MAX_LOG_LENGTH) + "... [Truncated]";
     }
 }

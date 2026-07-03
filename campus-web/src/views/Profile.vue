@@ -443,6 +443,7 @@ import {
   SYNC_STATUS_TEXT,
   isUserStatusProcessing
 } from '@/config'
+import { clearUserSession, getUserToken } from '@/utils/auth'
 
 const personalInfo = ref({})
 const userStatus = ref({})
@@ -781,7 +782,7 @@ const buildProfileStylePayload = () => ({
 
 const flushProfileStyleOnPageHide = () => {
   if (!profileStyleDirty.value) return
-  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+  const token = getUserToken()
   if (!token) return
 
   const payload = JSON.stringify(buildProfileStylePayload())
@@ -827,7 +828,7 @@ const clearSaveTimers = () => {
 }
 
 const getUserInfoFromToken = () => {
-  const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+  const token = getUserToken()
   if (!token) return null
 
   try {
@@ -1300,7 +1301,7 @@ const unbindScrollContainer = () => {
 
 const clearAuthAndGoLogin = () => {
   stopStatusPolling()
-  localStorage.removeItem(STORAGE_KEYS.TOKEN)
+  clearUserSession()
   personalInfo.value = {}
   userStatus.value = {}
   tokenInfo.value = null
