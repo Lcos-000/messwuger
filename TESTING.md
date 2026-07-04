@@ -116,9 +116,20 @@ mvn spring-boot:run -pl course-service -am
 
 ### 窗口 4：Go 爬虫服务
 
+方式一：直接源码运行（推荐开发调试）
+
 ```powershell
 cd campus-spider-service
 $env:PYTHON_PATH="python"
+go run ./cmd/server/...
+```
+
+方式二：编译后再运行（如需使用 server.exe）
+
+```powershell
+cd campus-spider-service
+$env:PYTHON_PATH="python"
+go build -o server.exe ./cmd/server/...
 .\server.exe
 ```
 
