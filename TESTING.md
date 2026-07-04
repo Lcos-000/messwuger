@@ -1,6 +1,6 @@
 # 校园助手系统测试指南
 
-本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源、管理员资源和自动打卡能力。
+本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源、成绩查询、空教室查询、管理员资源和自动打卡能力。
 
 ---
 
@@ -10,6 +10,8 @@
 
 - 基础服务启动检查
 - 注册 / 登录 / 同步 / 查询课表
+- 成绩任务提交、回调、落库与查询
+- 空教室任务提交、回调与结果查询
 - 个性化主页接口
 - 自定义图片上传与回显接口
 - 自动打卡开关接口
@@ -37,22 +39,6 @@ docker compose -p campusassistant -f docker-compose.middleware.yml up -d
 
 ```powershell
 cd deploy
-docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
-```
-
----
-
-## 可选：清空测试数据
-
-```powershell
-mysql -u root -p1234 -e "USE campus_db; TRUNCATE TABLE user_profile_custom_asset; TRUNCATE TABLE user_profile_style; TRUNCATE TABLE course_db; TRUNCATE TABLE personal_info; TRUNCATE TABLE student_db;"
-```
-
-若要重置独立 SkyWalking 数据：
-
-```powershell
-cd deploy
-docker compose -p campusassistant -f docker-compose.skywalking.yml down -v
 docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
 ```
 
@@ -116,21 +102,20 @@ mvn spring-boot:run -pl course-service -am
 
 ### 窗口 4：Go 爬虫服务
 
-方式一：直接源码运行（推荐开发调试）
-
 ```powershell
 cd campus-spider-service
 $env:PYTHON_PATH="python"
-go run ./cmd/server/...
+go build -o server.exe ./cmd/server
+.\server.exe
 ```
 
-方式二：编译后再运行（如需使用 server.exe）
+如需手动覆盖回调地址，可额外设置：
 
 ```powershell
-cd campus-spider-service
-$env:PYTHON_PATH="python"
-go build -o server.exe ./cmd/server/...
-.\server.exe
+$env:JAVA_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/student-data"
+$env:PUNCH_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/punch-result"
+$env:EMPTY_CLASSROOM_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/empty-classroom"
+$env:GRADES_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/grades"
 ```
 
 ### 窗口 5：前端开发服务
@@ -139,8 +124,6 @@ go build -o server.exe ./cmd/server/...
 cd campus-web
 npm run dev
 ```
-
-> 如需链路追踪联调，确保 Java 进程实际带有 SkyWalking Agent，并且 Agent 上报地址为 `127.0.0.1:11810`。
 
 ---
 
@@ -161,12 +144,6 @@ netstat -ano | findstr ":5173 "
 ---
 
 ## 接口联调流程
-
-补充说明：当前前端已对部分远程错误码做统一分类提示。联调时如遇失败，可额外关注：
-
-- `531~537`：同步/打卡服务异常
-- `541~547`：课表服务异常
-- `429` / `503`：限流、降级或系统繁忙
 
 ### 1. 注册
 
@@ -207,6 +184,66 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/schedule/get" `
 
 ---
 
+## 成绩链路测试
+
+### 1. 提交成绩任务
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/grades/task" `
+  -Method POST `
+  -Headers $headers `
+  -Body '{"academicYear":"2025","semester":"12"}' `
+  -ContentType "application/json"
+```
+
+### 2. 查询成绩结果
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/grades/result" `
+  -Method POST `
+  -Headers $headers `
+  -Body '{"academicYear":"2025","semester":"12"}' `
+  -ContentType "application/json"
+```
+
+### 3. 数据库检查
+
+```powershell
+mysql -u root -p1234 -e "USE campus_db; SELECT student_id, academic_year, semester, course_name, score FROM student_grade WHERE student_id='YOUR_STUDENT_ID' ORDER BY update_time DESC LIMIT 10;"
+```
+
+---
+
+## 空教室链路测试
+
+### 1. 提交空教室任务
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/empty-classroom/task" `
+  -Method POST `
+  -Headers $headers `
+  -Body '{"academicYear":"2025","semester":"12","dayOfWeek":"1","periodsMask":"16","weeksMask":"2","campusId":"2","building":"08","roomType":""}' `
+  -ContentType "application/json"
+```
+
+### 2. 查询空教室结果
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/empty-classroom/result" `
+  -Method POST `
+  -Headers $headers `
+  -Body '{"academicYear":"2025","semester":"12","dayOfWeek":"1","periodsMask":"16","weeksMask":"2","campusId":"2","building":"08","roomType":""}' `
+  -ContentType "application/json"
+```
+
+**期望结果**：
+
+- 提交接口返回 `SUBMITTED` / `QUERYING` / `RESULT_READY`
+- 结果接口在回调成功后返回 `classrooms` 数组
+- 若长时间为空，优先检查 Go 回调是否完整回传 `campusId`、`building`、`roomType`
+
+---
+
 ## 个性化主页接口测试
 
 ### 1. 获取个性化配置
@@ -227,38 +264,9 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/update-profile" `
   -ContentType "application/json"
 ```
 
-### 3. 获取自定义图片资源
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-custom-assets" `
-  -Method GET `
-  -Headers $headers
-```
-
-### 4. 上传自定义图片
-
-```powershell
-curl.exe -X POST "http://127.0.0.1:8000/personalization/upload-custom-asset" ^
-  -H "Authorization: Bearer $token" ^
-  -F "type=background" ^
-  -F "file=@C:\tmp\profile-bg.jpg"
-```
-
 ---
 
 ## 自动打卡开关接口测试
-
-### 1. 关闭自动打卡
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/auto-punch" `
-  -Method PUT `
-  -Headers $headers `
-  -Body '{"autoPunchEnabled":0}' `
-  -ContentType "application/json"
-```
-
-### 2. 打开自动打卡
 
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/auto-punch" `
@@ -292,58 +300,6 @@ Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/resources" `
   -Headers $adminHeaders
 ```
 
-### 3. 获取管理员日志文件列表
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/files" `
-  -Method GET `
-  -Headers $adminHeaders
-```
-
-### 4. 初始化读取某个日志文件
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/tail/init?fileName=student-service.log" `
-  -Method GET `
-  -Headers $adminHeaders
-```
-
-### 5. 向前加载历史日志
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/logs/tail/history?fileName=student-service.log&beforeOffset=10240" `
-  -Method GET `
-  -Headers $adminHeaders
-```
-
-**期望结果**：
-
-- `code = 200`
-- `data.items` 至少包含 `name` 和 `url`
-- 当前示例应包含 `SkyWalking`、`Nacos`、`Sentinel`
-
----
-
-## SkyWalking 独立界面测试
-联调前确认 Java 服务采用统一探针方案：VM options 只保留 `-javaagent`，服务名通过 `SW_AGENT_NAME` 提供。
-
-### 1. 打开新 UI
-
-浏览器访问：
-
-```text
-http://127.0.0.1:18080
-```
-
-### 2. 验证隔离效果
-
-检查点：
-
-- 只应看到当前这套新 OAP 收到的数据
-- 若仍出现旧项目服务，说明 Java Agent 仍在向旧 OAP 上报
-- 若页面为空，优先检查 Java 进程是否真的挂载了 Agent，且 `collector.backend_service` 是否已改为 `127.0.0.1:11810`
-- 若服务名不对，优先检查对应 Run Configuration 的 `SW_AGENT_NAME` 是否填写正确
-
 ---
 
 ## 数据库验证
@@ -354,6 +310,7 @@ USE campus_db;
 SELECT student_id, sync_status, punch_status, auto_punch_enabled FROM student_db WHERE student_id='YOUR_STUDENT_ID';
 SELECT student_id, card_opacity, card_blur, wallpaper_mask, global_font_enabled FROM user_profile_style WHERE student_id='YOUR_STUDENT_ID';
 SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_profile_custom_asset WHERE student_id='YOUR_STUDENT_ID';
+SELECT student_id, academic_year, semester, course_name, score FROM student_grade WHERE student_id='YOUR_STUDENT_ID' ORDER BY update_time DESC LIMIT 10;
 "
 ```
 
@@ -361,7 +318,7 @@ SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_
 
 ## 前端手工回归清单
 
-浏览器打开 `http://localhost:5173`，登录后重点检查 `Profile` 页和管理员页。
+浏览器打开 `http://localhost:5173`，登录后重点检查以下页面：
 
 ### 1. Profile 页
 
@@ -369,19 +326,27 @@ SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_
 - 自定义头像 / 顶部背景 / 墙纸上传、裁剪、回显正常
 - 自动打卡开关切换正常
 
-### 2. Admin 页
+### 2. Grades 页
 
-- 输入学号后缀 `/admin` 仍使用普通登录界面
+- 学年 / 学期切换正常
+- 成绩查询按钮可正常触发请求
+- 表格视图正常显示成绩列表
+- 排序切换正常
+- 墙纸背景与个人主页一致
+
+### 3. EmptyClassroom 页
+
+- 学年 / 学期 / 星期 / 周次 / 节次 / 校区 / 楼栋条件可正常选择
+- 楼栋默认值为当前校区第一个有效选项
+- 查询结果按钮可正常触发请求
+- 表格结果可正常展示
+- 本地缓存能回填上次条件
+
+### 4. Admin 页
+
 - 管理员登录成功后进入 `/admin`
 - 用户页与管理员页可在同一浏览器同时保持登录，不应互相顶掉 token
-- 资源列表按单列展示
-- 链接显示为 `Nacos：http://...` 形式
-- 悬浮时链接有明显 hover 反馈
-- 日志列表分为“当天文件 / 历史压缩”
-- 默认仅初始化加载一次，只有手动打开开关后才持续轮询
-- 当天日志支持“到顶部 / 加载更早日志 / 重置控制台 / 单次刷新 / 到底部”
-- 日志显示触发前端上限后，会出现对应提示，且可通过“重置控制台”恢复最新窗口
-- 历史压缩日志仅下载，不进入实时预览
+- 日志列表和资源列表正常显示
 
 ---
 
@@ -404,8 +369,14 @@ SELECT student_id, custom_avatar, custom_background, custom_wallpaper FROM user_
 
 ### 2. 401 处理
 
-前端不仅处理 HTTP 401，也处理响应体 `code = 401`。这点在联调时需要特别注意。
+前端不仅处理 HTTP 401，也处理响应体 `code = 401`。
 
 ### 3. OSS 历史对象
 
 当前上传成功后只会覆盖数据库记录，不会自动删除旧 OSS 对象；这不影响功能验证，但测试结束后如需控量仍需手动清理或补后台删除逻辑。
+
+### 4. 成绩 / 空教室联调注意点
+
+- Go 回调改动后需要重新编译 `server.exe`
+- 如果提交成功但结果一直为空，优先确认当前运行的不是旧二进制
+- 空教室查询如果使用了条件指纹缓存，提交参数与回调参数必须完全一致

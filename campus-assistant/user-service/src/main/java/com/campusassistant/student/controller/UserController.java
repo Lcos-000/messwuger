@@ -2,8 +2,10 @@ package com.campusassistant.student.controller;
 
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.pojo.RemoteGradeVO;
+import com.campusassistant.student.pojo.dto.EmptyClassroomQueryDTO;
 import com.campusassistant.student.pojo.dto.GradesQueryDTO;
-import com.campusassistant.student.pojo.UserStatusVO;
+import com.campusassistant.student.pojo.vo.EmptyClassroomQueryResultVO;
+import com.campusassistant.student.pojo.vo.UserStatusVO;
 import com.campusassistant.remote.spider.sync.pojo.vo.PersonalInfoVO;
 import com.campusassistant.student.pojo.dto.AutoPunchSwitchDTO;
 import com.campusassistant.student.service.CurrentUserService;
@@ -65,6 +67,18 @@ public class UserController {
     public Result<List<RemoteGradeVO>> getGrades(@RequestParam("academicYear") String academicYear,
                                                  @RequestParam("semester") String semester) {
         return Result.success(currentUserService.getGrades(academicYear, semester));
+    }
+
+    @Operation(summary = "提交空教室查询任务")
+    @PostMapping("/empty-classroom/task")
+    public Result<?> submitEmptyClassroomTask(@Valid @RequestBody EmptyClassroomQueryDTO dto) {
+        return currentUserService.submitEmptyClassroomTask(dto);
+    }
+
+    @Operation(summary = "查询空教室结果")
+    @PostMapping("/empty-classroom/result")
+    public Result<EmptyClassroomQueryResultVO> getEmptyClassroomResult(@Valid @RequestBody EmptyClassroomQueryDTO dto) {
+        return Result.success(currentUserService.getEmptyClassroomResult(dto));
     }
 
 }

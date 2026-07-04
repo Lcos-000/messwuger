@@ -32,10 +32,16 @@ const routes = [
     meta: { title: '我的成绩', requiresAuth: true, index: 3 }
   },
   {
+    path: ROUTE_PATHS.EMPTY_CLASSROOM,
+    name: ROUTE_NAMES.EMPTY_CLASSROOM,
+    component: () => import('../views/EmptyClassroom.vue'),
+    meta: { title: '空教室查询', requiresAuth: true, index: 4 }
+  },
+  {
     path: ROUTE_PATHS.PROFILE,
     name: ROUTE_NAMES.PROFILE,
     component: () => import('../views/Profile.vue'),
-    meta: { title: '个人中心', requiresAuth: true, index: 4 }
+    meta: { title: '个人中心', requiresAuth: true, index: 5 }
   }
 ]
 

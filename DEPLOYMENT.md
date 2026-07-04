@@ -6,24 +6,6 @@
 
 ---
 
-## 目录
-
-1. 准备工作
-2. 安装基础环境
-3. 上传项目代码
-4. 部署中间件
-5. 部署独立 SkyWalking
-6. 初始化数据库
-7. 配置 OSS
-8. 部署 Java 服务
-9. 部署 Go + Python 服务
-10. 部署前端
-11. 启动与验证
-12. 常见问题
-13. 生产环境加固
-
----
-
 ## 一、准备工作
 
 ### 1.1 服务器配置建议
@@ -53,8 +35,6 @@
 | 18080 | SkyWalking UI（仅运维或管理员访问） |
 | 11810 | SkyWalking OAP gRPC |
 | 12810 | SkyWalking OAP HTTP |
-
-> 生产环境建议仅对外开放 `80`、`443`，其余端口收敛到内网或堡垒机访问。
 
 ---
 
@@ -92,18 +72,16 @@ pip3 install requests urllib3 pycryptodome -i https://pypi.tuna.tsinghua.edu.cn/
 mkdir -p /opt/campus
 cd /opt/campus
 git clone <你的仓库地址> .
-ls -la /opt/campus
 ```
 
 应至少看到：
 
-```text
-campus-assistant/
-campus-spider-service/
-campus-web/
-deploy/
-nacos_config/
-```
+- `campus-assistant/`
+- `campus-spider-service/`
+- `campus-web/`
+- `deploy/`
+- `nacos_config/`
+- `tools/`
 
 ---
 
@@ -111,92 +89,37 @@ nacos_config/
 
 ```bash
 cd /opt/campus/deploy
-mkdir -p mysql/conf redis/data nacos/logs nacos/data
-```
-
-### 4.1 当前对齐的镜像标签
-
-- `mysql:9.7.0`
-- `redis:8.8.0`
-- `bladex/sentinel-dashboard:1.8.9`
-- `nacos/nacos-server:v2.4.0-slim`
-
-### 4.2 创建环境变量
-
-```bash
-cat > .env << 'EOF'
-MYSQL_ROOT_PASSWORD=1234
-REDIS_PASSWORD=CampusRedis@1234
-EOF
-```
-
-### 4.3 启动中间件
-
-```bash
 docker compose -f docker-compose.middleware.yml pull
 docker compose -p campusassistant -f docker-compose.middleware.yml up -d
-docker compose -p campusassistant -f docker-compose.middleware.yml ps
 ```
+
+当前中间件编排文件：`/opt/campus/deploy/docker-compose.middleware.yml`
 
 ---
 
 ## 五、部署独立 SkyWalking
 
-当前仓库已新增：`deploy/docker-compose.skywalking.yml`。
-
-### 5.1 当前对齐的镜像标签
-
-- `apache/skywalking-ui:10.0.1`
-- `apache/skywalking-oap-server:10.0.1`
-- `apache/skywalking-banyandb:0.6.0`
-
-### 5.2 这套配置会启动
-
-- `campus-skywalking-banyandb`
-- `campus-skywalking-oap`
-- `campus-skywalking-ui`
-
-并使用以下端口：
-
-- UI：`18080`
-- OAP gRPC：`11810`
-- OAP HTTP：`12810`
-- BanyanDB：`17913`
-
-### 5.3 拉取并启动
-
 ```bash
 cd /opt/campus/deploy
 docker compose -f docker-compose.skywalking.yml pull
 docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
-docker compose -p campusassistant -f docker-compose.skywalking.yml ps
 ```
 
-### 5.4 重置这套 SkyWalking 数据
+当前对齐端口：
 
-```bash
-cd /opt/campus/deploy
-docker compose -p campusassistant -f docker-compose.skywalking.yml down -v
-docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
-```
+- UI：`18080`
+- OAP gRPC：`11810`
+- OAP HTTP：`12810`
 
-### 5.5 Java Agent 对齐
+Java Agent 公共目录：`/opt/campus/tools/skywalking-agent/`
 
-如果你的 Java 服务启用了 SkyWalking Agent，推荐把公共配置收敛到 `tools/skywalking-agent/config/agent.config`，只在服务启动入口保留 `-javaagent`。
+推荐统一使用：
 
 ```text
 -javaagent:/opt/campus/tools/skywalking-agent/skywalking-agent.jar
 ```
 
-当前仓库里的 `agent.config` 默认已包含：
-
-```text
-collector.backend_service=127.0.0.1:11810
-agent.namespace=campusassistant
-agent.service_name=${SW_AGENT_NAME:unknown-service}
-```
-
-因此每个服务只需单独提供自己的 `SW_AGENT_NAME`：
+并分别设置：
 
 ```text
 SW_AGENT_NAME=campusassistant-gateway-service
@@ -204,17 +127,18 @@ SW_AGENT_NAME=campusassistant-user-service
 SW_AGENT_NAME=campusassistant-course-service
 ```
 
-否则即便新 UI 已经部署成功，你的服务仍会继续把链路上报到旧的 SkyWalking。
-
 ---
 
 ## 六、初始化数据库
 
-中间件首次启动会自动执行 `deploy/init.sql`。当前 `init.sql` 已包含：
+当前仓库已提供初始化脚本：`/opt/campus/deploy/init.sql`
+
+该脚本当前至少包含：
 
 - `student_db`
 - `personal_info`
 - `course_db`
+- `student_grade`
 - `user_profile_style`
 - `user_profile_custom_asset`
 
@@ -240,14 +164,6 @@ aliyun:
     url-prefix: https://<your-bucket-name>.oss-cn-beijing.aliyuncs.com
 ```
 
-推荐方式：
-
-- 通过 Nacos 下发 `aliyun-oss.yaml`
-- 或通过外部配置注入
-- 不要把正式环境 AK / SK 提交到仓库
-
-> 当前上传新图片后仅更新数据库中的最新 URL，不会自动删除旧 OSS 对象。生产环境建议后续补删除逻辑或配置生命周期规则。
-
 ---
 
 ## 八、部署 Java 服务
@@ -259,31 +175,25 @@ cd /opt/campus/campus-assistant
 mvn clean package -DskipTests
 ```
 
-### 8.2 使用仓库内 systemd 模板
+### 8.2 安装 systemd 服务
 
-当前仓库已提供并修正以下模板：
+当前仓库已提供模板：
 
-- `deploy/systemd/campus-gateway.service`
-- `deploy/systemd/campus-user.service`
-- `deploy/systemd/campus-course.service`
-- `deploy/systemd/campus-spider.service`
+- `/opt/campus/deploy/systemd/campus-gateway.service`
+- `/opt/campus/deploy/systemd/campus-user.service`
+- `/opt/campus/deploy/systemd/campus-course.service`
+- `/opt/campus/deploy/systemd/campus-spider.service`
 
-复制到系统目录：
-### 8.3 如需接入 SkyWalking Agent
+复制并启用：
 
-最稳妥的方式是在 `ExecStart` 或启动脚本里显式加入：
-
-```text
--javaagent:/opt/campus/tools/skywalking-agent/skywalking-agent.jar
+```bash
+cp /opt/campus/deploy/systemd/campus-gateway.service /etc/systemd/system/
+cp /opt/campus/deploy/systemd/campus-user.service /etc/systemd/system/
+cp /opt/campus/deploy/systemd/campus-course.service /etc/systemd/system/
+cp /opt/campus/deploy/systemd/campus-spider.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable campus-gateway campus-user campus-course campus-spider
 ```
-
-然后为每个服务分别设置环境变量：
-
-```text
-SW_AGENT_NAME=campusassistant-user-service
-```
-
-这部分当前仓库没有强行写死到模板中，因为每台机器的 Agent 安装路径未必一致。
 
 ---
 
@@ -295,15 +205,23 @@ SW_AGENT_NAME=campusassistant-user-service
 cd /opt/campus/campus-spider-service
 go mod tidy
 go build -o server ./cmd/server
-```
-
-### 9.2 启动
-
-```bash
 mkdir -p /opt/campus/campus-spider-service/data/sessions
-systemctl enable --now campus-spider
-systemctl status campus-spider --no-pager
 ```
+
+### 9.2 关键环境变量
+
+当前 Go 服务至少需要以下回调地址：
+
+```text
+JAVA_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/student-data
+PUNCH_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/punch-result
+EMPTY_CLASSROOM_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/empty-classroom
+GRADES_CALLBACK_URL=http://127.0.0.1:8000/internal/api/v1/sync/grades
+JAVA_INTERNAL_TOKEN=campus-internal-token
+PYTHON_PATH=/usr/bin/python3
+```
+
+> 当前 `deploy/systemd/campus-spider.service` 与 `deploy/start-all.sh` 已对齐这四条回调链路。
 
 ---
 
@@ -317,11 +235,9 @@ npm install
 npm run build
 ```
 
-### 10.2 使用仓库内 Nginx 配置
+### 10.2 Nginx 配置
 
-当前仓库已修正：`deploy/nginx.conf`
-
-> 当前前端管理员页与用户页采用双 token 存储；这属于浏览器本地会话隔离策略，不额外增加部署依赖。
+当前仓库已提供：`/opt/campus/deploy/nginx.conf`
 
 ```bash
 cp /opt/campus/deploy/nginx.conf /etc/nginx/sites-available/campus
@@ -355,9 +271,6 @@ systemctl start nginx
 
 ```bash
 curl http://127.0.0.1:8082/health
-curl http://127.0.0.1:8848/nacos
-curl http://127.0.0.1:8858
-curl http://127.0.0.1:18080
 systemctl status campus-gateway --no-pager
 systemctl status campus-user --no-pager
 systemctl status campus-course --no-pager
@@ -365,69 +278,42 @@ systemctl status campus-spider --no-pager
 systemctl status nginx --no-pager
 ```
 
-浏览器访问：
+重点检查：
 
-优先检查：
-
-- Java 进程是否真的挂载了 SkyWalking Agent
-- `tools/skywalking-agent/config/agent.config` 中的 `collector.backend_service` 是否为 `127.0.0.1:11810`
-- 当前服务是否设置了正确的 `SW_AGENT_NAME`
-- 是否仍残留旧的 `-Dskywalking.collector.backend_service` 或旧的 `-Dskywalking.agent.service_name`
+- 成绩回调是否命中 `GRADES_CALLBACK_URL`
+- 空教室回调是否命中 `EMPTY_CLASSROOM_CALLBACK_URL`
+- Java 端如查询不到成绩，检查 `student_grade` 是否已落库
+- Java 端如查不到空教室，检查回调参数是否与查询指纹一致
 
 ---
 
 ## 十二、常见问题
 
-### 12.1 新 SkyWalking UI 打开后没有当前项目数据
+### 12.1 成绩查询提交成功但前端一直空
 
 优先检查：
 
-- Java 进程是否真的挂载了 SkyWalking Agent
-- `collector.backend_service` 是否已改为 `127.0.0.1:11810`
-- 服务名是否已切换为当前项目前缀
+- Go 是否已重新编译并重启
+- `GRADES_CALLBACK_URL` 是否配置正确
+- `student_grade` 是否已落库
+- 前后端查询学年 / 学期是否一致
 
-### 12.2 新 SkyWalking UI 里仍然看到旧项目
-
-通常是因为：
-
-- Java Agent 还在向旧 OAP 上报
-- 你打开的仍是旧 UI 地址
-- 旧容器并未停掉，资源配置仍指向旧地址
-
-### 12.3 Nacos 配置显示 empty，服务起不来
+### 12.2 空教室提交成功但一直查不到结果
 
 优先检查：
 
-- `datasource-mysql.yaml` 是否已发布到正确 namespace
-- `datasource-redis.yaml` 是否已发布到正确 namespace
-- group 是否为 `DATASOURCE_GROUP`
-- 应用连接的 namespace 是否与 Nacos 页面中的配置一致
+- Go 回调 payload 是否完整带回 `campusId`、`building`、`roomType`
+- `EMPTY_CLASSROOM_CALLBACK_URL` 是否配置正确
+- Java 查询指纹与回调写入指纹是否一致
 
-### 12.4 OSS 图片上传成功但页面空白
+### 12.3 OSS 图片上传成功但页面空白
 
 优先检查：
 
 - `user_profile_custom_asset` 是否已落库
-- 返回的 URL 是否能直接访问
+- 返回 URL 是否可直接访问
 - Bucket 是否允许当前访问方式读取
 - OSS CORS 是否允许浏览器加载图片
-
-### 12.5 管理员页日志轮询后日志量明显增加
-
-优先检查：
-
-- `WebLogAspect` 是否已对 `/admin/logs/**` 切换为单行精简日志
-- 是否仍打印 `Request Start / URL / URI / Request Args` 这类多行内容
-- 前端是否只在手动开启时才轮询日志
-- `LOG_POLLING_INTERVAL` 是否过小
-- 前端是否因日志显示上限截断而需要手动“重置控制台”恢复最新窗口
-
-### 12.6 Java 调用 Go 失败
-
-```bash
-curl http://127.0.0.1:8082/health
-journalctl -u campus-spider -f
-```
 
 ---
 
@@ -452,13 +338,6 @@ journalctl -u campus-spider -f
 - `3306`、`6379`、`8848`、`8858`、`8082`、`8000`、`9000`、`11810`、`12810` 建议仅保留内网访问
 - `18080` 仅供管理员或运维访问
 - 对外仅暴露 `80/443`
-
-### 13.4 备份
-
-```bash
-mkdir -p /opt/backup
-docker exec campus-mysql mysqldump -uroot -p1234 campus_db > /opt/backup/campus_db_$(date +%Y%m%d).sql
-```
 
 ---
 
