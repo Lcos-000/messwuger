@@ -25,6 +25,14 @@ type StartTaskRequest struct {
 	AcademicYear string `json:"academicYear"`
 	Semester     string `json:"semester"`
 	CallbackURL  string `json:"callbackUrl"`
+
+	// 空教室查询参数
+	DayOfWeek   string `json:"dayOfWeek"`
+	PeriodsMask string `json:"periodsMask"`
+	WeeksMask   string `json:"weeksMask"`
+	CampusID    string `json:"campusId"`
+	Building    string `json:"building"`
+	RoomType    string `json:"roomType"`
 }
 
 type Task struct {
@@ -38,8 +46,17 @@ type Task struct {
 	Status       string `json:"status"`
 	Error        string `json:"error,omitempty"`
 	ResultJSON   string `json:"resultJson,omitempty"`
-	CreatedAt    int64  `json:"createdAt"`
-	UpdatedAt    int64  `json:"updatedAt"`
+
+	// 空教室查询参数
+	DayOfWeek   string `json:"dayOfWeek"`
+	PeriodsMask string `json:"periodsMask"`
+	WeeksMask   string `json:"weeksMask"`
+	CampusID    string `json:"campusId"`
+	Building    string `json:"building"`
+	RoomType    string `json:"roomType"`
+
+	CreatedAt int64 `json:"createdAt"`
+	UpdatedAt int64 `json:"updatedAt"`
 }
 
 type PersonalInfo struct {
@@ -61,9 +78,9 @@ type SpiderData struct {
 }
 
 type SpiderOutput struct {
-	Success bool       `json:"success"`
-	Message string     `json:"message"`
-	Data    SpiderData `json:"data"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
 }
 
 type CallbackPayload struct {
@@ -72,6 +89,53 @@ type CallbackPayload struct {
 	Semester     string         `json:"semester"`
 	PersonalInfo PersonalInfo   `json:"personalInfo"`
 	ScheduleData []ScheduleItem `json:"scheduleData"`
+}
+
+// 空教室相关模型
+
+type ClassroomItem struct {
+	Building     string `json:"building"`
+	RoomCode     string `json:"roomCode"`
+	RoomName     string `json:"roomName"`
+	Campus       string `json:"campus"`
+	Capacity     string `json:"capacity"`
+	RealCapacity string `json:"realCapacity"`
+	RoomType     string `json:"roomType"`
+	Floor        string `json:"floor"`
+	Remark       string `json:"remark"`
+}
+
+type EmptyClassroomPayload struct {
+	StudentID    string          `json:"studentId"`
+	AcademicYear string          `json:"academicYear"`
+	Semester     string          `json:"semester"`
+	DayOfWeek    string          `json:"dayOfWeek"`
+	PeriodsMask  string          `json:"periodsMask"`
+	WeeksMask    string          `json:"weeksMask"`
+	Classrooms   []ClassroomItem `json:"classrooms"`
+}
+
+// 成绩相关模型
+
+type GradeItem struct {
+	CourseName   string `json:"courseName"`
+	CourseCode   string `json:"courseCode"`
+	CourseNature string `json:"courseNature"`
+	Credit       string `json:"credit"`
+	Score        string `json:"score"`
+	Gpa          string `json:"gpa"`
+	Teacher      string `json:"teacher"`
+	ExamNature   string `json:"examNature"`
+	CourseType   string `json:"courseType"`
+	AcademicYear string `json:"academicYear"`
+	Semester     string `json:"semester"`
+}
+
+type GradesPayload struct {
+	StudentID    string      `json:"studentId"`
+	AcademicYear string      `json:"academicYear"`
+	Semester     string      `json:"semester"`
+	Grades       []GradeItem `json:"grades"`
 }
 
 // 创建TEaskID
@@ -96,6 +160,12 @@ func (t Task) ToMap() map[string]any {
 		"status":       t.Status,
 		"error":        t.Error,
 		"resultJson":   t.ResultJSON,
+		"dayOfWeek":    t.DayOfWeek,
+		"periodsMask":  t.PeriodsMask,
+		"weeksMask":    t.WeeksMask,
+		"campusId":     t.CampusID,
+		"building":     t.Building,
+		"roomType":     t.RoomType,
 		"createdAt":    fmt.Sprint(t.CreatedAt),
 		"updatedAt":    fmt.Sprint(t.UpdatedAt),
 	}

@@ -9,10 +9,9 @@ from urllib.parse import urlparse
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from config import YM_TOKEN, YM_TYPE
 
-YM_TOKEN = os.getenv("YM_TOKEN", "BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM")
-YM_TYPE = os.getenv("YM_TYPE", "10110")
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 IDM_BASE = "https://idm.swu.edu.cn"
 

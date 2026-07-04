@@ -7,15 +7,16 @@ import os
 import re
 import subprocess
 import sys
+import time
+from io import BytesIO
 from urllib.parse import urlparse
 
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from config import YM_TOKEN, YM_TYPE
 
-YM_TOKEN = os.getenv("YM_TOKEN", "BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM")
-YM_TYPE = os.getenv("YM_TYPE", "10110")
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def eprint(*args, **kwargs):
@@ -339,6 +340,177 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "personalInfo": personal,
             "scheduleData": schedule,
         }
+
+    def get_empty_classrooms(self, xnm: str, xqm: str, xqj: str, jcd: str,
+                             zcd: str, xqh_id: str = "1", lh: str = "",
+                             cdlb_id: str = "", page_size: int = 1000) -> dict:
+        """
+        查询空教室。
+        参数说明：
+        - xqj: 星期几（1=周一，7=周日）
+        - jcd: 节次掩码整数，例如 16 表示第 5 节；可通过 encode_periods("5-5") 生成
+        - zcd: 周次掩码整数，例如 262272；可通过 encode_weeks("1,16") 生成
+        - xqh_id: 校区号，默认 1（南区）
+        - lh: 楼号，例如 32
+        """
+        index_url = f"{self.jw_base}/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default"
+        self.session.get(index_url, timeout=15, verify=False)
+
+        api_url = f"{self.jw_base}/cdjy/cdjy_cxKxcdlb.html?doType=query&gnmkdm=N2155"
+        headers = {
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+            "Referer": index_url,
+        }
+        data = {
+            "xqh_id": xqh_id,
+            "xnm": xnm,
+            "xqm": xqm,
+            "cdlb_id": cdlb_id,
+            "cdejlb_id": "",
+            "qszws": "",
+            "jszws": "",
+            "cdmc": "",
+            "lh": lh,
+            "jyfs": "0",
+            "cdjylx": "",
+            "sfbhkc": "",
+            "zcd": zcd,
+            "xqj": xqj,
+            "jcd": jcd,
+            "_search": "false",
+            "queryModel.showCount": str(page_size),
+            "queryModel.currentPage": "1",
+            "queryModel.sortName": "cdbh",
+            "queryModel.sortOrder": "asc",
+            "time": "1",
+        }
+        r = self.session.post(api_url, data=data, headers=headers, timeout=15, verify=False)
+        if r.status_code != 200:
+            raise RuntimeError(f"空教室API请求失败: {r.status_code}, body={r.text[:500]}")
+        result = r.json()
+        if not isinstance(result, dict):
+            raise RuntimeError(f"空教室API返回非JSON对象: type={type(result).__name__}, body={r.text[:500]}")
+        return result
+
+    def build_empty_classroom_result(self, student_id: str, xnm: str, xqm: str,
+                                     xqj: str, jcd: str, zcd: str, raw: dict) -> dict:
+        rooms = []
+        for item in raw.get("items", []) or []:
+            rooms.append({
+                "building": item.get("jxlmc", ""),
+                "roomCode": item.get("cdbh", ""),
+                "roomName": item.get("cdmc", ""),
+                "campus": item.get("xqmc", ""),
+                "capacity": item.get("zws", ""),
+                "realCapacity": item.get("sjzws", ""),
+                "roomType": item.get("cdlbmc", ""),
+                "floor": item.get("lch", ""),
+                "remark": item.get("bz", ""),
+            })
+        return {
+            "studentId": student_id,
+            "academicYear": xnm,
+            "semester": xqm,
+            "dayOfWeek": xqj,
+            "periodsMask": jcd,
+            "weeksMask": zcd,
+            "classrooms": rooms,
+        }
+
+    def get_grades(self, xnm: str, xqm: str, page_size: int = 1000) -> dict:
+        """
+        查询成绩。该接口根据常见教务系统路径推断，需结合实际环境测试调整。
+        """
+        index_url = f"{self.jw_base}/cjcx/cjcx_cxDgXscj.html?gnmkdm=N305005&layout=default"
+        self.session.get(index_url, timeout=15, verify=False)
+
+        api_url = f"{self.jw_base}/cjcx/cjcx_cxDgXscj.html?doType=query&gnmkdm=N305005"
+        headers = {
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+            "Referer": index_url,
+        }
+        data = {
+            "xnm": xnm,
+            "xqm": xqm,
+            "queryModel.showCount": str(page_size),
+            "queryModel.currentPage": "1",
+            "queryModel.sortName": "",
+            "queryModel.sortOrder": "asc",
+        }
+        r = self.session.post(api_url, data=data, headers=headers, timeout=15, verify=False)
+        if r.status_code != 200:
+            raise RuntimeError(f"成绩API请求失败: {r.status_code}, body={r.text[:500]}")
+        result = r.json()
+        if not isinstance(result, dict):
+            raise RuntimeError(f"成绩API返回非JSON对象: type={type(result).__name__}, body={r.text[:500]}")
+        return result
+
+    def build_grades_result(self, student_id: str, xnm: str, xqm: str, raw: dict) -> dict:
+        grades = []
+        for item in raw.get("items", []) or []:
+            grades.append({
+                "courseName": item.get("kcmc", ""),
+                "courseCode": item.get("kch", ""),
+                "courseNature": item.get("kcxz", ""),
+                "credit": item.get("xf", ""),
+                "score": item.get("cj", ""),
+                "gpa": item.get("jd", ""),
+                "teacher": item.get("xm", ""),
+                "examNature": item.get("ksxz", ""),
+                "courseType": item.get("kclbmc", ""),
+                "academicYear": item.get("xnm", xnm),
+                "semester": item.get("xqm", xqm),
+            })
+        return {
+            "studentId": student_id,
+            "academicYear": xnm,
+            "semester": xqm,
+            "grades": grades,
+        }
+
+    @staticmethod
+    def encode_periods(period_text: str) -> int:
+        """
+        把节次文本转换为 jcd 掩码。
+        示例：
+        - "5-5" -> 16
+        - "1-2" -> 3
+        - "1-2,5-6" -> 51
+        """
+        mask = 0
+        for part in period_text.replace("，", ",").split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-", 1)
+                start, end = int(start.strip()), int(end.strip())
+            else:
+                start = end = int(part)
+            for p in range(start, end + 1):
+                mask |= 1 << (p - 1)
+        return mask
+
+    @staticmethod
+    def encode_weeks(week_text: str) -> int:
+        """
+        把周次文本转换为 zcd 掩码。
+        示例：
+        - "1,16" -> 按位掩码计算（需根据实际系统验证）
+        - "1-16" -> 连续周的位掩码
+        注意：不同学校教务系统对 zcd 的编码可能不同，建议通过实际请求验证。
+        """
+        mask = 0
+        for part in week_text.replace("，", ",").split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-", 1)
+                start, end = int(start.strip()), int(end.strip())
+            else:
+                start = end = int(part)
+            for w in range(start, end + 1):
+                mask |= 1 << (w - 1)
+        return mask
 
     def save_session(self):
         if not self.session_file:
