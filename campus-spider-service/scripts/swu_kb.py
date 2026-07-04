@@ -453,11 +453,11 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             grades.append({
                 "courseName": item.get("kcmc", ""),
                 "courseCode": item.get("kch", ""),
-                "courseNature": item.get("kcxz", ""),
+                "courseNature": item.get("kcxzmc", ""),
                 "credit": item.get("xf", ""),
                 "score": item.get("cj", ""),
                 "gpa": item.get("jd", ""),
-                "teacher": item.get("xm", ""),
+                "teacher": item.get("jsxm", ""),
                 "examNature": item.get("ksxz", ""),
                 "courseType": item.get("kclbmc", ""),
                 "academicYear": item.get("xnm", xnm),
