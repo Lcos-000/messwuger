@@ -1,6 +1,6 @@
 #!/bin/bash
 # 一键启动校园助手后端 + 爬虫服务（宿主机直接运行版）
-# 前置条件：中间件 MySQL/Redis/Nacos 已用 docker-compose.middleware.yml 启动
+# 前置条件：中间件 MySQL / Redis / Nacos 已启动，且产物已完成构建
 
 set -e
 
@@ -30,6 +30,8 @@ export REDIS_DB="0"
 export HTTP_ADDR=":8082"
 export JAVA_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/student-data"
 export PUNCH_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/punch-result"
+export EMPTY_CLASSROOM_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/empty-classroom"
+export GRADES_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/grades"
 export JAVA_INTERNAL_TOKEN="campus-internal-token"
 export PYTHON_PATH="/usr/bin/python3"
 export SPIDER_SCRIPT="./scripts/spider_cli.py"

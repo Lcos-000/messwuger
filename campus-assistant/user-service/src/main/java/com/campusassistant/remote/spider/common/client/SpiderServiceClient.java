@@ -3,6 +3,7 @@ package com.campusassistant.remote.spider.common.client;
 import com.campusassistant.remote.config.FeignConfig;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.exception.fallback.SpiderFallbackFactory;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomTaskSubmitDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,14 @@ public interface SpiderServiceClient {
             @RequestHeader(X_Student_Id) String studentId,
             @RequestHeader(X_Password) String encryptedPassword,
             @RequestBody GradesTaskSubmitDTO dto
+    );
+
+    // 提交空教室查询任务调用
+    @PostMapping("/api/v1/task/empty-classroom")
+    Result<?> submitEmptyClassroomTask(
+            @RequestHeader(X_Student_Id) String studentId,
+            @RequestHeader(X_Password) String encryptedPassword,
+            @RequestBody EmptyClassroomTaskSubmitDTO dto
     );
 
 }

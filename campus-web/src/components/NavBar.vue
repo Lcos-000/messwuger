@@ -20,6 +20,17 @@
       </div>
       <span>成绩</span>
     </router-link>
+    <router-link :to="ROUTE_PATHS.EMPTY_CLASSROOM" class="nav-item" active-class="active">
+      <div class="nav-icon-wrap">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 21h16"/>
+          <path d="M7 21V9l5-4 5 4v12"/>
+          <path d="M10 13h4"/>
+          <path d="M10 17h4"/>
+        </svg>
+      </div>
+      <span>空教室</span>
+    </router-link>
     <router-link :to="ROUTE_PATHS.PROFILE" class="nav-item" active-class="active">
       <div class="nav-icon-wrap">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
