@@ -4,7 +4,8 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.campusassistant.enums.RemoteCodeEnum;
 import com.campusassistant.remote.exception.code.SpiderRemoteCodeEnum;
 import com.campusassistant.pojo.Result;
-import com.campusassistant.remote.spider.client.SpiderServiceClient;
+import com.campusassistant.remote.spider.common.client.SpiderServiceClient;
+import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import feign.FeignException;
 import feign.RetryableException;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +92,11 @@ public class SpiderFallbackFactory implements FallbackFactory<SpiderServiceClien
 
             @Override
             public Result<?> startPunchCardTask(String studentId, String encryptedPassword, String type) {
+                return Result.error(code, message);
+            }
+
+            @Override
+            public Result<?> submitGradesTask(String studentId, String encryptedPassword, GradesTaskSubmitDTO dto) {
                 return Result.error(code, message);
             }
         };

@@ -58,8 +58,9 @@ campus-spider-service/
 | `REDIS_PASSWORD` | `''` | Redis 密码 |
 | `REDIS_DB` | `0` | Redis 数据库 |
 | `WORKER_CONCURRENCY` | `4` | Worker 并发数 |
-| `JAVA_CALLBACK_URL` | `http://localhost:8081/internal/api/v1/sync/student-data` | Java 回调地址 |
+| `JAVA_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/student-data` | Java 回调地址 |
 | `JAVA_INTERNAL_TOKEN` | `internal-token` | 回调 Java 时的 Bearer Token |
+| `AES_SECRET_KEY` | `@aes-secret-key#` | Java 加密/Go 解密密码的 AES 密钥 |
 | `PYTHON_PATH` | `python` | Python 可执行文件路径 |
 | `SPIDER_SCRIPT` | `./scripts/spider_cli.py` | Python CLI 脚本路径 |
 | `SESSION_DIR` | `./data/sessions` | Session 文件存储目录 |
@@ -67,7 +68,10 @@ campus-spider-service/
 | `DEFAULT_ACADEMIC_YEAR` | `2025` | 默认学年 |
 | `DEFAULT_SEMESTER` | `12` | 默认学期（12=上学期，3=下学期） |
 | `PROXY_POOL` | `''` | 代理池，逗号分隔多个代理 |
-| `YM_TOKEN` | *(内置)* | 云打码平台 token，建议通过环境变量覆盖 |
+| `PUNCH_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/punch-result` | 打卡回调地址 |
+| `EMPTY_CLASSROOM_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/empty-classroom` | 空教室查询回调地址 |
+| `GRADES_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/grades` | 成绩查询回调地址 |
+| `YM_TOKEN` | `BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM` | 云打码平台 token，建议通过环境变量覆盖 |
 | `YM_TYPE` | `10110` | 云打码类型 ID |
 
 ---
@@ -137,7 +141,7 @@ X-TYPE: FULL_CRAWL
 Content-Type: application/json
 ```
 
-通过 `X-TYPE` 区分两种模式：
+通过 `X-TYPE` 区分模式：
 
 | X-TYPE 值 | 说明 | 响应方式 |
 |-----------|------|----------|
@@ -280,6 +284,121 @@ Java 调用 Go /api/v1/task/submit (X-TYPE: FULL_CRAWL)
 
 ---
 
+### 3. 空教室查询任务
+
+```http
+POST /api/v1/task/empty-classroom
+X-Student-Id: 222025321262104
+X-Password: your_password
+Content-Type: application/json
+```
+
+请求体：
+```json
+{
+  "academicYear": "2025",
+  "semester": "12",
+  "dayOfWeek": "1",
+  "periodsMask": "16",
+  "weeksMask": "262272",
+  "campusId": "1",
+  "building": "",
+  "roomType": "",
+  "callbackUrl": "http://your-java-service/empty-classroom-callback"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `academicYear` | string | 否 | 学年，如 `2025` |
+| `semester` | string | 否 | 学期，`12`=第二学期，`3`=第一学期 |
+| `dayOfWeek` | string | **是** | 星期几，`1`=周一，`7`=周日 |
+| `periodsMask` | string | **是** | 节次掩码，如 `16` 表示第 5 节 |
+| `weeksMask` | string | **是** | 周次掩码，如 `262272` 表示 1-16 周 |
+| `campusId` | string | 否 | 校区号，默认 `1` |
+| `building` | string | 否 | 楼号 |
+| `roomType` | string | 否 | 教室类别 ID |
+| `callbackUrl` | string | 否 | 覆盖默认空教室回调地址 |
+
+**回调 Java 的数据格式：**
+
+```json
+{
+  "studentId": "222025321262104",
+  "academicYear": "2025",
+  "semester": "12",
+  "dayOfWeek": "1",
+  "periodsMask": "16",
+  "weeksMask": "262272",
+  "classrooms": [
+    {
+      "building": "32教",
+      "roomCode": "32-0505",
+      "roomName": "32教505",
+      "campus": "北碚校区",
+      "capacity": "60",
+      "realCapacity": "60",
+      "roomType": "多媒体教室",
+      "floor": "5",
+      "remark": ""
+    }
+  ]
+}
+```
+
+---
+
+### 4. 成绩查询任务
+
+```http
+POST /api/v1/task/grades
+X-Student-Id: 222025321262104
+X-Password: your_password
+Content-Type: application/json
+```
+
+请求体：
+```json
+{
+  "academicYear": "2025",
+  "semester": "12",
+  "callbackUrl": "http://your-java-service/grades-callback"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `academicYear` | string | 否 | 学年，如 `2025` |
+| `semester` | string | 否 | 学期，`12`=第二学期，`3`=第一学期 |
+| `callbackUrl` | string | 否 | 覆盖默认成绩回调地址 |
+
+**回调 Java 的数据格式：**
+
+```json
+{
+  "studentId": "222025321262104",
+  "academicYear": "2025",
+  "semester": "12",
+  "grades": [
+    {
+      "courseName": "高等数学",
+      "courseCode": "MATH101",
+      "courseNature": "必修",
+      "credit": "4.0",
+      "score": "92",
+      "gpa": "4.0",
+      "teacher": "张老师",
+      "examNature": "正常考试",
+      "courseType": "公共基础课",
+      "academicYear": "2025",
+      "semester": "12"
+    }
+  ]
+}
+```
+
+---
+
 ## Python CLI 独立使用
 
 如需单独调试爬虫，可直接运行：
@@ -300,6 +419,36 @@ python spider_cli.py \
   --mode validate \
   --student-id 222025321262104 \
   --password your_password
+
+# 查询空教室（掩码整数）
+python spider_cli.py \
+  --mode empty-classroom \
+  --student-id 222025321262104 \
+  --password your_password \
+  --xnm 2025 \
+  --xqm 12 \
+  --xqj 1 \
+  --jcd 16 \
+  --zcd 262272
+
+# 查询空教室（文本自动转掩码）
+python spider_cli.py \
+  --mode empty-classroom \
+  --student-id 222025321262104 \
+  --password your_password \
+  --xnm 2025 \
+  --xqm 12 \
+  --xqj 1 \
+  --jcd-text "5-5" \
+  --zcd-text "1-16"
+
+# 查询成绩
+python spider_cli.py \
+  --mode grades \
+  --student-id 222025321262104 \
+  --password your_password \
+  --xnm 2025 \
+  --xqm 12
 ```
 
 ---

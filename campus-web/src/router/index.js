@@ -26,10 +26,16 @@ const routes = [
     meta: { title: '我的课表', requiresAuth: true, index: 2 }
   },
   {
+    path: ROUTE_PATHS.GRADES,
+    name: ROUTE_NAMES.GRADES,
+    component: () => import('../views/Grades.vue'),
+    meta: { title: '我的成绩', requiresAuth: true, index: 3 }
+  },
+  {
     path: ROUTE_PATHS.PROFILE,
     name: ROUTE_NAMES.PROFILE,
     component: () => import('../views/Profile.vue'),
-    meta: { title: '个人中心', requiresAuth: true, index: 3 }
+    meta: { title: '个人中心', requiresAuth: true, index: 4 }
   }
 ]
 
