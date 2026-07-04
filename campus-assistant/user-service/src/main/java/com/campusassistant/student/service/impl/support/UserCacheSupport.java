@@ -1,8 +1,8 @@
 package com.campusassistant.student.service.impl.support;
 
-import com.campusassistant.utils.rediskey.UserPersonalCacheKey;
-import com.campusassistant.utils.rediskey.UserPwdCacheKey;
-import com.campusassistant.utils.rediskey.UserStatusCacheKey;
+import com.campusassistant.utils.rediskey.user.UserPersonalCacheKey;
+import com.campusassistant.utils.rediskey.user.UserPwdCacheKey;
+import com.campusassistant.utils.rediskey.user.UserStatusCacheKey;
 import com.campusassistant.key.TokenCacheKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;

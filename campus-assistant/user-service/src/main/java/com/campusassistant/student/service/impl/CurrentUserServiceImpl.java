@@ -2,10 +2,15 @@ package com.campusassistant.student.service.impl;
 
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
+import com.campusassistant.pojo.Result;
 import com.campusassistant.properties.JwtProperties;
-import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
-import com.campusassistant.remote.spider.pojo.PersonalInfoVO;
-import com.campusassistant.remote.spider.service.SpiderService;
+import com.campusassistant.remote.course.pojo.RemoteGradeVO;
+import com.campusassistant.remote.course.service.UserGradeService;
+import com.campusassistant.student.pojo.dto.GradesQueryDTO;
+import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
+import com.campusassistant.remote.spider.sync.pojo.entity.PersonalInfoEntity;
+import com.campusassistant.remote.spider.sync.pojo.vo.PersonalInfoVO;
+import com.campusassistant.remote.spider.common.service.SpiderService;
 import com.campusassistant.student.service.impl.support.UserCacheSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.UserContextUtil;
@@ -16,12 +21,16 @@ import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.pojo.UserStatusVO;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.CurrentUserService;
-import com.campusassistant.utils.rediskey.*;
+import com.campusassistant.utils.rediskey.user.UserPersonalCacheKey;
+import com.campusassistant.utils.rediskey.user.UserPwdCacheKey;
+import com.campusassistant.utils.rediskey.user.UserStatusCacheKey;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 
@@ -41,6 +50,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     private final PersonalInfoVoConvertor personalInfoVoConvertor;
     private final UserCacheSupport userCacheSupport;
     private final JwtProperties jwtProperties;
+    private final UserGradeService userGradeService;
 
     @Override
     public void self_unsubscribe(HttpServletRequest request) {
@@ -110,6 +120,28 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         String studentId = UserContextUtil.requireStudentId();
         userWriteSupport.updateAutoPunchEnabled(studentId, enabled);
         stringRedisTemplate.delete(userStatusCacheKey.getKey(studentId));
+    }
+
+    @Override
+    public Result<?> submitGradesTask(GradesQueryDTO dto) {
+        String studentId = UserContextUtil.requireStudentId();
+        String encryptedPassword = stringRedisTemplate.opsForValue().get(userPwdCacheKey.getKey(studentId));
+
+        if (encryptedPassword == null || encryptedPassword.isEmpty()) {
+            throw new BusinessException(UNAUTHORIZED);
+        }
+
+        GradesTaskSubmitDTO submitDTO = new GradesTaskSubmitDTO();
+        submitDTO.setAcademicYear(dto.getAcademicYear());
+        submitDTO.setSemester(dto.getSemester());
+
+        return spiderService.submitGradesTask(studentId, encryptedPassword, submitDTO);
+
+    }
+
+    @Override
+    public List<RemoteGradeVO> getGrades(String academicYear, String semester) {
+        return userGradeService.getGradesWithCache(academicYear, semester);
     }
 
 }

@@ -1,12 +1,12 @@
 package com.campusassistant.student.service.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.campusassistant.remote.spider.service.SpiderService;
+import com.campusassistant.remote.spider.common.service.SpiderService;
 import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
-import com.campusassistant.utils.rediskey.UserPwdCacheKey;
+import com.campusassistant.utils.rediskey.user.UserPwdCacheKey;
 import com.campusassistant.support.ScheduledLockSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

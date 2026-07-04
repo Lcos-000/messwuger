@@ -12,11 +12,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan({
         "com.campusassistant.student.mapper",
         "com.campusassistant.remote.spider.mapper",
-        "com.campusassistant.personalization.mapper"
+        "com.campusassistant.personalization.mapper",
+        "com.campusassistant.remote.spider.sync.mapper"
 })
 @EnableFeignClients(basePackages = {
         "com.campusassistant.remote.course.client",
-        "com.campusassistant.remote.spider.client"
+        "com.campusassistant.remote.spider.common.client"
 }) // 开启远程调用，扫描 @FeignClient 接口
 @EnableDiscoveryClient
 @EnableAsync

@@ -53,7 +53,7 @@ func main() {
 	}
 
 	proxyPool := spider.NewProxyPool(cfg.ProxyPool)
-	spiderRunner := spider.NewRunner(cfg.PythonPath, cfg.SpiderScript, cfg.SessionDir, cfg.SpiderTimeout, proxyPool)
+	spiderRunner := spider.NewRunner(cfg.PythonPath, cfg.SpiderScript, cfg.SessionDir, cfg.SpiderTimeout, proxyPool, cfg.YMToken, cfg.YMType)
 	javaClient := client.NewJavaClient(cfg.JavaInternalToken)
 
 	app := &App{
@@ -75,6 +75,8 @@ func main() {
 	mux.HandleFunc("/health", app.healthHandler)
 	mux.HandleFunc("/api/v1/task/submit", app.submitHandler)
 	mux.HandleFunc("/api/v1/task/punch-card", app.punchCardHandler)
+	mux.HandleFunc("/api/v1/task/empty-classroom", app.emptyClassroomHandler)
+	mux.HandleFunc("/api/v1/task/grades", app.gradesHandler)
 
 	// 启动 HTTP 服务
 	app.httpSrv = &http.Server{
@@ -221,7 +223,7 @@ func (a *App) validateCredentialsHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 解密密码（Java 端使用 AES 加密）
-	plainPassword, err := crypto.AesDecrypt(password, "@aes-secret-key#")
+	plainPassword, err := crypto.AesDecrypt(password, a.cfg.AesSecretKey)
 	if err != nil {
 		fmt.Println("密码解密失败:", err)
 		writeJSON(w, http.StatusOK, model.APIResponse{
@@ -321,6 +323,166 @@ func (a *App) punchCardHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		Code:    200,
 		Message: "打卡任务已提交",
+		Data: map[string]string{
+			"taskId": task.TaskID,
+		},
+	})
+}
+
+// emptyClassroomHandler 处理空教室任务提交请求
+func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("访问了空教室任务提交接口")
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
+			Code:    405,
+			Message: "method not allowed",
+		})
+		return
+	}
+
+	studentID := r.Header.Get("X-Student-Id")
+	password := r.Header.Get("X-Password")
+	if studentID == "" || password == "" {
+		fmt.Println("缺少 X-Student-Id 或 X-Password")
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 X-Student-Id 或 X-Password",
+		})
+		return
+	}
+
+	var req model.StartTaskRequest
+	_ = decodeJSON(r, &req)
+
+	if req.AcademicYear == "" {
+		req.AcademicYear = a.cfg.DefaultAcademicYear
+	}
+	if req.Semester == "" {
+		req.Semester = a.cfg.DefaultSemester
+	}
+	if req.CallbackURL == "" {
+		req.CallbackURL = a.cfg.EmptyClassroomCallbackURL
+	}
+
+	if req.DayOfWeek == "" {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 dayOfWeek",
+		})
+		return
+	}
+	if req.PeriodsMask == "" {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 periodsMask",
+		})
+		return
+	}
+	if req.WeeksMask == "" {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 weeksMask",
+		})
+		return
+	}
+
+	task := model.Task{
+		TaskID:       model.NewTaskID(),
+		Type:         "EMPTY_CLASSROOM",
+		StudentID:    studentID,
+		Password:     password,
+		AcademicYear: req.AcademicYear,
+		Semester:     req.Semester,
+		CallbackURL:  req.CallbackURL,
+		DayOfWeek:    req.DayOfWeek,
+		PeriodsMask:  req.PeriodsMask,
+		WeeksMask:    req.WeeksMask,
+		CampusID:     req.CampusID,
+		Building:     req.Building,
+		RoomType:     req.RoomType,
+		Status:       "queued",
+		CreatedAt:    time.Now().Unix(),
+		UpdatedAt:    time.Now().Unix(),
+	}
+
+	if err := a.store.Enqueue(r.Context(), task); err != nil {
+		fmt.Println("空教室任务入队失败:", err)
+		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
+			Code:    500,
+			Message: "空教室任务入队失败: " + err.Error(),
+		})
+		return
+	}
+	fmt.Println("空教室任务入队成功:", task.TaskID)
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		Code:    200,
+		Message: "空教室任务已提交",
+		Data: map[string]string{
+			"taskId": task.TaskID,
+		},
+	})
+}
+
+// gradesHandler 处理成绩任务提交请求
+func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("访问了成绩任务提交接口")
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
+			Code:    405,
+			Message: "method not allowed",
+		})
+		return
+	}
+
+	studentID := r.Header.Get("X-Student-Id")
+	password := r.Header.Get("X-Password")
+	if studentID == "" || password == "" {
+		fmt.Println("缺少 X-Student-Id 或 X-Password")
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 X-Student-Id 或 X-Password",
+		})
+		return
+	}
+
+	var req model.StartTaskRequest
+	_ = decodeJSON(r, &req)
+
+	if req.AcademicYear == "" {
+		req.AcademicYear = a.cfg.DefaultAcademicYear
+	}
+	if req.Semester == "" {
+		req.Semester = a.cfg.DefaultSemester
+	}
+	if req.CallbackURL == "" {
+		req.CallbackURL = a.cfg.GradesCallbackURL
+	}
+
+	task := model.Task{
+		TaskID:       model.NewTaskID(),
+		Type:         "GRADES",
+		StudentID:    studentID,
+		Password:     password,
+		AcademicYear: req.AcademicYear,
+		Semester:     req.Semester,
+		CallbackURL:  req.CallbackURL,
+		Status:       "queued",
+		CreatedAt:    time.Now().Unix(),
+		UpdatedAt:    time.Now().Unix(),
+	}
+
+	if err := a.store.Enqueue(r.Context(), task); err != nil {
+		fmt.Println("成绩任务入队失败:", err)
+		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
+			Code:    500,
+			Message: "成绩任务入队失败: " + err.Error(),
+		})
+		return
+	}
+	fmt.Println("成绩任务入队成功:", task.TaskID)
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		Code:    200,
+		Message: "成绩任务已提交",
 		Data: map[string]string{
 			"taskId": task.TaskID,
 		},

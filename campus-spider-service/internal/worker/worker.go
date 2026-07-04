@@ -134,14 +134,22 @@ func (p *Pool) handleMessage(ctx context.Context, consumer string, msg redis.XMe
 	switch task.Type {
 	case "PUNCH_CARD":
 		p.handlePunchCardTask(ctx, msg, task)
-	default:
+	case "EMPTY_CLASSROOM":
+		p.handleEmptyClassroomTask(ctx, msg, task)
+	case "GRADES":
+		p.handleGradesTask(ctx, msg, task)
+	case "FULL_CRAWL":
 		p.handleSpiderTask(ctx, msg, task)
+	default:
+		log.Printf("[Worker] 未知任务类型: %s", task.Type)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
 	}
 }
 
+// handleSpiderTask 处理爬虫任务
 func (p *Pool) handleSpiderTask(ctx context.Context, msg redis.XMessage, task model.Task) {
 	// 解密密码（Java 使用 AES 加密）
-	plainPassword, err := crypto.AesDecrypt(task.Password, "@aes-secret-key#")
+	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
 	if err != nil {
 		log.Printf("[Worker] 爬虫任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
 		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
@@ -160,11 +168,22 @@ func (p *Pool) handleSpiderTask(ctx context.Context, msg redis.XMessage, task mo
 	log.Printf("[Worker] 爬取成功 taskId=%s", task.TaskID)
 
 	// 将SpiderData转换为CallbackPayload结构体
-	callbackPayload := out.Data.ToCallbackPayload()
+	spiderData, ok := out.Data.(model.SpiderData)
+	if !ok {
+		log.Printf("[Worker] 爬取结果类型错误 taskId=%s", task.TaskID)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	callbackPayload := spiderData.ToCallbackPayload()
+
+	callbackURL := task.CallbackURL
+	if callbackURL == "" {
+		callbackURL = p.cfg.JavaCallbackURL
+	}
 
 	// 回调
-	log.Printf("[Worker] 开始回调 taskId=%s url=%s", task.TaskID, task.CallbackURL)
-	if err := p.retryCallback(ctx, task.CallbackURL, callbackPayload); err != nil {
+	log.Printf("[Worker] 开始回调 taskId=%s url=%s", task.TaskID, callbackURL)
+	if err := p.retryCallback(ctx, callbackURL, callbackPayload); err != nil {
 		log.Printf("[Worker] 回调失败 taskId=%s err=%v", task.TaskID, err)
 		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
 		return
@@ -176,7 +195,7 @@ func (p *Pool) handleSpiderTask(ctx context.Context, msg redis.XMessage, task mo
 
 func (p *Pool) handlePunchCardTask(ctx context.Context, msg redis.XMessage, task model.Task) {
 	// 解密密码（Java 使用 AES 加密）
-	plainPassword, err := crypto.AesDecrypt(task.Password, "@aes-secret-key#")
+	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
 	if err != nil {
 		log.Printf("[Worker] 打卡任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
 		_ = p.retryPunchCallback(ctx, task.StudentID, false)
@@ -210,6 +229,86 @@ func (p *Pool) handlePunchCardTask(ctx context.Context, msg redis.XMessage, task
 	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
 }
 
+func (p *Pool) handleEmptyClassroomTask(ctx context.Context, msg redis.XMessage, task model.Task) {
+	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
+	if err != nil {
+		log.Printf("[Worker] 空教室任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	task.Password = plainPassword
+
+	log.Printf("[Worker] 开始查询空教室 taskId=%s", task.TaskID)
+	out, err := p.runner.RunEmptyClassroom(ctx, task)
+	if err != nil {
+		log.Printf("[Worker] 空教室查询失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	log.Printf("[Worker] 空教室查询成功 taskId=%s", task.TaskID)
+
+	payload, ok := out.Data.(model.EmptyClassroomPayload)
+	if !ok {
+		log.Printf("[Worker] 空教室结果类型错误 taskId=%s", task.TaskID)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+
+	callbackURL := task.CallbackURL
+	if callbackURL == "" {
+		callbackURL = p.cfg.EmptyClassroomCallbackURL
+	}
+
+	log.Printf("[Worker] 开始空教室回调 taskId=%s url=%s", task.TaskID, callbackURL)
+	if err := p.retryEmptyClassroomCallback(ctx, callbackURL, payload); err != nil {
+		log.Printf("[Worker] 空教室回调失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	log.Printf("[Worker] 空教室回调成功 taskId=%s", task.TaskID)
+	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+}
+
+func (p *Pool) handleGradesTask(ctx context.Context, msg redis.XMessage, task model.Task) {
+	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
+	if err != nil {
+		log.Printf("[Worker] 成绩任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	task.Password = plainPassword
+
+	log.Printf("[Worker] 开始查询成绩 taskId=%s", task.TaskID)
+	out, err := p.runner.RunGrades(ctx, task)
+	if err != nil {
+		log.Printf("[Worker] 成绩查询失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	log.Printf("[Worker] 成绩查询成功 taskId=%s", task.TaskID)
+
+	payload, ok := out.Data.(model.GradesPayload)
+	if !ok {
+		log.Printf("[Worker] 成绩结果类型错误 taskId=%s", task.TaskID)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+
+	callbackURL := task.CallbackURL
+	if callbackURL == "" {
+		callbackURL = p.cfg.GradesCallbackURL
+	}
+
+	log.Printf("[Worker] 开始成绩回调 taskId=%s url=%s", task.TaskID, callbackURL)
+	if err := p.retryGradesCallback(ctx, callbackURL, payload); err != nil {
+		log.Printf("[Worker] 成绩回调失败 taskId=%s err=%v", task.TaskID, err)
+		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		return
+	}
+	log.Printf("[Worker] 成绩回调成功 taskId=%s", task.TaskID)
+	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+}
+
 // retryPunchCallback 重试打卡回调
 func (p *Pool) retryPunchCallback(ctx context.Context, studentID string, success bool) error {
 	var lastErr error
@@ -229,6 +328,34 @@ func (p *Pool) retryCallback(ctx context.Context, url string, payload model.Call
 	var lastErr error
 	for i := 0; i < 3; i++ {
 		if err := p.javaClient.Callback(ctx, url, payload); err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			continue
+		}
+		return nil
+	}
+	return lastErr
+}
+
+// retryEmptyClassroomCallback 重试空教室回调
+func (p *Pool) retryEmptyClassroomCallback(ctx context.Context, url string, payload model.EmptyClassroomPayload) error {
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if err := p.javaClient.EmptyClassroomCallback(ctx, url, payload); err != nil {
+			lastErr = err
+			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			continue
+		}
+		return nil
+	}
+	return lastErr
+}
+
+// retryGradesCallback 重试成绩回调
+func (p *Pool) retryGradesCallback(ctx context.Context, url string, payload model.GradesPayload) error {
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if err := p.javaClient.GradesCallback(ctx, url, payload); err != nil {
 			lastErr = err
 			time.Sleep(time.Duration(i+1) * 2 * time.Second)
 			continue
@@ -261,6 +388,12 @@ func messageToTask(values map[string]any) model.Task {
 		Semester:     toString(values["semester"]),
 		CallbackURL:  toString(values["callbackUrl"]),
 		Status:       toString(values["status"]),
+		DayOfWeek:    toString(values["dayOfWeek"]),
+		PeriodsMask:  toString(values["periodsMask"]),
+		WeeksMask:    toString(values["weeksMask"]),
+		CampusID:     toString(values["campusId"]),
+		Building:     toString(values["building"]),
+		RoomType:     toString(values["roomType"]),
 	}
 }
 

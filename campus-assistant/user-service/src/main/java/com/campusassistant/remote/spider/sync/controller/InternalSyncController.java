@@ -1,0 +1,44 @@
+package com.campusassistant.remote.spider.sync.controller;
+
+import com.campusassistant.pojo.Result;
+import com.campusassistant.remote.spider.grades.pojo.dto.GradesCallbackDTO;
+import com.campusassistant.remote.spider.sync.pojo.dto.SyncDataDTO;
+import com.campusassistant.remote.spider.sync.service.SyncService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/internal/api/v1/sync")
+@RequiredArgsConstructor
+@Tag(name = "内部同步接口")
+public class InternalSyncController {
+
+    private final SyncService syncService;
+
+    // 接收 Go 爬虫回调的综合学生数据
+    @Operation(summary = "接收综合学生数据")
+    @PostMapping("/student-data")
+    public Result<?> receiveStudentData(@RequestBody SyncDataDTO syncDataDTO) {
+        syncService.handleStudentDataSync(syncDataDTO);
+        return Result.success("数据接收成功");
+    }
+
+    // 接收 Go 端打卡结果回调
+    @Operation(summary = "接收打卡结果")
+    @PostMapping("/punch-result")
+    public Result<?> receivePunchResult(@RequestParam("studentId") String studentId,
+                                        @RequestParam("success") Boolean success) {
+        syncService.handlePunchResult(studentId, success);
+        return Result.success("打卡结果接收成功");
+    }
+
+    @Operation(summary = "接收成绩查询结果")
+    @PostMapping("/grades")
+    public Result<?> receiveGrades(@RequestBody GradesCallbackDTO gradesCallbackDTO) {
+        syncService.handleGradesCallback(gradesCallbackDTO);
+        return Result.success("成绩结果接收成功");
+    }
+
+}

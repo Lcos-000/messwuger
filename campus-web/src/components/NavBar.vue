@@ -11,6 +11,15 @@
       </div>
       <span>课表</span>
     </router-link>
+    <router-link :to="ROUTE_PATHS.GRADES" class="nav-item" active-class="active">
+      <div class="nav-icon-wrap">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <span>成绩</span>
+    </router-link>
     <router-link :to="ROUTE_PATHS.PROFILE" class="nav-item" active-class="active">
       <div class="nav-icon-wrap">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -76,15 +85,16 @@ import { ROUTE_PATHS } from '@/config'
 .nav-item.active {
   color: #4f86f7;
 }
+
 .nav-item.active .nav-icon-wrap {
   background: #eef3ff;
   transform: scale(1.08);
 }
+
 .nav-item.active .nav-icon {
   transform: scale(1.05);
 }
 
-/* Mobile bottom bar */
 @media screen and (max-width: 767px) {
   .nav-bar {
     width: 100%;
@@ -93,7 +103,6 @@ import { ROUTE_PATHS } from '@/config'
   }
 }
 
-/* Desktop left sidebar */
 @media screen and (min-width: 768px) {
   .nav-bar {
     flex-direction: column;
@@ -105,6 +114,7 @@ import { ROUTE_PATHS } from '@/config'
     padding-top: 16px;
     gap: 4px;
   }
+
   .nav-item {
     flex: none;
     padding: 14px 0;
