@@ -2,7 +2,7 @@
 package com.campusassistant.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.campusassistant.pojo.CourseEntity;
+import com.campusassistant.pojo.schedule.CourseEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

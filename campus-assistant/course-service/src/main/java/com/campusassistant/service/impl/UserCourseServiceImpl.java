@@ -4,17 +4,26 @@ package com.campusassistant.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusassistant.converter.CourseDtoConvertor;
-import com.campusassistant.converter.CourseVoConvertor;
+import com.campusassistant.converter.grade.GradeDtoConvertor;
+import com.campusassistant.converter.course.CourseDtoConvertor;
+import com.campusassistant.converter.course.CourseVoConvertor;
+import com.campusassistant.converter.grade.GradeVoConvertor;
 import com.campusassistant.mapper.CourseMapper;
-import com.campusassistant.pojo.CourseDTO;
-import com.campusassistant.pojo.CourseEntity;
-import com.campusassistant.pojo.CourseVO;
+import com.campusassistant.mapper.GradeMapper;
+import com.campusassistant.pojo.GradeDTO;
+import com.campusassistant.pojo.GradeEntity;
+import com.campusassistant.pojo.GradeItemDTO;
+import com.campusassistant.pojo.GradeVO;
+import com.campusassistant.pojo.schedule.CourseDTO;
+import com.campusassistant.pojo.schedule.CourseEntity;
+import com.campusassistant.pojo.schedule.CourseVO;
 import com.campusassistant.service.UserCourseService;
 import com.campusassistant.utils.UserContextUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -24,6 +33,9 @@ public class UserCourseServiceImpl implements UserCourseService {
     private final CourseMapper courseMapper;
     private final CourseDtoConvertor courseDtoConverter;
     private final CourseVoConvertor courseVoConverter;
+    private final GradeMapper gradeMapper;
+    private final GradeDtoConvertor gradeDtoConvertor;
+    private final GradeVoConvertor gradeVoConvertor;
 
     @Override
     public void saveOrUpdateSchedule(CourseDTO courseDTO) {
@@ -89,5 +101,53 @@ public class UserCourseServiceImpl implements UserCourseService {
         return courseVoConverter.toTarget(records.get(0));
     }
 
+    @Override
+    public void saveOrUpdateGrades(GradeDTO gradeDTO) {
+        String studentId = gradeDTO.getStudentId();
+        String academicYear = gradeDTO.getAcademicYear();
+        String semester = gradeDTO.getSemester();
+
+        LambdaQueryWrapper<GradeEntity> deleteWrapper = new LambdaQueryWrapper<>();
+        deleteWrapper
+                .eq(GradeEntity::getStudentId, studentId)
+                .eq(GradeEntity::getAcademicYear, academicYear)
+                .eq(GradeEntity::getSemester, semester);
+
+        // 先删旧数据
+        gradeMapper.delete(deleteWrapper);
+
+        // 如果本次回调为空列表，表示该学期成绩为空，删完即可
+        if (gradeDTO.getGrades() == null || gradeDTO.getGrades().isEmpty()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<GradeEntity> gradeEntities = new ArrayList<>();
+
+        for (GradeItemDTO item : gradeDTO.getGrades()) {
+            GradeEntity gradeEntity = gradeDtoConvertor.toSource(item);
+            gradeEntity.setStudentId(studentId);
+            gradeEntity.setAcademicYear(academicYear);
+            gradeEntity.setSemester(semester);
+            gradeEntity.setSyncTime(now);
+            gradeEntities.add(gradeEntity);
+        }
+
+        for (GradeEntity gradeEntity : gradeEntities) {
+            gradeMapper.insert(gradeEntity);
+        }
+    }
+
+    @Override
+    public List<GradeVO> getGradesByStudentId(String studentId, String academicYear, String semester) {
+        LambdaQueryWrapper<GradeEntity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(GradeEntity::getStudentId, studentId)
+                .eq(GradeEntity::getAcademicYear, academicYear)
+                .eq(GradeEntity::getSemester, semester)
+                .orderByAsc(GradeEntity::getId);
+
+        List<GradeEntity> entities = gradeMapper.selectList(queryWrapper);
+        return gradeVoConvertor.toTarget(entities);
+    }
 
 }

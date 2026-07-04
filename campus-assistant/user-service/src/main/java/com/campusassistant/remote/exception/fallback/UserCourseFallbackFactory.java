@@ -1,11 +1,13 @@
 package com.campusassistant.remote.exception.fallback;
 
+import com.campusassistant.remote.course.pojo.RemoteGradeBatchDTO;
+import com.campusassistant.remote.course.pojo.RemoteGradeVO;
 import com.campusassistant.remote.exception.code.CourseRemoteCodeEnum;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.enums.RemoteCodeEnum;
 import com.campusassistant.remote.course.client.CourseServiceClient;
-import com.campusassistant.remote.course.pojo.RemoteCourseDTO;
-import com.campusassistant.remote.course.pojo.RemoteCourseVO;
+import com.campusassistant.remote.course.pojo.schedule.RemoteCourseDTO;
+import com.campusassistant.remote.course.pojo.schedule.RemoteCourseVO;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import feign.FeignException;
 import feign.RetryableException;
@@ -14,6 +16,7 @@ import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -87,6 +90,16 @@ public class UserCourseFallbackFactory implements FallbackFactory<CourseServiceC
 
             @Override
             public Result<String> syncScheduleData(RemoteCourseDTO remoteCourseDTO) {
+                return Result.error(code, message);
+            }
+
+            @Override
+            public Result<String> syncGradeData(RemoteGradeBatchDTO remoteGradeBatchDTO) {
+                return Result.error(code, message);
+            }
+
+            @Override
+            public Result<List<RemoteGradeVO>> getGrades(String studentId, String academicYear, String semester) {
                 return Result.error(code, message);
             }
         };
