@@ -21,7 +21,9 @@ export const API_PATHS = {
     STATUS: '/user/status',
     PERSONAL: '/user/personal',
     DELETE: '/user/delete',
-    AUTO_PUNCH: '/user/auto-punch'
+    AUTO_PUNCH: '/user/auto-punch',
+    GRADES_TASK: '/user/grades/task',
+    GRADES: '/user/grades'
   },
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',

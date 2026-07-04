@@ -1,7 +1,7 @@
 package com.campusassistant.student.service.impl.support;
 
-import com.campusassistant.remote.spider.mapper.SyncMapper;
-import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
+import com.campusassistant.remote.spider.sync.mapper.SyncMapper;
+import com.campusassistant.remote.spider.sync.pojo.entity.PersonalInfoEntity;
 import com.campusassistant.student.mapper.UserMapper;
 import com.campusassistant.student.pojo.UserEntity;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;

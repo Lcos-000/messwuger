@@ -2,7 +2,7 @@ package com.campusassistant.remote.course.service.impl;
 
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.course.client.CourseServiceClient;
-import com.campusassistant.remote.course.pojo.RemoteCourseVO;
+import com.campusassistant.remote.course.pojo.schedule.RemoteCourseVO;
 import com.campusassistant.remote.course.service.UserCourseService;
 import com.campusassistant.utils.UserContextUtil;
 import com.campusassistant.service.CommonCacheService;

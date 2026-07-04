@@ -1,8 +1,8 @@
 package com.campusassistant.utils.converter.personalinfo;
 
 import com.campusassistant.common.converter.BaseConvertor;
-import com.campusassistant.remote.spider.pojo.PersonalInfoDTO;
-import com.campusassistant.remote.spider.pojo.PersonalInfoEntity;
+import com.campusassistant.remote.spider.sync.pojo.dto.PersonalInfoDTO;
+import com.campusassistant.remote.spider.sync.pojo.entity.PersonalInfoEntity;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

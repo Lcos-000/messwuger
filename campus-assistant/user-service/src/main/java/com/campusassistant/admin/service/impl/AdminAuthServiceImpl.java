@@ -10,7 +10,7 @@ import com.campusassistant.student.service.impl.support.UserCacheSupport;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.utils.JwtUtil;
 import com.campusassistant.utils.UserContextUtil;
-import com.campusassistant.utils.rediskey.UserPwdCacheKey;
+import com.campusassistant.utils.rediskey.user.UserPwdCacheKey;
 import com.campusassistant.key.TokenCacheKey;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
