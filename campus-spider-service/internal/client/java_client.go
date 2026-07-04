@@ -89,3 +89,63 @@ func (c *JavaClient) PunchCallback(ctx context.Context, callbackURL, studentID s
 
 	return nil
 }
+
+// EmptyClassroomCallback 发送空教室查询结果回调到 Java 服务
+func (c *JavaClient) EmptyClassroomCallback(ctx context.Context, callbackURL string, payload model.EmptyClassroomPayload) error {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	log.Printf("[EmptyClassroomCallback] URL=%s Payload=%s", callbackURL, string(b))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, callbackURL, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("empty classroom callback http status=%d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// GradesCallback 发送成绩查询结果回调到 Java 服务
+func (c *JavaClient) GradesCallback(ctx context.Context, callbackURL string, payload model.GradesPayload) error {
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	log.Printf("[GradesCallback] URL=%s Payload=%s", callbackURL, string(b))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, callbackURL, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("grades callback http status=%d", resp.StatusCode)
+	}
+
+	return nil
+}

@@ -18,10 +18,12 @@ type Runner struct {
 	SessionDir string
 	Timeout    time.Duration
 	ProxyPool  *ProxyPool
+	YMToken    string
+	YMType     string
 }
 
 // NewRunner 创建爬虫运行器
-func NewRunner(pythonPath, scriptPath, sessionDir string, timeout time.Duration, proxyPool *ProxyPool) *Runner {
+func NewRunner(pythonPath, scriptPath, sessionDir string, timeout time.Duration, proxyPool *ProxyPool, ymToken, ymType string) *Runner {
 	_ = os.MkdirAll(sessionDir, 0755)
 	return &Runner{
 		PythonPath: pythonPath,
@@ -29,7 +31,19 @@ func NewRunner(pythonPath, scriptPath, sessionDir string, timeout time.Duration,
 		SessionDir: sessionDir,
 		Timeout:    timeout,
 		ProxyPool:  proxyPool,
+		YMToken:    ymToken,
+		YMType:     ymType,
 	}
+}
+
+// buildEnv 构造 Python 子进程环境变量
+func (r *Runner) buildEnv() []string {
+	return append(os.Environ(),
+		"PYTHONUNBUFFERED=1",
+		"PYTHONIOENCODING=utf-8",
+		"YM_TOKEN="+r.YMToken,
+		"YM_TYPE="+r.YMType,
+	)
 }
 
 // RunCrawl 运行爬虫
@@ -53,10 +67,7 @@ func (r *Runner) RunCrawl(parent context.Context, task model.Task) (model.Spider
 	}
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
-	cmd.Env = append(os.Environ(),
-		"PYTHONUNBUFFERED=1",
-		"PYTHONIOENCODING=utf-8",
-	)
+	cmd.Env = r.buildEnv()
 
 	// 执行 python 脚本
 	out, err := cmd.CombinedOutput()
@@ -97,10 +108,7 @@ func (r *Runner) ValidateCredentials(parent context.Context, studentID, password
 
 	// 执行 python 脚本
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
-	cmd.Env = append(os.Environ(),
-		"PYTHONUNBUFFERED=1",
-		"PYTHONIOENCODING=utf-8",
-	)
+	cmd.Env = r.buildEnv()
 	out, err := cmd.CombinedOutput()
 
 	// 先解析 python 输出；validate 模式下账号错误会返回 exit code 1，但 stdout 仍是有效 JSON
@@ -128,11 +136,7 @@ func (r *Runner) RunCheckin(parent context.Context, task model.Task, checkinScri
 	}
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
-	cmd.Env = append(os.Environ(),
-		"PYTHONUNBUFFERED=1",
-		"PYTHONIOENCODING=utf-8",
-	)
-
+	cmd.Env = r.buildEnv()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return model.SpiderOutput{}, fmt.Errorf("checkin python 执行失败: %w, output=%s", err, string(out))
@@ -149,6 +153,98 @@ func (r *Runner) RunCheckin(parent context.Context, task model.Task, checkinScri
 	}
 
 	return resp, nil
+}
+
+// RunEmptyClassroom 运行空教室查询
+func (r *Runner) RunEmptyClassroom(parent context.Context, task model.Task) (model.SpiderOutput, error) {
+	ctx, cancel := context.WithTimeout(parent, r.Timeout)
+	defer cancel()
+
+	args := []string{
+		r.ScriptPath,
+		"--mode", "empty-classroom",
+		"--student-id", task.StudentID,
+		"--password", task.Password,
+		"--xnm", task.AcademicYear,
+		"--xqm", task.Semester,
+		"--xqj", task.DayOfWeek,
+		"--jcd", task.PeriodsMask,
+		"--zcd", task.WeeksMask,
+		"--xqh-id", task.CampusID,
+		"--lh", task.Building,
+		"--cdlb-id", task.RoomType,
+		"--session-dir", r.SessionDir,
+	}
+
+	if proxy := r.pickProxy(); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
+	cmd.Env = r.buildEnv()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return model.SpiderOutput{}, fmt.Errorf("empty-classroom python 执行失败: %w, output=%s", err, string(out))
+	}
+
+	var resp struct {
+		Success bool                        `json:"success"`
+		Message string                      `json:"message"`
+		Data    model.EmptyClassroomPayload `json:"data"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return model.SpiderOutput{}, fmt.Errorf("解析 empty-classroom 输出失败: %w, raw=%s", err, string(out))
+	}
+
+	if !resp.Success {
+		return model.SpiderOutput{}, fmt.Errorf("%s", resp.Message)
+	}
+
+	return model.SpiderOutput{Success: resp.Success, Message: resp.Message, Data: resp.Data}, nil
+}
+
+// RunGrades 运行成绩查询
+func (r *Runner) RunGrades(parent context.Context, task model.Task) (model.SpiderOutput, error) {
+	ctx, cancel := context.WithTimeout(parent, r.Timeout)
+	defer cancel()
+
+	args := []string{
+		r.ScriptPath,
+		"--mode", "grades",
+		"--student-id", task.StudentID,
+		"--password", task.Password,
+		"--xnm", task.AcademicYear,
+		"--xqm", task.Semester,
+		"--session-dir", r.SessionDir,
+	}
+
+	if proxy := r.pickProxy(); proxy != "" {
+		args = append(args, "--proxy", proxy)
+	}
+
+	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
+	cmd.Env = r.buildEnv()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return model.SpiderOutput{}, fmt.Errorf("grades python 执行失败: %w, output=%s", err, string(out))
+	}
+
+	var resp struct {
+		Success bool                `json:"success"`
+		Message string              `json:"message"`
+		Data    model.GradesPayload `json:"data"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return model.SpiderOutput{}, fmt.Errorf("解析 grades 输出失败: %w, raw=%s", err, string(out))
+	}
+
+	if !resp.Success {
+		return model.SpiderOutput{}, fmt.Errorf("%s", resp.Message)
+	}
+
+	return model.SpiderOutput{Success: resp.Success, Message: resp.Message, Data: resp.Data}, nil
 }
 
 // pickProxy 从代理池中获取代理
