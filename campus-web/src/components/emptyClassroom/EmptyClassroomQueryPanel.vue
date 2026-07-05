@@ -109,20 +109,29 @@
     </div>
 
     <div class="action-row">
-      <button type="button" class="primary-btn" :disabled="submitting || !canSubmit" @click="emit('submit')">
-        {{ submitting ? text.SUBMITTING_BUTTON_TEXT : text.SUBMIT_BUTTON }}
-      </button>
-      <button type="button" class="secondary-btn" :disabled="resultLoading || !canSubmit" @click="emit('fetch-result')">
-        {{ resultLoading ? text.QUERYING_RESULT_BUTTON_TEXT : text.RESULT_QUERY_BUTTON }}
-      </button>
-      <button type="button" class="secondary-btn" @click="emit('reset')">
-        {{ text.RESET_BUTTON }}
-      </button>
+      <div class="action-item">
+        <button type="button" class="primary-btn" :disabled="submitting || !canSubmit" @click="emit('submit')">
+          {{ submitting ? text.SUBMITTING_BUTTON_TEXT : text.SUBMIT_BUTTON }}
+        </button>
+      </div>
+      <div class="action-item">
+        <button type="button" class="secondary-btn" :disabled="resultLoading || !canSubmit" @click="emit('fetch-result')">
+          {{ resultLoading ? text.QUERYING_RESULT_BUTTON_TEXT : text.RESULT_QUERY_BUTTON }}
+        </button>
+      </div>
+      <div class="action-item">
+        <button type="button" class="secondary-btn" @click="emit('reset')">
+          {{ text.RESET_BUTTON }}
+        </button>
+        <InfoTooltip :text="text.ACTION_BUTTON_TIP" />
+      </div>
     </div>
   </section>
 </template>
 
 <script setup>
+import InfoTooltip from '@/components/common/InfoTooltip.vue'
+
 defineProps({
   text: { type: Object, required: true },
   academicYearOptions: { type: Array, required: true },
@@ -312,6 +321,12 @@ const emit = defineEmits([
   flex-wrap: wrap;
 }
 
+.action-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .primary-btn,
 .secondary-btn {
   height: 42px;
@@ -360,6 +375,15 @@ const emit = defineEmits([
 
   .action-row {
     display: grid;
+  }
+
+  .action-item {
+    display: flex;
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    flex: 1;
   }
 }
 </style>

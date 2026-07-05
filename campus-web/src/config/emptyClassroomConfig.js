@@ -1,7 +1,7 @@
 export const EMPTY_CLASSROOM_CONFIG = {
   TEXT: {
     PAGE_TITLE: '空教室查询',
-    PAGE_SUBTITLE: '图形化选择查询条件，提交任务后再查询结果。',
+    PAGE_SUBTITLE: '选择查询条件，提交任务后再查询结果。',
     ACADEMIC_YEAR_LABEL: '学年',
     SEMESTER_LABEL: '学期',
     DAY_LABEL: '星期',
@@ -17,6 +17,7 @@ export const EMPTY_CLASSROOM_CONFIG = {
     QUERYING_RESULT_BUTTON_TEXT: '查询中...',
     RESULT_QUERY_BUTTON: '查询结果',
     RESET_BUTTON: '重置选择',
+    ACTION_BUTTON_TIP: '先提交查询任务，等待教务系统返回结果后，再点击查询结果刷新；重置仅清空当前选择条件。',
     CURRENT_WEEK_BUTTON: '本周',
     WEEK_SELECTION_LABEL: '周次选择',
     PERIOD_SELECTION_LABEL: '节次选择',
@@ -119,7 +120,7 @@ export const EMPTY_CLASSROOM_CONFIG = {
   STATUS_META: {
     RESULT_READY: {
       title: '结果已就绪',
-      description: '后端已命中结果缓存，本次无需重复提交任务。',
+      description: '查询到缓存结果，本次无需重复提交任务。',
       tone: 'success'
     },
     QUERYING: {
@@ -134,7 +135,7 @@ export const EMPTY_CLASSROOM_CONFIG = {
     },
     SUBMITTED: {
       title: '任务已提交',
-      description: '已成功发起空教室查询任务，等待异步回调。',
+      description: '已成功发起空教室查询任务，请等待教务系统返回结果。',
       tone: 'primary'
     },
     FAILED: {

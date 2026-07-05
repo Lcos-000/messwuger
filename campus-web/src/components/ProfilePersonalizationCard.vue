@@ -7,22 +7,7 @@
     <div class="gallery-toggle-main">
       <div class="gallery-title-row">
         <span class="gallery-toggle-title">{{ profileViewConfig.GALLERY_TITLE }}</span>
-        <button
-          type="button"
-          class="help-icon-wrap"
-          :class="{ active: activeTooltipKey === 'gallery-help' }"
-          aria-label="查看提示"
-          @click.stop="toggleTooltip('gallery-help')"
-        >
-          <span class="help-icon" aria-hidden="true">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.9c0 1.6-1.4 2.3-2.2 2.9-.6.4-.9.8-.9 1.5"></path>
-              <circle cx="12" cy="17.2" r="0.8" fill="currentColor" stroke="none"></circle>
-            </svg>
-          </span>
-          <span class="help-tooltip">{{ profileViewConfig.GALLERY_HELP_TEXT }}</span>
-        </button>
+        <InfoTooltip :text="profileViewConfig.GALLERY_HELP_TEXT" />
       </div>
     </div>
     <span class="gallery-toggle-arrow" :class="{ expanded: galleryExpanded }">⌄</span>
@@ -44,22 +29,7 @@
             <div class="setting-head">
               <div class="setting-title-row">
                 <span class="setting-title">{{ setting.title }}</span>
-                <button
-                  type="button"
-                  class="help-icon-wrap"
-                  :class="{ active: activeTooltipKey === `setting-${setting.key}` }"
-                  aria-label="查看提示"
-                  @click.stop="toggleTooltip(`setting-${setting.key}`)"
-                >
-                  <span class="help-icon" aria-hidden="true">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="9"></circle>
-                      <path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.9c0 1.6-1.4 2.3-2.2 2.9-.6.4-.9.8-.9 1.5"></path>
-                      <circle cx="12" cy="17.2" r="0.8" fill="currentColor" stroke="none"></circle>
-                    </svg>
-                  </span>
-                  <span class="help-tooltip">{{ setting.helpText }}</span>
-                </button>
+                <InfoTooltip :text="setting.helpText" />
               </div>
 
               <span v-if="setting.type === 'range'" class="setting-value">
@@ -146,7 +116,8 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
+import InfoTooltip from '@/components/common/InfoTooltip.vue'
 
 const props = defineProps({
   profileViewConfig: {
@@ -180,28 +151,10 @@ const emit = defineEmits([
 ])
 
 const galleryExpanded = ref(false)
-const activeTooltipKey = ref('')
 
 const toggleGalleryExpanded = () => {
-  closeTooltip()
   galleryExpanded.value = !galleryExpanded.value
 }
-
-const toggleTooltip = (key) => {
-  activeTooltipKey.value = activeTooltipKey.value === key ? '' : key
-}
-
-const closeTooltip = () => {
-  activeTooltipKey.value = ''
-}
-
-onMounted(() => {
-  document.addEventListener('click', closeTooltip)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', closeTooltip)
-})
 </script>
 
 <style scoped>
@@ -268,89 +221,6 @@ onUnmounted(() => {
   font-size: 15px;
   font-weight: 700;
   color: #0f172a;
-}
-
-.help-icon-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  z-index: 12;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.help-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.96) 100%);
-  color: #5b6b86;
-  line-height: 1;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.help-icon-wrap:hover .help-icon,
-.help-icon-wrap.active .help-icon {
-  transform: scale(1.08);
-  border-color: rgba(79, 134, 247, 0.45);
-  color: #4f86f7;
-  background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
-  box-shadow: 0 8px 18px rgba(79, 134, 247, 0.16);
-}
-
-.help-tooltip {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 12px);
-  transform: translateY(-4px);
-  width: min(280px, calc(100vw - 48px));
-  min-width: 220px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #fff;
-  font-size: 12px;
-  line-height: 1.5;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.2);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
-  z-index: 40;
-  text-align: left;
-}
-
-.help-tooltip::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  top: -6px;
-  width: 10px;
-  height: 10px;
-  transform: rotate(45deg);
-  background: rgba(15, 23, 42, 0.9);
-}
-
-.help-icon-wrap:hover .help-tooltip,
-.help-icon-wrap.active .help-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-@media (max-width: 520px) {
-  .help-tooltip {
-    width: min(260px, calc(100vw - 40px));
-    min-width: 0;
-  }
 }
 
 .gallery-toggle-arrow {

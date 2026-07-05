@@ -1,9 +1,31 @@
 import { SCHEDULE_CONFIG } from '@/config'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const buildLocalDate = (year, rule) => {
+  return new Date(year, rule.month - 1, rule.day, 0, 0, 0, 0)
+}
+
+const toLocalDateStart = (date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+}
+
+export const getActiveSemesterStartDate = (referenceDate = new Date()) => {
+  const currentDate = toLocalDateStart(referenceDate)
+  const currentYear = currentDate.getFullYear()
+  const { SPRING, AUTUMN } = SCHEDULE_CONFIG.SEMESTER_START_RULES
+  const springStart = buildLocalDate(currentYear, SPRING)
+  const autumnStart = buildLocalDate(currentYear, AUTUMN)
+
+  if (currentDate >= autumnStart) return autumnStart
+  if (currentDate >= springStart) return springStart
+  return buildLocalDate(currentYear - 1, AUTUMN)
+}
+
 export const getCurrentWeek = () => {
-  const semesterStart = new Date(SCHEDULE_CONFIG.SEMESTER_START_DATE)
-  const now = new Date()
-  const diff = Math.floor((now - semesterStart) / (7 * 24 * 60 * 60 * 1000))
+  const now = toLocalDateStart(new Date())
+  const semesterStart = getActiveSemesterStartDate(now)
+  const diff = Math.floor((now - semesterStart) / (7 * DAY_MS))
   return Math.max(1, Math.min(diff + 1, SCHEDULE_CONFIG.MAX_WEEK))
 }
 

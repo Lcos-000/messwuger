@@ -7,6 +7,12 @@ import {
   STORAGE_KEYS
 } from '@/config'
 import {
+  GLOBAL_FONT_FAMILY,
+  loadAndApplyGlobalFontPreference,
+  SYSTEM_FONT_FAMILY,
+  setGlobalFontPreference
+} from '@/utils/globalFont'
+import {
   clampWallpaperMaskValue as clampSharedWallpaperMaskValue,
   loadWallpaperMaskPreference as loadSharedWallpaperMaskPreference,
   resolveAssetUrl,
@@ -111,7 +117,7 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
   const cardOpacityControl = ref(PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT)
   const cardBlurControl = ref(PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT)
   const wallpaperMaskControl = ref(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT)
-  const globalFontEnabled = ref(true)
+  const globalFontEnabled = ref(loadAndApplyGlobalFontPreference())
 
   const styleSaveTimers = {
     opacity: null,
@@ -181,9 +187,7 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
       '--cover-card-max-width': `${PROFILE_VIEW_CONFIG.COVER_CARD_MAX_WIDTH}px`
     }
 
-    style.fontFamily = globalFontEnabled.value
-      ? `'${PROFILE_VIEW_CONFIG.FONT_FACE.family}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif`
-      : "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+    style.fontFamily = globalFontEnabled.value ? GLOBAL_FONT_FAMILY : SYSTEM_FONT_FAMILY
 
     style['--hero-section-padding-top'] = `${PROFILE_VIEW_CONFIG.HERO_SECTION_PADDING_TOP}px`
     style['--hero-section-padding-x'] = `${PROFILE_VIEW_CONFIG.HERO_SECTION_PADDING_X}px`
@@ -324,7 +328,7 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
           saveWallpaperMaskPreference(wallpaperMaskControl.value)
         }
         if (res.data.globalFontEnabled !== null && res.data.globalFontEnabled !== undefined) {
-          globalFontEnabled.value = Number(res.data.globalFontEnabled) === 1
+          globalFontEnabled.value = setGlobalFontPreference(Number(res.data.globalFontEnabled) === 1)
         }
       }
     } catch (error) {
@@ -360,7 +364,7 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
     cardOpacityControl.value = PROFILE_VIEW_CONFIG.CARD_BG_OPACITY_DEFAULT
     cardBlurControl.value = PROFILE_VIEW_CONFIG.CARD_BLUR_DEFAULT
     wallpaperMaskControl.value = PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT
-    globalFontEnabled.value = true
+    globalFontEnabled.value = setGlobalFontPreference(true)
     saveWallpaperPreference('')
     saveCardOpacityPreference(cardOpacityControl.value)
     saveCardBlurPreference(cardBlurControl.value)
@@ -381,7 +385,7 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
       cardOpacityControl.value = previousCardOpacity
       cardBlurControl.value = previousCardBlur
       wallpaperMaskControl.value = previousWallpaperMask
-      globalFontEnabled.value = previousGlobalFontEnabled
+      globalFontEnabled.value = setGlobalFontPreference(previousGlobalFontEnabled)
       saveWallpaperPreference(previousProfileStyle.wallpaper)
       saveCardOpacityPreference(cardOpacityControl.value)
       saveCardBlurPreference(cardBlurControl.value)
@@ -409,8 +413,8 @@ export const useProfileStyle = ({ profileStyle, scrollTop }) => {
       return
     }
 
-    globalFontEnabled.value = Boolean(value)
-    scheduleProfileStyleSave('font')
+    globalFontEnabled.value = setGlobalFontPreference(value)
+    saveProfileStyle()
   }
 
   const markProfileStyleReady = () => {

@@ -112,7 +112,7 @@ const {
   flex-direction: column;
   height: 100%;
   background: #e9eef8;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  font-family: var(--app-font-family);
   min-height: 100vh;
   position: relative;
   width: 100%;

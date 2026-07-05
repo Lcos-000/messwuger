@@ -180,7 +180,7 @@ export const useSchedulePage = () => {
     const left = total > 1 ? `calc(${(100 / total) * index}% + 1px)` : '0'
     return {
       backgroundColor: background,
-      borderLeft: `3px solid ${accent}`,
+      '--course-accent-color': accent,
       position: 'absolute',
       top: '0',
       left,

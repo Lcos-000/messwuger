@@ -55,10 +55,10 @@
   GALLERY_TOGGLE_DURATION: 240,
   GALLERY_MAX_HEIGHT: 720,
   GALLERY_TITLE: '个性化设置',
-  GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置，以及头像、顶部背景和墙纸。你可以直接上传自定义图片，也可以继续使用系统预置图片。',
+  GALLERY_HELP_TEXT: '点击此卡片可展开选择显示设置，以及头像、顶部背景和墙纸。你可以直接上传自定义图片，也可以使用系统预置图片。',
   OPTION_GROUP_HINT: '点击即可切换',
   RESET_PROFILE_TEXT: '重置为极简默认',
-  RESET_PROFILE_CONFIRM: '确认将头像、顶部背景、墙纸重置为空，并恢复当前默认显示参数吗？',
+  RESET_PROFILE_CONFIRM: '确认将头像、顶部背景、墙纸重置为空，并恢复到默认显示参数吗？',
 
   DISPLAY_SETTINGS: [
     {
@@ -85,7 +85,7 @@
       key: 'wallpaperMask',
       type: 'range',
       title: '墙纸蒙版强度',
-      helpText: '向右调大后，墙纸会更清淡、更简洁；调到 0 则保持最清晰的原图。推荐值为 0.5。',
+      helpText: '向右调大后，墙纸会更淡、更简洁；调到 0 则保持原图效果。推荐值为 0.5。想要显示墙纸请务必调小蒙版强度。',
       min: 0,
       max: 1,
       step: 0.01,
@@ -95,7 +95,7 @@
       key: 'globalFontEnabled',
       type: 'toggle',
       title: '全局字体',
-      helpText: '开启后页面将使用自定义全局字体，关闭则使用系统默认字体。'
+      helpText: '开启后页面将使用统一的全局字体，关闭则使用系统默认字体。'
     }
   ],
 

@@ -35,14 +35,15 @@ const emit = defineEmits(['prev', 'next', 'this-week', 'full-term', 'refresh'])
 .top-bar {
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  height: 52px;
-  background: rgba(255, 255, 255, 0.78);
-  border-bottom: 1px solid #e8edf5;
-  box-shadow: 0 1px 8px rgba(79, 134, 247, 0.08);
+  height: 54px;
+  margin: 14px 16px 0;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid rgba(214, 222, 235, 0.36);
+  border-radius: 18px;
+  box-shadow: none;
   flex-shrink: 0;
   gap: 8px;
-  backdrop-filter: blur(14px) saturate(1.05);
 }
 
 .top-bar__left,
@@ -61,52 +62,66 @@ const emit = defineEmits(['prev', 'next', 'this-week', 'full-term', 'refresh'])
 .week-label {
   font-size: 15px;
   font-weight: 700;
-  color: #1a2540;
+  color: #223047;
   letter-spacing: 0.3px;
 }
 
 .icon-btn {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4f86f7;
-  background: #eef3ff;
-  transition: background 0.15s;
+  color: #54719f;
+  background: rgba(84, 113, 159, 0.1);
+  border: 1px solid rgba(84, 113, 159, 0.08);
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.icon-btn:hover {
+  background: rgba(84, 113, 159, 0.14);
+  border-color: rgba(84, 113, 159, 0.14);
 }
 
 .icon-btn:active {
-  background: #d6e4ff;
+  transform: scale(0.96);
 }
 
 .text-chip {
   height: 28px;
-  padding: 0 10px;
-  border-radius: 14px;
+  padding: 0 11px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 500;
-  color: #4f86f7;
-  background: #eef3ff;
-  transition: background 0.15s;
+  font-weight: 650;
+  color: #54719f;
+  background: rgba(84, 113, 159, 0.1);
+  border: 1px solid rgba(84, 113, 159, 0.08);
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
+.text-chip:hover {
+  background: rgba(84, 113, 159, 0.14);
+  border-color: rgba(84, 113, 159, 0.14);
+}
+
 .text-chip:active {
-  background: #d6e4ff;
+  transform: scale(0.98);
 }
 
 .refresh-chip {
-  color: #4f86f7;
+  color: #54719f;
 }
 
 @media screen and (max-width: 360px) {
   .top-bar {
     height: 48px;
+    margin: 10px 10px 0;
     padding: 0 8px;
+    border-radius: 16px;
   }
 
   .week-label {

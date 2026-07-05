@@ -12,10 +12,12 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
 import { ROUTE_NAMES, ROUTE_PATHS } from '@/config'
+import { fetchAndApplyGlobalFontPreference, loadAndApplyGlobalFontPreference } from '@/utils/globalFont'
+import { hasUserSession } from '@/utils/auth'
 
 const route = useRoute()
 
@@ -28,6 +30,29 @@ const isAdminPage = computed(() => {
 })
 
 const transitionName = ref('slide-left')
+let globalFontRequesting = false
+let globalFontSyncedFromServer = false
+
+const syncGlobalFontPreference = async () => {
+  loadAndApplyGlobalFontPreference()
+  if (!hasUserSession()) {
+    globalFontSyncedFromServer = false
+    return
+  }
+  if (isLoginPage.value || isAdminPage.value || globalFontRequesting || globalFontSyncedFromServer) return
+
+  globalFontRequesting = true
+  try {
+    await fetchAndApplyGlobalFontPreference()
+    globalFontSyncedFromServer = true
+  } catch (error) {
+    console.error('同步全局字体偏好失败', error)
+  } finally {
+    globalFontRequesting = false
+  }
+}
+
+onMounted(syncGlobalFontPreference)
 
 watch(
   () => route.meta.index,
@@ -37,6 +62,13 @@ watch(
       return
     }
     transitionName.value = toIndex > fromIndex ? 'slide-left' : 'slide-right'
+  }
+)
+
+watch(
+  () => route.fullPath,
+  () => {
+    syncGlobalFontPreference()
   }
 )
 </script>

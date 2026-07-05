@@ -117,55 +117,59 @@ const emit = defineEmits(['open-detail', 'open-stack'])
   display: flex;
   flex-direction: column;
   flex: 1;
+  margin: 12px 16px 16px;
   overflow: hidden;
   position: relative;
   z-index: 1;
+  border: 1px solid rgba(214, 222, 235, 0.36);
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .grid-header {
   display: flex;
-  background: rgba(255, 255, 255, 0.72);
-  border-bottom: 1px solid #e8edf5;
+  background: transparent;
+  border-bottom: 1px solid rgba(218, 226, 239, 0.52);
   flex-shrink: 0;
-  backdrop-filter: blur(12px) saturate(1.04);
 }
 
 .th-corner {
-  width: 36px;
+  width: 64px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
-  color: #b0bdd4;
-  border-right: 1px solid #e8edf5;
+  color: #9aa8bd;
+  border-right: 1px solid rgba(218, 226, 239, 0.52);
 }
 
 .th-day {
   flex: 1;
-  padding: 8px 0;
+  padding: 10px 0 9px;
   text-align: center;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #8a9bc0;
-  letter-spacing: 0.5px;
+  color: #6f7f96;
+  letter-spacing: 0.4px;
   position: relative;
   transition: color 0.2s;
 }
 
 .th-day.today {
-  color: #4f86f7;
+  color: #375f98;
 }
 
 .th-day.today::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: 20%;
-  right: 20%;
-  height: 2px;
-  background: #4f86f7;
-  border-radius: 2px 2px 0 0;
+  left: 34%;
+  right: 34%;
+  height: 3px;
+  background: #54719f;
+  border-radius: 999px 999px 0 0;
 }
 
 .day-zh::before {
@@ -177,15 +181,14 @@ const emit = defineEmits(['open-detail', 'open-stack'])
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  background: rgba(255, 255, 255, 0.18);
+  background: transparent;
 }
 
 .period-col {
-  width: 36px;
+  width: 64px;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.72);
-  border-right: 1px solid #e8edf5;
-  backdrop-filter: blur(12px) saturate(1.04);
+  background: transparent;
+  border-right: 1px solid rgba(218, 226, 239, 0.52);
 }
 
 .period-cell {
@@ -194,21 +197,22 @@ const emit = defineEmits(['open-detail', 'open-stack'])
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #f0f4fb;
+  border-bottom: 1px solid rgba(226, 232, 242, 0.48);
 }
 
 .period-num {
   font-size: 12px;
   font-weight: 700;
-  color: #4f86f7;
+  color: #4c6488;
   line-height: 1;
 }
 
 .period-time {
-  font-size: 9px;
-  color: #b0bdd4;
+  font-size: 8.5px;
+  color: #a4afc1;
   margin-top: 2px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .courses-area {
@@ -228,21 +232,21 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 }
 
 .grid-cell {
-  border-right: 1px solid #e8edf5;
-  border-bottom: 1px solid #e8edf5;
+  border-right: 1px solid rgba(226, 232, 242, 0.48);
+  border-bottom: 1px solid rgba(226, 232, 242, 0.48);
   transition: background 0.2s;
 }
 
 .grid-cell.alt-row {
-  background: rgba(240, 244, 251, 0.5);
+  background: transparent;
 }
 
 .grid-cell.today-col {
-  background: rgba(79, 134, 247, 0.04);
+  background: rgba(84, 113, 159, 0.035);
 }
 
 .grid-cell.alt-row.today-col {
-  background: rgba(79, 134, 247, 0.07);
+  background: rgba(84, 113, 159, 0.035);
 }
 
 .empty-overlay {
@@ -253,39 +257,41 @@ const emit = defineEmits(['open-detail', 'open-stack'])
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: #b0bdd4;
+  color: #a4afc1;
   font-size: 13px;
   pointer-events: none;
   z-index: 2;
 }
 
 .course-slot {
-  padding: 1px;
+  padding: 3px;
   position: absolute;
   display: flex;
   z-index: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .course-card {
-  border-radius: 8px;
+  border-radius: 9px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: row;
-  transition: box-shadow 0.18s, transform 0.15s;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(100, 116, 139, 0.13);
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  box-shadow: 0 4px 10px rgba(30, 47, 78, 0.045);
 }
 
 .course-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: rgba(84, 113, 159, 0.24);
+  box-shadow: 0 10px 22px rgba(30, 47, 78, 0.1);
   transform: translateY(-1px);
   z-index: 3;
 }
 
 .course-card:active {
-  transform: scale(0.97);
+  transform: scale(0.985);
 }
 
 .course-card--stack {
@@ -299,7 +305,7 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 }
 
 .course-card--stack .card-body {
-  padding: 3px 4px 3px 4px;
+  padding: 4px 5px;
   gap: 0;
   overflow-y: auto;
 }
@@ -310,7 +316,7 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 }
 
 .stack-sep {
-  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  border-top: 1px dashed rgba(100, 116, 139, 0.16);
   margin-top: 2px;
 }
 
@@ -324,17 +330,17 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 }
 
 .card-accent {
-  width: 3px;
+  width: 4px;
   flex-shrink: 0;
-  border-radius: 8px 0 0 8px;
+  border-radius: 9px 0 0 9px;
 }
 
 .card-body {
   flex: 1;
-  padding: 5px 5px 5px 4px;
+  padding: 6px 7px 6px 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   overflow-y: auto;
   overflow-x: hidden;
   min-width: 0;
@@ -342,8 +348,8 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 
 .card-name {
   font-size: 10px;
-  font-weight: 700;
-  color: #1a2540;
+  font-weight: 650;
+  color: #223047;
   line-height: 1.25;
   word-break: break-word;
 }
@@ -351,23 +357,23 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 .card-meta {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   font-size: 9.5px;
-  color: #6b7a99;
+  color: #64748b;
   line-height: 1.2;
   word-break: break-word;
 }
 
 .card-meta svg {
   flex-shrink: 0;
-  opacity: 0.65;
+  opacity: 0.58;
 }
 
 .weeks-badge {
-  background: rgba(79, 134, 247, 0.12);
-  color: #4f86f7;
-  border-radius: 4px;
-  padding: 0 3px;
+  background: rgba(84, 113, 159, 0.1);
+  color: #54719f;
+  border-radius: 999px;
+  padding: 0 4px;
   font-size: 8.5px;
   margin-left: 2px;
   flex-shrink: 0;
@@ -393,8 +399,8 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 }
 
 .grid-body::-webkit-scrollbar-thumb {
-  background: #d0d9ee;
-  border-radius: 2px;
+  background: #cfd8e8;
+  border-radius: 999px;
 }
 
 .grid-body::-webkit-scrollbar-track {
@@ -403,7 +409,23 @@ const emit = defineEmits(['open-detail', 'open-stack'])
 
 @media screen and (min-width: 768px) {
   .card-name {
-    font-size: 11px;
+    font-size: 11.2px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .schedule-wrap {
+    margin: 10px 10px 12px;
+    border-radius: 16px;
+  }
+
+  .th-corner,
+  .period-col {
+    width: 56px;
+  }
+
+  .course-slot {
+    padding: 2px;
   }
 }
 
@@ -418,7 +440,7 @@ const emit = defineEmits(['open-detail', 'open-stack'])
   }
 
   .period-time {
-    font-size: 8px;
+    font-size: 7.5px;
   }
 
   .card-name {
