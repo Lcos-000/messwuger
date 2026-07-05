@@ -1,7 +1,7 @@
 export const EMPTY_CLASSROOM_CONFIG = {
   TEXT: {
     PAGE_TITLE: '空教室查询',
-    PAGE_SUBTITLE: '图形化选择查询条件，先完成参数组织与任务提交',
+    PAGE_SUBTITLE: '图形化选择查询条件，提交任务后再查询结果。',
     ACADEMIC_YEAR_LABEL: '学年',
     SEMESTER_LABEL: '学期',
     DAY_LABEL: '星期',
@@ -13,6 +13,9 @@ export const EMPTY_CLASSROOM_CONFIG = {
     SUMMARY_LABEL: '当前条件',
     STATUS_LABEL: '任务状态',
     SUBMIT_BUTTON: '提交空教室任务',
+    SUBMITTING_BUTTON_TEXT: '提交中...',
+    QUERYING_RESULT_BUTTON_TEXT: '查询中...',
+    RESULT_QUERY_BUTTON: '查询结果',
     RESET_BUTTON: '重置选择',
     CURRENT_WEEK_BUTTON: '本周',
     WEEK_SELECTION_LABEL: '周次选择',
@@ -21,9 +24,9 @@ export const EMPTY_CLASSROOM_CONFIG = {
     EMPTY_RESULT_TITLE: '暂无结果',
     PENDING_RESULT_TEXT: '任务已提交或正在执行，请稍后点击查询结果刷新。',
     EMPTY_STATUS: '尚未提交查询任务',
-    EMPTY_STATUS_DESC: '当前页面先对齐参数选择与任务提交流程，结果展示可在后端补齐结果接口后接入。'
+    EMPTY_STATUS_DESC: '先完成条件选择，再提交任务并刷新查看结果。'
   },
-  YEAR_RANGE_BEFORE: 2,
+  YEAR_RANGE_BEFORE: 0,
   YEAR_RANGE_AFTER: 1,
   DEFAULT_SEMESTER_INDEX: 2,
   MAX_WEEK: 20,
@@ -100,7 +103,7 @@ export const EMPTY_CLASSROOM_CONFIG = {
       { label: '无楼号', value: 'wlh' }
     ],
     '3': [
-      { label: '第零教楼', value: 'RC00' },
+      { label: '第零教学楼', value: 'RC00' },
       { label: '第一教学楼', value: 'RC01' },
       { label: '第二教学楼', value: 'RC02' },
       { label: '第三教学楼', value: 'RC03' },
@@ -116,7 +119,7 @@ export const EMPTY_CLASSROOM_CONFIG = {
   STATUS_META: {
     RESULT_READY: {
       title: '结果已就绪',
-      description: '后端已经命中结果缓存，本次无需重复提交任务。',
+      description: '后端已命中结果缓存，本次无需重复提交任务。',
       tone: 'success'
     },
     QUERYING: {
@@ -151,12 +154,12 @@ export const EMPTY_CLASSROOM_CONFIG = {
     { label: '实际容量', key: 'realCapacity', className: 'col-real-capacity' },
     { label: '备注', key: 'remark', className: 'col-remark' }
   ],
-  RESULT_EMPTY_TEXT: '当前条件下暂无空教室结果',
-  QUERY_RESULT_BUTTON: '查询结果',
+  RESULT_EMPTY_TEXT: '当前条件下暂无空教室结果。',
   UI: {
     SHELL_MAX_WIDTH: 1120,
     PANEL_RADIUS: 18,
     CONTROL_RADIUS: 12,
+    TABLE_MIN_WIDTH: 980,
     PANEL_BG: 'rgba(255, 255, 255, 0.82)',
     PANEL_BORDER: 'rgba(225, 232, 244, 0.9)',
     PANEL_SHADOW: '0 10px 30px rgba(20, 32, 51, 0.06)',
@@ -172,6 +175,9 @@ export const EMPTY_CLASSROOM_CONFIG = {
     CHIP_BG: 'rgba(247, 250, 255, 0.94)',
     CHIP_BORDER: 'rgba(214, 222, 237, 1)',
     PREVIEW_BG: 'rgba(246, 249, 255, 0.88)',
-    PREVIEW_BORDER: 'rgba(223, 232, 247, 0.92)'
+    PREVIEW_BORDER: 'rgba(223, 232, 247, 0.92)',
+    TABLE_HEAD_BG: 'rgba(244, 247, 253, 0.96)',
+    TABLE_ROW_BG: 'rgba(255, 255, 255, 0.75)',
+    TABLE_TEXT: '#22324b'
   }
 }

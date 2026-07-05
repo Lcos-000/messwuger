@@ -50,6 +50,7 @@ export const formatSequentialLabel = (values, unit) => {
   if (!values.length) {
     return '未选择'
   }
+
   const sorted = [...values].sort((left, right) => left - right)
   const ranges = []
   let start = sorted[0]

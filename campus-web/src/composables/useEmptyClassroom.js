@@ -1,19 +1,10 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { getEmptyClassroomResult, getProfileStyle, submitEmptyClassroomTask } from '@/api/index'
+import { getEmptyClassroomResult, submitEmptyClassroomTask } from '@/api'
 import {
   EMPTY_CLASSROOM_CONFIG,
-  HTTP_STATUS,
-  PROFILE_VIEW_CONFIG,
   STORAGE_KEYS
 } from '@/config'
-import {
-  clampWallpaperMaskValue,
-  loadWallpaperMaskPreference,
-  loadWallpaperPreference,
-  resolveAssetUrl,
-  saveWallpaperMaskPreference,
-  saveWallpaperPreference
-} from '@/utils/profileAssets'
+import { useSharedWallpaper } from '@/composables/useSharedWallpaper'
 import {
   buildAcademicYearOptions,
   encodeMask,
@@ -38,6 +29,15 @@ const periodOptions = getPeriodOptions()
 const tableColumns = EMPTY_CLASSROOM_CONFIG.TABLE_COLUMNS
 const academicYearOptions = buildAcademicYearOptions()
 
+const STATUS_ICONS = {
+  success: '✓',
+  primary: '↗',
+  info: '…',
+  warn: '!',
+  danger: '×',
+  default: '·'
+}
+
 const buildDefaultFilters = () => ({
   academicYear: academicYearOptions[0]?.value || String(new Date().getFullYear()),
   semester: semesterOptions[EMPTY_CLASSROOM_CONFIG.DEFAULT_SEMESTER_INDEX]?.value || '12',
@@ -59,6 +59,7 @@ const loadSavedFilters = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.EMPTY_CLASSROOM_FILTERS)
     if (!raw) return fallback
+
     const parsed = JSON.parse(raw)
     const campusId = getValidOptionValue(campusOptions, parsed.campusId, fallback.campusId)
     const defaultBuilding = getDefaultBuildingValue(campusId)
@@ -69,8 +70,12 @@ const loadSavedFilters = () => {
       campusId,
       building: resolveBuildingValue(campusId, parsed.building, defaultBuilding),
       roomType: getValidOptionValue(roomTypeOptions, parsed.roomType, fallback.roomType),
-      selectedWeeks: Array.isArray(parsed.selectedWeeks) && parsed.selectedWeeks.length ? parsed.selectedWeeks.map(Number) : fallback.selectedWeeks,
-      selectedPeriods: Array.isArray(parsed.selectedPeriods) ? parsed.selectedPeriods.map(Number) : fallback.selectedPeriods
+      selectedWeeks: Array.isArray(parsed.selectedWeeks) && parsed.selectedWeeks.length
+        ? parsed.selectedWeeks.map(Number)
+        : fallback.selectedWeeks,
+      selectedPeriods: Array.isArray(parsed.selectedPeriods)
+        ? parsed.selectedPeriods.map(Number)
+        : fallback.selectedPeriods
     }
   } catch {
     return fallback
@@ -104,17 +109,23 @@ export const useEmptyClassroom = () => {
   const resultLoading = ref(false)
   const taskStatus = ref('')
   const resultRows = ref([])
-  const wallpaper = ref('')
-  const wallpaperMask = ref(PROFILE_VIEW_CONFIG.WALLPAPER_MASK_DEFAULT)
+  const {
+    wallpaperRootStyle,
+    wallpaperBackdropStyle,
+    fetchWallpaper
+  } = useSharedWallpaper()
 
   const buildingOptions = computed(() => getBuildingOptions(filters.campusId))
-  const canSubmit = computed(() => selectedWeeks.value.length > 0 && selectedPeriods.value.length > 0 && Boolean(filters.dayOfWeek))
+  const canSubmit = computed(() => {
+    return selectedWeeks.value.length > 0 && selectedPeriods.value.length > 0 && Boolean(filters.dayOfWeek)
+  })
 
   const pageStyle = computed(() => ({
-    '--page-wallpaper-mask-alpha': wallpaperMask.value,
+    ...wallpaperRootStyle.value,
     '--empty-shell-max-width': `${ui.SHELL_MAX_WIDTH}px`,
     '--empty-panel-radius': `${ui.PANEL_RADIUS}px`,
     '--empty-control-radius': `${ui.CONTROL_RADIUS}px`,
+    '--empty-table-min-width': `${ui.TABLE_MIN_WIDTH}px`,
     '--empty-panel-bg': ui.PANEL_BG,
     '--empty-panel-border': ui.PANEL_BORDER,
     '--empty-panel-shadow': ui.PANEL_SHADOW,
@@ -130,25 +141,33 @@ export const useEmptyClassroom = () => {
     '--empty-chip-bg': ui.CHIP_BG,
     '--empty-chip-border': ui.CHIP_BORDER,
     '--empty-preview-bg': ui.PREVIEW_BG,
-    '--empty-preview-border': ui.PREVIEW_BORDER
+    '--empty-preview-border': ui.PREVIEW_BORDER,
+    '--empty-table-head-bg': ui.TABLE_HEAD_BG,
+    '--empty-table-row-bg': ui.TABLE_ROW_BG,
+    '--empty-table-text': ui.TABLE_TEXT
   }))
 
   const backdropStyle = computed(() => ({
-    backgroundImage: wallpaper.value
-      ? `linear-gradient(180deg, rgba(244, 247, 252, ${wallpaperMask.value}) 0%, rgba(236, 241, 249, ${wallpaperMask.value}) 100%), url(${wallpaper.value})`
-      : 'linear-gradient(180deg, #f6f8fc 0%, #edf2f9 100%)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
+    ...wallpaperBackdropStyle.value
   }))
 
   const selectedWeekLabel = computed(() => formatSequentialLabel(selectedWeeks.value, '周'))
   const selectedPeriodLabel = computed(() => formatSequentialLabel(selectedPeriods.value, '节'))
-  const selectedCampusLabel = computed(() => campusOptions.find(option => option.value === filters.campusId)?.label || '未选择')
-  const selectedBuildingLabel = computed(() => buildingOptions.value.find(option => option.value === filters.building)?.label || '未选择')
-  const selectedSemesterLabel = computed(() => semesterOptions.find(option => option.value === filters.semester)?.description || '')
-  const selectedAcademicYearLabel = computed(() => academicYearOptions.find(option => option.value === filters.academicYear)?.label || filters.academicYear)
-  const selectedDayLabel = computed(() => dayOptions.find(option => option.value === filters.dayOfWeek)?.label || '未选择')
+  const selectedCampusLabel = computed(() => {
+    return campusOptions.find(option => option.value === filters.campusId)?.label || '未选择'
+  })
+  const selectedBuildingLabel = computed(() => {
+    return buildingOptions.value.find(option => option.value === filters.building)?.label || '未选择'
+  })
+  const selectedSemesterLabel = computed(() => {
+    return semesterOptions.find(option => option.value === filters.semester)?.description || ''
+  })
+  const selectedAcademicYearLabel = computed(() => {
+    return academicYearOptions.find(option => option.value === filters.academicYear)?.label || filters.academicYear
+  })
+  const selectedDayLabel = computed(() => {
+    return dayOptions.find(option => option.value === filters.dayOfWeek)?.label || '未选择'
+  })
 
   const summaryText = computed(() => {
     return `${selectedAcademicYearLabel.value} · 学期 ${filters.semester}${selectedSemesterLabel.value ? `（${selectedSemesterLabel.value}）` : ''} · ${selectedDayLabel.value} · ${selectedCampusLabel.value} / ${selectedBuildingLabel.value}`
@@ -170,22 +189,7 @@ export const useEmptyClassroom = () => {
   })
 
   const statusToneClass = computed(() => `status-panel--${statusMeta.value.tone}`)
-  const statusIcon = computed(() => {
-    switch (statusMeta.value.tone) {
-      case 'success':
-        return '✓'
-      case 'primary':
-        return '↗'
-      case 'info':
-        return '…'
-      case 'warn':
-        return '!'
-      case 'danger':
-        return '×'
-      default:
-        return '·'
-    }
-  })
+  const statusIcon = computed(() => STATUS_ICONS[statusMeta.value.tone] || STATUS_ICONS.default)
 
   const emptyResultText = computed(() => {
     if (taskStatus.value === 'QUERYING' || taskStatus.value === 'SUBMITTED') {
@@ -203,24 +207,6 @@ export const useEmptyClassroom = () => {
         selectedPeriods: selectedPeriods.value
       })
     )
-  }
-
-  const loadWallpaper = async () => {
-    wallpaper.value = loadWallpaperPreference(STORAGE_KEYS)
-    wallpaperMask.value = loadWallpaperMaskPreference(STORAGE_KEYS, PROFILE_VIEW_CONFIG)
-    try {
-      const res = await getProfileStyle()
-      if (res.code === HTTP_STATUS.SUCCESS && res.data) {
-        wallpaper.value = resolveAssetUrl(res.data.wallpaper)
-        saveWallpaperPreference(STORAGE_KEYS, wallpaper.value)
-        if (res.data.wallpaperMask !== null && res.data.wallpaperMask !== undefined) {
-          wallpaperMask.value = clampWallpaperMaskValue(res.data.wallpaperMask, PROFILE_VIEW_CONFIG)
-          saveWallpaperMaskPreference(STORAGE_KEYS, wallpaperMask.value, PROFILE_VIEW_CONFIG)
-        }
-      }
-    } catch (error) {
-      console.error('获取空教室页墙纸失败:', error)
-    }
   }
 
   const submitTask = async () => {
@@ -296,13 +282,9 @@ export const useEmptyClassroom = () => {
     return value
   }
 
-  const buildRowKey = (item) => [
-    item.building,
-    item.roomCode,
-    item.roomName,
-    item.campus,
-    item.floor
-  ].join('-')
+  const buildRowKey = (item) => {
+    return [item.building, item.roomCode, item.roomName, item.campus, item.floor].join('-')
+  }
 
   watch(
     () => filters.campusId,
@@ -329,7 +311,7 @@ export const useEmptyClassroom = () => {
   )
 
   onMounted(() => {
-    loadWallpaper()
+    fetchWallpaper()
   })
 
   return {
@@ -359,7 +341,6 @@ export const useEmptyClassroom = () => {
     statusToneClass,
     statusIcon,
     emptyResultText,
-    queryResultButtonText: EMPTY_CLASSROOM_CONFIG.QUERY_RESULT_BUTTON,
     submitTask,
     fetchResult,
     resetFilters,

@@ -1,18 +1,20 @@
 export const GRADES_CONFIG = {
   TEXT: {
     PAGE_TITLE: '成绩查询',
-    PAGE_SUBTITLE: '选择学年与学期后查询，必要时可重新触发拉取',
+    PAGE_SUBTITLE: '选择学年与学期后查询成绩，必要时可重新提交异步任务。',
     ACADEMIC_YEAR_LABEL: '学年',
     SEMESTER_LABEL: '学期',
     VIEW_LABEL: '视图',
     SORT_LABEL: '排序',
     CURRENT_FILTER_LABEL: '当前筛选',
     RECORD_COUNT_LABEL: '记录数',
-    LOADING: '正在加载成绩...',
+    LOADING: '正在加载成绩数据...',
     EMPTY_TITLE: '暂无成绩',
-    EMPTY_DESCRIPTION: '当前筛选下暂无成绩记录',
+    EMPTY_DESCRIPTION: '当前筛选条件下暂无成绩记录。',
     SCORE_LABEL: '成绩',
-    COURSE_CODE_EMPTY: '暂无课程代码'
+    COURSE_CODE_EMPTY: '暂无课程代码',
+    QUERYING_BUTTON_TEXT: '查询中...',
+    SUBMITTING_BUTTON_TEXT: '提交中...'
   },
   VIEW_MODE: {
     CARD: 'card',
@@ -83,8 +85,8 @@ export const GRADES_CONFIG = {
   },
   YEAR_RANGE_BEFORE: 2,
   YEAR_RANGE_AFTER: 1,
-  EMPTY_TEXT: '当前筛选下暂无成绩记录',
-  SUBMITTING_TEXT: '已提交成绩查询任务，请稍后刷新查看结果',
+  EMPTY_TEXT: '当前筛选条件下暂无成绩记录。',
+  SUBMITTING_TEXT: '已提交成绩查询任务，请稍后刷新查看结果。',
   QUERY_BUTTON_TEXT: '查询成绩',
   SUBMIT_BUTTON_TEXT: '获取最新成绩'
 }
