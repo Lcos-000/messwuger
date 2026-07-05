@@ -112,6 +112,9 @@ type EmptyClassroomPayload struct {
 	DayOfWeek    string          `json:"dayOfWeek"`
 	PeriodsMask  string          `json:"periodsMask"`
 	WeeksMask    string          `json:"weeksMask"`
+	CampusID     string          `json:"campusId"`
+	Building     string          `json:"building"`
+	RoomType     string          `json:"roomType"`
 	Classrooms   []ClassroomItem `json:"classrooms"`
 }
 
