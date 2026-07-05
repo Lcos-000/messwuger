@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="schedule-root" :style="scheduleRootStyle">
     <div class="schedule-wallpaper" :style="scheduleWallpaperStyle"></div>
     <div class="schedule-shell">
@@ -351,11 +351,9 @@ const checkSyncStatus = async () => {
     const res = await getUserStatus()
     if (res.code === HTTP_STATUS.SUCCESS && res.data) {
       if (res.data.syncStatus === SYNC_STATUS.SUCCESS) {
-        // 同步成功，停止轮询并刷新课表
         stopStatusPolling()
         fetchSchedule()
       } else if (res.data.syncStatus === SYNC_STATUS.FAILED) {
-        // 同步失败
         stopStatusPolling()
         showToast(APP_CONFIG.SCHEDULE_SYNC_FAILED_TIP)
       }
@@ -376,9 +374,9 @@ const fetchSchedule = async () => {
   try {
     const res = await getSchedule()
     const scheduleJson = res.data?.scheduleJson
-    if (!scheduleJson || SCHEDULE_CONFIG.EMPTY_SCHEDULE_VALUES.includes(scheduleJson)) { 
+    if (!scheduleJson || SCHEDULE_CONFIG.EMPTY_SCHEDULE_VALUES.includes(scheduleJson)) {
       startStatusPolling()
-      return 
+      return
     }
     try {
       const parsed = JSON.parse(scheduleJson)
@@ -494,7 +492,6 @@ function getCourseColors(name) {
   return PALETTE[Math.abs(hash) % PALETTE.length]
 }
 
-// 每节课格子高度 px
 const ROW_H = 58
 
 const getSlotStyle = (group) => {
@@ -539,9 +536,6 @@ const closeStackDetail = () => {
 </script>
 
 <style scoped>
-/* ============================================================
-   Layout
-   ============================================================ */
 .schedule-root {
   display: flex;
   flex-direction: column;
@@ -582,9 +576,6 @@ const closeStackDetail = () => {
   );
 }
 
-/* ============================================================
-   Top Bar
-   ============================================================ */
 .top-bar {
   display: flex;
   align-items: center;
@@ -641,9 +632,6 @@ const closeStackDetail = () => {
 .text-chip:active { background: #d6e4ff; }
 .refresh-chip { color: #4f86f7; }
 
-/* ============================================================
-   State Screens
-   ============================================================ */
 .state-screen {
   flex: 1;
   display: flex;
@@ -688,9 +676,6 @@ const closeStackDetail = () => {
 }
 .pill-btn:active { transform: scale(.96); box-shadow: 0 2px 8px rgba(79,134,247,.25); }
 
-/* ============================================================
-   Schedule Grid
-   ============================================================ */
 .schedule-wrap {
   display: flex;
   flex-direction: column;
@@ -749,7 +734,6 @@ const closeStackDetail = () => {
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* 节次列 */
 .period-col {
   width: 36px;
   flex-shrink: 0;
@@ -778,7 +762,6 @@ const closeStackDetail = () => {
   line-height: 1;
 }
 
-/* 课程主区域 */
 .courses-area {
   flex: 1;
   position: relative;
@@ -795,7 +778,6 @@ const closeStackDetail = () => {
   grid-template-rows: repeat(14, 58px);
 }
 
-/* 背景格线 */
 .grid-cell {
   border-right: 1px solid #e8edf5;
   border-bottom: 1px solid #e8edf5;
@@ -805,7 +787,6 @@ const closeStackDetail = () => {
 .grid-cell.today-col { background: rgba(79,134,247,.04); }
 .grid-cell.alt-row.today-col { background: rgba(79,134,247,.07); }
 
-/* 空状态 */
 .empty-overlay {
   position: absolute;
   inset: 0;
@@ -820,9 +801,6 @@ const closeStackDetail = () => {
   z-index: 2;
 }
 
-/* ============================================================
-   Course Slot & Card
-   ============================================================ */
 .course-slot {
   padding: 1px;
   position: absolute;
@@ -928,9 +906,6 @@ const closeStackDetail = () => {
   flex-shrink: 0;
 }
 
-/* ============================================================
-   Detail Modal
-   ============================================================ */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1042,9 +1017,6 @@ const closeStackDetail = () => {
   text-overflow: ellipsis;
 }
 
-/* ============================================================
-   Modal Transition
-   ============================================================ */
 .modal-fade-enter-active, .modal-fade-leave-active {
   transition: opacity .25s;
 }
@@ -1056,16 +1028,10 @@ const closeStackDetail = () => {
 .modal-fade-enter-from .modal-card { transform: translateY(100%); }
 .modal-fade-leave-to .modal-card { transform: translateY(100%); }
 
-/* ============================================================
-   Scrollbar
-   ============================================================ */
 .grid-body::-webkit-scrollbar { width: 4px; }
 .grid-body::-webkit-scrollbar-thumb { background: #d0d9ee; border-radius: 2px; }
 .grid-body::-webkit-scrollbar-track { background: transparent; }
 
-/* ============================================================
-   Week switch transition
-   ============================================================ */
 .week-switch-enter-active,
 .week-switch-leave-active {
   transition: opacity 0.22s cubic-bezier(0.25, 0.1, 0.25, 1),
@@ -1080,9 +1046,6 @@ const closeStackDetail = () => {
   transform: scale(1.015);
 }
 
-/* ============================================================
-   Mobile tweaks
-   ============================================================ */
 @media screen and (max-width: 360px) {
   .top-bar { height: 48px; padding: 0 8px; }
   .week-label { font-size: 14px; }
@@ -1097,5 +1060,3 @@ const closeStackDetail = () => {
   .card-meta { font-size: 8.5px; }
 }
 </style>
-
-

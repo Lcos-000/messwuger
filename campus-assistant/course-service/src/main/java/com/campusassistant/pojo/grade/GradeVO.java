@@ -1,4 +1,4 @@
-package com.campusassistant.pojo;
+package com.campusassistant.pojo.grade;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

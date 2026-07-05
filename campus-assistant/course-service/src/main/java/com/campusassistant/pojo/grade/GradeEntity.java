@@ -1,4 +1,4 @@
-package com.campusassistant.pojo;
+package com.campusassistant.pojo.grade;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
