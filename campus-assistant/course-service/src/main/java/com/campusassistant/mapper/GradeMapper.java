@@ -1,7 +1,7 @@
 package com.campusassistant.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.campusassistant.pojo.GradeEntity;
+import com.campusassistant.pojo.grade.GradeEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

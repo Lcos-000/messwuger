@@ -23,7 +23,9 @@ export const API_PATHS = {
     DELETE: '/user/delete',
     AUTO_PUNCH: '/user/auto-punch',
     GRADES_TASK: '/user/grades/task',
-    GRADES: '/user/grades'
+    GRADES: '/user/grades',
+    EMPTY_CLASSROOM_TASK: '/user/empty-classroom/task'
+    ,EMPTY_CLASSROOM_RESULT: '/user/empty-classroom/result'
   },
   PERSONALIZATION: {
     GET_PROFILE: '/personalization/get-profile',

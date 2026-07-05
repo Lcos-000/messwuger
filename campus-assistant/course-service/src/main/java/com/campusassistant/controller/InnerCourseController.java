@@ -1,8 +1,8 @@
 // 路径：controller/InnerCourseController.java (对内部微服务暴露)
 package com.campusassistant.controller;
 
-import com.campusassistant.pojo.GradeDTO;
-import com.campusassistant.pojo.GradeVO;
+import com.campusassistant.pojo.grade.dto.GradeDTO;
+import com.campusassistant.pojo.grade.GradeVO;
 import com.campusassistant.pojo.schedule.CourseDTO;
 import com.campusassistant.pojo.schedule.CourseVO;
 import com.campusassistant.pojo.Result;

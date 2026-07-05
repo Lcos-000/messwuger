@@ -81,6 +81,9 @@ Content-Length: 452
   "dayOfWeek": "3,6",
   "periodsMask": "3072",
   "weeksMask": "65535",
+  "campusId": "2",
+  "building": "01",
+  "roomType": "",
   "classrooms": [
     {
       "building": "01教",
