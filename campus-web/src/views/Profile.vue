@@ -663,12 +663,6 @@ onUnmounted(() => {
   }
 }
 
-@font-face {
-  font-family: 'SourceHanSerifCN';
-  src: url('/fonts/SourceHanSerifCN-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
 </style>
 
 

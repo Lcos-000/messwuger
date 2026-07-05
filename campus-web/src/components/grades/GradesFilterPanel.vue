@@ -61,17 +61,25 @@
     </div>
 
     <div class="action-row">
-      <button type="button" class="primary-btn" :disabled="loading" @click="emit('fetch')">
-        {{ loading ? gradesText.QUERYING_BUTTON_TEXT : queryButtonText }}
-      </button>
-      <button type="button" class="secondary-btn" :disabled="submitting" @click="emit('submit')">
-        {{ submitting ? gradesText.SUBMITTING_BUTTON_TEXT : submitButtonText }}
-      </button>
+      <div class="action-item">
+        <button type="button" class="primary-btn" :disabled="loading" @click="emit('fetch')">
+          {{ loading ? gradesText.QUERYING_BUTTON_TEXT : queryButtonText }}
+        </button>
+        <InfoTooltip :text="gradesText.QUERY_BUTTON_TIP" />
+      </div>
+      <div class="action-item">
+        <button type="button" class="secondary-btn" :disabled="submitting" @click="emit('submit')">
+          {{ submitting ? gradesText.SUBMITTING_BUTTON_TEXT : submitButtonText }}
+        </button>
+        <InfoTooltip :text="gradesText.SUBMIT_BUTTON_TIP" />
+      </div>
     </div>
   </section>
 </template>
 
 <script setup>
+import InfoTooltip from '@/components/common/InfoTooltip.vue'
+
 defineProps({
   gradesText: { type: Object, required: true },
   academicYear: { type: String, required: true },
@@ -218,6 +226,12 @@ const emit = defineEmits([
   flex-wrap: wrap;
 }
 
+.action-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .primary-btn,
 .secondary-btn {
   height: 42px;
@@ -263,6 +277,15 @@ const emit = defineEmits([
 
   .action-row {
     display: grid;
+  }
+
+  .action-item {
+    display: flex;
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    flex: 1;
   }
 }
 </style>

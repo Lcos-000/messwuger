@@ -1,7 +1,7 @@
 export const GRADES_CONFIG = {
   TEXT: {
     PAGE_TITLE: '成绩查询',
-    PAGE_SUBTITLE: '选择学年与学期后查询成绩，必要时可重新提交异步任务。',
+    PAGE_SUBTITLE: '选择学年与学期后查询成绩，可重新提交任务检查成绩是否有更新。',
     ACADEMIC_YEAR_LABEL: '学年',
     SEMESTER_LABEL: '学期',
     VIEW_LABEL: '视图',
@@ -14,7 +14,9 @@ export const GRADES_CONFIG = {
     SCORE_LABEL: '成绩',
     COURSE_CODE_EMPTY: '暂无课程代码',
     QUERYING_BUTTON_TEXT: '查询中...',
-    SUBMITTING_BUTTON_TEXT: '提交中...'
+    SUBMITTING_BUTTON_TEXT: '提交中...',
+    QUERY_BUTTON_TIP: '查询当前筛选条件下已获取的成绩数据。',
+    SUBMIT_BUTTON_TIP: '从教务系统重新获取最新成绩。提交后请稍等，再点击“查询成绩”查看结果。'
   },
   VIEW_MODE: {
     CARD: 'card',
