@@ -1,7 +1,5 @@
-﻿/* ===== Global Reset & Variables ===== */
+/* ===== Global Reset & Variables ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-
 
 html, body, #app { height: 100%; }
 body {
@@ -13,6 +11,41 @@ body {
 
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; border: none; outline: none; }
+
+/* ===== Shared Page Shell ===== */
+.shared-page-root {
+  position: relative;
+  min-height: 100%;
+  background: #eef2f9;
+}
+
+.shared-page-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.shared-page-shell {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  padding: 20px 16px 28px;
+}
+
+.shared-page-header {
+  margin-bottom: 16px;
+}
+
+.shared-page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.shared-page-subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
 
 /* ===== Utility ===== */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
@@ -66,3 +99,12 @@ button { cursor: pointer; border: none; outline: none; }
 .btn-danger:hover { background: #fecaca; }
 .btn-block { width: 100%; }
 
+@media screen and (max-width: 767px) {
+  .shared-page-shell {
+    padding: 16px 12px 20px;
+  }
+
+  .shared-page-title {
+    font-size: 24px;
+  }
+}
