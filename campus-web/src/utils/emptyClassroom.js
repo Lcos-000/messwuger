@@ -4,18 +4,10 @@ const now = new Date()
 const currentYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
 
 export const buildAcademicYearOptions = () => {
-  const options = []
-  for (
-    let year = currentYear + EMPTY_CLASSROOM_CONFIG.YEAR_RANGE_AFTER;
-    year >= currentYear - EMPTY_CLASSROOM_CONFIG.YEAR_RANGE_BEFORE;
-    year -= 1
-  ) {
-    options.push({
-      label: `${year}-${year + 1}`,
-      value: String(year)
-    })
-  }
-  return options
+  return [currentYear, currentYear + 1].map(year => ({
+    label: `${year}-${year + 1}`,
+    value: String(year)
+  }))
 }
 
 export const getCurrentWeek = () => {

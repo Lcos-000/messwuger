@@ -394,9 +394,9 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
         return result
 
     def build_empty_classroom_result(self, student_id: str, xnm: str, xqm: str,
-                                     xqj: str, jcd: str, zcd: str,
-                                     xqh_id: str = "", lh: str = "", cdlb_id: str = "",
-                                     raw: dict) -> dict:
+                                     xqj: str, jcd: str, zcd: str,raw: dict,
+                                     xqh_id: str = "", lh: str = "", cdlb_id: str = ""
+                                     ) -> dict:
         rooms = []
         for item in raw.get("items", []) or []:
             rooms.append({
