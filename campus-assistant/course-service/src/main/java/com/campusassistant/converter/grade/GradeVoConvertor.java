@@ -1,8 +1,8 @@
 package com.campusassistant.converter.grade;
 
 import com.campusassistant.common.converter.BaseConvertor;
-import com.campusassistant.pojo.GradeEntity;
-import com.campusassistant.pojo.GradeVO;
+import com.campusassistant.pojo.grade.GradeEntity;
+import com.campusassistant.pojo.grade.GradeVO;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

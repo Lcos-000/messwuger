@@ -5,6 +5,7 @@ import com.campusassistant.enums.RemoteCodeEnum;
 import com.campusassistant.remote.exception.code.SpiderRemoteCodeEnum;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.spider.common.client.SpiderServiceClient;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomTaskSubmitDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import feign.FeignException;
 import feign.RetryableException;
@@ -97,6 +98,11 @@ public class SpiderFallbackFactory implements FallbackFactory<SpiderServiceClien
 
             @Override
             public Result<?> submitGradesTask(String studentId, String encryptedPassword, GradesTaskSubmitDTO dto) {
+                return Result.error(code, message);
+            }
+
+            @Override
+            public Result<?> submitEmptyClassroomTask(String studentId, String encryptedPassword, EmptyClassroomTaskSubmitDTO dto) {
                 return Result.error(code, message);
             }
         };

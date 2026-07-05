@@ -1,4 +1,4 @@
-package com.campusassistant.student.pojo;
+package com.campusassistant.student.pojo.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

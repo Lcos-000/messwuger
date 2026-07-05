@@ -2,8 +2,8 @@
 package com.campusassistant.service;
 
 
-import com.campusassistant.pojo.GradeDTO;
-import com.campusassistant.pojo.GradeVO;
+import com.campusassistant.pojo.grade.dto.GradeDTO;
+import com.campusassistant.pojo.grade.GradeVO;
 import com.campusassistant.pojo.schedule.CourseDTO;
 import com.campusassistant.pojo.schedule.CourseVO;
 

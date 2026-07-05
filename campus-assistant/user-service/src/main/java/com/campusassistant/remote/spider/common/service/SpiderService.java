@@ -1,6 +1,7 @@
 package com.campusassistant.remote.spider.common.service;
 
 import com.campusassistant.pojo.Result;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomTaskSubmitDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 
 public interface SpiderService {
@@ -12,5 +13,7 @@ public interface SpiderService {
     void asyncStartPunchCard(String studentId, String encryptedPassword);
 
     Result<?> submitGradesTask(String studentId, String encryptedPassword, GradesTaskSubmitDTO dto);
+
+    Result<?> submitEmptyClassroomTask(String studentId, String encryptedPassword, EmptyClassroomTaskSubmitDTO dto);
 
 }

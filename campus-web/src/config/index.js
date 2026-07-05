@@ -1,6 +1,7 @@
 export * from './apiPaths'
 export * from './adminConfig'
 export * from './appConfig'
+export * from './emptyClassroomConfig'
 export * from './gradesConfig'
 export * from './pollingConfig'
 export * from './profileConfig'

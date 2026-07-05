@@ -444,6 +444,13 @@ import {
   isUserStatusProcessing
 } from '@/config'
 import { clearUserSession, getUserToken } from '@/utils/auth'
+import {
+  clampWallpaperMaskValue as clampSharedWallpaperMaskValue,
+  loadWallpaperMaskPreference as loadSharedWallpaperMaskPreference,
+  resolveAssetUrl as resolveSharedAssetUrl,
+  saveWallpaperMaskPreference as saveSharedWallpaperMaskPreference,
+  saveWallpaperPreference as saveSharedWallpaperPreference
+} from '@/utils/profileAssets'
 
 const personalInfo = ref({})
 const userStatus = ref({})
@@ -2281,6 +2288,8 @@ input:checked + .toggle-slider::before {
   font-style: normal;
 }
 </style>
+
+
 
 
 

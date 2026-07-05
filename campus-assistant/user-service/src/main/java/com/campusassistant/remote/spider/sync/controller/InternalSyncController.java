@@ -1,6 +1,7 @@
 package com.campusassistant.remote.spider.sync.controller;
 
 import com.campusassistant.pojo.Result;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomCallbackDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesCallbackDTO;
 import com.campusassistant.remote.spider.sync.pojo.dto.SyncDataDTO;
 import com.campusassistant.remote.spider.sync.service.SyncService;
@@ -39,6 +40,13 @@ public class InternalSyncController {
     public Result<?> receiveGrades(@RequestBody GradesCallbackDTO gradesCallbackDTO) {
         syncService.handleGradesCallback(gradesCallbackDTO);
         return Result.success("成绩结果接收成功");
+    }
+
+    @Operation(summary = "接收空教室查询结果")
+    @PostMapping("/empty-classroom")
+    public Result<?> receiveEmptyClassroom(@RequestBody EmptyClassroomCallbackDTO callbackDTO) {
+        syncService.handleEmptyClassroomCallback(callbackDTO);
+        return Result.success("空教室结果接收成功");
     }
 
 }

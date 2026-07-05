@@ -2,7 +2,7 @@ package com.campusassistant.utils.converter.user;
 
 import com.campusassistant.common.converter.BaseConvertor;
 import com.campusassistant.student.pojo.UserEntity;
-import com.campusassistant.student.pojo.UserStatusVO;
+import com.campusassistant.student.pojo.vo.UserStatusVO;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
