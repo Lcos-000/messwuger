@@ -394,7 +394,9 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
         return result
 
     def build_empty_classroom_result(self, student_id: str, xnm: str, xqm: str,
-                                     xqj: str, jcd: str, zcd: str, raw: dict) -> dict:
+                                     xqj: str, jcd: str, zcd: str,raw: dict,
+                                     xqh_id: str = "", lh: str = "", cdlb_id: str = ""
+                                     ) -> dict:
         rooms = []
         for item in raw.get("items", []) or []:
             rooms.append({
@@ -415,6 +417,9 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "dayOfWeek": xqj,
             "periodsMask": jcd,
             "weeksMask": zcd,
+            "campusId": xqh_id,
+            "building": lh,
+            "roomType": cdlb_id,
             "classrooms": rooms,
         }
 

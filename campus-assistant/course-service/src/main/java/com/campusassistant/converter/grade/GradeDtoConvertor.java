@@ -1,8 +1,8 @@
 package com.campusassistant.converter.grade;
 
 import com.campusassistant.common.converter.BaseConvertor;
-import com.campusassistant.pojo.GradeEntity;
-import com.campusassistant.pojo.GradeItemDTO;
+import com.campusassistant.pojo.grade.GradeEntity;
+import com.campusassistant.pojo.grade.dto.GradeItemDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

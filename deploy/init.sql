@@ -41,6 +41,26 @@ CREATE TABLE IF NOT EXISTS course_db (
     INDEX idx_student_id (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课表数据表';
 
+CREATE TABLE IF NOT EXISTS student_grade (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+    academic_year VARCHAR(16) DEFAULT NULL COMMENT '学年',
+    semester VARCHAR(8) DEFAULT NULL COMMENT '学期',
+    course_name VARCHAR(128) DEFAULT NULL COMMENT '课程名称',
+    course_code VARCHAR(64) DEFAULT NULL COMMENT '课程代码',
+    course_nature VARCHAR(64) DEFAULT NULL COMMENT '课程性质',
+    credit VARCHAR(32) DEFAULT NULL COMMENT '学分',
+    score VARCHAR(32) DEFAULT NULL COMMENT '成绩',
+    gpa VARCHAR(32) DEFAULT NULL COMMENT '绩点',
+    teacher VARCHAR(64) DEFAULT NULL COMMENT '任课教师',
+    exam_nature VARCHAR(64) DEFAULT NULL COMMENT '考试性质',
+    course_type VARCHAR(64) DEFAULT NULL COMMENT '课程类别',
+    sync_time DATETIME DEFAULT NULL COMMENT '本次同步时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_student_term (student_id, academic_year, semester)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='成绩数据表';
+
 CREATE TABLE IF NOT EXISTS user_profile_style (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(32) NOT NULL COMMENT '学号',

@@ -8,11 +8,14 @@ import com.campusassistant.remote.course.client.CourseServiceClient;
 import com.campusassistant.remote.course.pojo.RemoteGradeBatchDTO;
 import com.campusassistant.remote.course.pojo.RemoteGradeDTO;
 import com.campusassistant.remote.course.pojo.schedule.RemoteCourseDTO;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomCallbackDTO;
+import com.campusassistant.remote.spider.emptyclassroom.support.EmptyClassroomFingerprintSupport;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesCallbackDTO;
 import com.campusassistant.remote.spider.sync.mapper.SyncMapper;
 import com.campusassistant.remote.spider.sync.pojo.entity.PersonalInfoEntity;
 import com.campusassistant.remote.spider.sync.pojo.dto.SyncDataDTO;
 import com.campusassistant.remote.spider.sync.service.SyncService;
+import com.campusassistant.remote.spider.emptyclassroom.support.EmptyClassCallbackCheckSupport;
 import com.campusassistant.student.code.PunchStatusEnum;
 import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
@@ -20,6 +23,7 @@ import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import com.campusassistant.utils.converter.grade.GradesDtoConvertor;
 import com.campusassistant.utils.converter.personalinfo.PersonalInfoConvertor;
 import com.campusassistant.utils.rediskey.CourseMixCacheKey;
+import com.campusassistant.utils.rediskey.EmptyClassroomCacheKey;
 import com.campusassistant.utils.rediskey.GradeCacheKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import static com.campusassistant.remote.spider.emptyclassroom.code.EmptyClassroomQueryStatusEnum.FAILED;
 import static com.campusassistant.student.code.SyncStatusEnum.SYNCING_SUCCESS;
 
 @Slf4j
@@ -48,10 +54,13 @@ public class SyncServiceImpl  implements SyncService {
     private final SyncMapper syncMapper;
     private final ObjectMapper objectMapper;
     private final GradesDtoConvertor gradesDtoConvertor;
+    private final EmptyClassroomCacheKey emptyClassroomCacheKey;
+    private final EmptyClassroomFingerprintSupport emptyClassroomFingerprintSupport;
+    private final EmptyClassCallbackCheckSupport emptyClassCallbackCheckSupport;
 
 
 
-    @Override
+    @Override // 处理学生数据同步
     @Transactional// 开启事务，保证本地用户信息更新和状态变更的一致性
     public void handleStudentDataSync(SyncDataDTO syncDataDTO) {
         String studentId = syncDataDTO.getStudentId();
@@ -105,7 +114,7 @@ public class SyncServiceImpl  implements SyncService {
 
     }
 
-    @Override
+    @Override // 处理打卡结果
     public void handlePunchResult(String studentId, Boolean success) {
         Integer targetStatus = success ? PunchStatusEnum.PUNCH_SUCCESS.getCode()
                 : PunchStatusEnum.PUNCH_FAILED.getCode();
@@ -113,7 +122,7 @@ public class SyncServiceImpl  implements SyncService {
         log.info("学号: {} 打卡回调处理完成，结果: {}", studentId, success ? "成功" : "失败");
     }
 
-    @Override
+    @Override // 处理成绩回调
     public void handleGradesCallback(GradesCallbackDTO gradesCallbackDTO) {
         if (gradesCallbackDTO == null) {
             log.warn("接收到空的成绩回调数据");
@@ -168,5 +177,51 @@ public class SyncServiceImpl  implements SyncService {
 
         stringRedisTemplate.delete(gradeCacheKey.getKey(studentId, academicYear, semester));
     }
+
+
+    @Override // 处理空教室回调
+    public void handleEmptyClassroomCallback(EmptyClassroomCallbackDTO callbackDTO) {
+        if (callbackDTO == null) {
+            log.warn("接收到空的空教室回调数据");
+            return;
+        }
+
+        log.info("接收到空教室回调，学号: {}, 学年: {}, 学期: {}, 星期: {}, 节次掩码: {}, 周次掩码: {}, 教室条数: {}",
+                callbackDTO.getStudentId(),
+                callbackDTO.getAcademicYear(),
+                callbackDTO.getSemester(),
+                callbackDTO.getDayOfWeek(),
+                callbackDTO.getPeriodsMask(),
+                callbackDTO.getWeeksMask(),
+                callbackDTO.getClassrooms() == null ? 0 : callbackDTO.getClassrooms().size());
+
+        String invalidReason = emptyClassCallbackCheckSupport.validateEmptyClassroomCallbackForCache(callbackDTO);
+        if (invalidReason != null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "空教室回调参数异常: " + invalidReason);
+        }
+
+        // 空教室查询条件转json字符串，生成缓存key值
+        String fingerprint = emptyClassroomFingerprintSupport.buildFingerprint(callbackDTO);
+        String resultKey = emptyClassroomCacheKey.getResultKey(fingerprint);
+        String statusKey = emptyClassroomCacheKey.getStatusKey(fingerprint);
+
+        try {
+            // 空教室数据结果转json字符串，写入Redis
+            String json = objectMapper.writeValueAsString(callbackDTO);
+            stringRedisTemplate.opsForValue().set(resultKey, json, 30, TimeUnit.MINUTES);
+            // 直接删除缓存状态key，表示成功
+            stringRedisTemplate.delete(statusKey);
+            // 校验回调数据是否有对应用户
+            emptyClassCallbackCheckSupport.checkEmptyClassroomCallbackUser(callbackDTO);
+
+            log.info("空教室回调处理完成，fingerprint: {}", fingerprint);
+        } catch (Exception e) {
+            log.error("空教室回调写入Redis失败，fingerprint: {}", fingerprint, e);
+            // 写入失败，设置状态为失败
+            stringRedisTemplate.opsForValue().set(statusKey, FAILED.getCode(), 2, TimeUnit.MINUTES);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(), "处理空教室回调失败");
+        }
+    }
+
 
 }

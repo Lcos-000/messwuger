@@ -1,6 +1,6 @@
 # 校园助手系统
 
-本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，提供西南大学教务系统的注册登录、课表同步、个人资料展示、个性化主页、自定义图片资源、管理员资源入口与自动打卡开关等能力。
+本项目由 **Java 微服务后端**（`campus-assistant`）、**Go + Python 爬虫服务**（`campus-spider-service`）和 **Vue 3 前端**（`campus-web`）组成，当前已经打通注册登录、课表同步、成绩查询、空教室查询、个性化主页、自定义图片资源、管理员资源入口与自动打卡开关等核心链路。
 
 ---
 
@@ -9,10 +9,10 @@
 | 模块 | 技术栈 | 职责 |
 |------|--------|------|
 | `campus-assistant/campusswu-gateway` | Spring Cloud Gateway | 统一入口、JWT 鉴权、路由转发 |
-| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置、自定义资源管理、管理员资源查询 |
-| `campus-assistant/course-service` | Spring Boot 3 + MyBatis Plus | 课表存储与查询 |
-| `campus-spider-service` | Go 1.24 + Python 3 | 教务系统登录、数据抓取、打卡任务调度 |
-| `campus-web` | Vue 3 + Vite + Axios | 登录页、课表页、个人主页、管理员页 |
+| `campus-assistant/user-service` | Spring Boot 3 + MyBatis Plus | 用户注册/登录、状态管理、个人信息、个性化配置、自定义资源管理、管理员资源查询、异步任务发起 |
+| `campus-assistant/course-service` | Spring Boot 3 + MyBatis Plus | 课表存储与查询、成绩存储与查询 |
+| `campus-spider-service` | Go 1.24 + Python 3 | 教务系统登录、课表抓取、成绩抓取、空教室抓取、打卡任务调度 |
+| `campus-web` | Vue 3 + Vite + Axios | 登录页、课表页、成绩页、空教室页、个人主页、管理员页 |
 | 基础设施 | MySQL、Redis、Nacos、OSS、SkyWalking | 持久化、缓存、注册发现与配置中心、图片对象存储、链路追踪 |
 
 ---
@@ -23,6 +23,8 @@
 
 - 用户注册、登录、刷新同步、注销账号
 - 课表数据抓取与查询
+- 成绩任务发起、异步回调、成绩落库与查询
+- 空教室任务发起、异步回调、结果缓存与查询
 - 用户同步状态与打卡状态查询
 - 自动打卡开关持久化
 - 用户个性化主页配置保存
@@ -32,11 +34,11 @@
 
 ### 前端侧
 
-- 登录页、课表页、个人主页、管理员页
-- 个性化设置：资料卡透明度 / 模糊度 / 墙纸蒙版 / 全局字体
+- 登录页、课表页、成绩页、空教室页、个人主页、管理员页
+- 个性化设置：资料卡透明度 / 模糊度 / 墙纸蒙版 / 全局字体 / 自动打卡
 - 默认图片切换、自定义图片上传裁剪与回显
-- 自动打卡开关与登录失效统一处理
-- 管理员资源页从后端 / Nacos 动态渲染资源链接
+- 成绩查询参数缓存、表格视图、排序切换
+- 空教室图形化条件选择、结果表格展示、查询条件缓存
 - 用户端与管理员端采用双 token 存储，支持同一浏览器同时保持两套登录态
 - 管理员日志页支持日志文件分组、初始化窗口、向前加载历史、重置控制台、单次刷新、手动开启轮询与压缩日志下载
 
@@ -93,68 +95,6 @@
 
 ---
 
-## 从零启动
-
-> 以下示例以 Windows PowerShell 为主。
-
-### 1. 安装基础环境
-
-#### 1.1 JDK 17
-
-```powershell
-winget install EclipseAdoptium.Temurin.17.JDK
-java -version
-```
-
-#### 1.2 Maven 3.8+
-
-```powershell
-winget install Apache.Maven
-mvn -v
-```
-
-#### 1.3 Go 1.24
-
-```powershell
-winget install GoLang.Go
-go version
-```
-
-#### 1.4 Python 3.8+
-
-```powershell
-winget install Python.Python.3.12
-python --version
-```
-
-#### 1.5 Node.js 18+
-
-```powershell
-winget install OpenJS.NodeJS.LTS
-node -v
-npm -v
-```
-
-#### 1.6 Docker Desktop
-
-```powershell
-winget install Docker.DockerDesktop
-docker version
-docker compose version
-```
-
-当前项目本地已对齐的镜像标签示例：
-
-- `mysql:9.7.0`
-- `redis:8.8.0`
-- `bladex/sentinel-dashboard:1.8.9`
-- `nacos/nacos-server:v2.4.0-slim`
-- `apache/skywalking-ui:10.0.1`
-- `apache/skywalking-oap-server:10.0.1`
-- `apache/skywalking-banyandb:0.6.0`
-
----
-
 ## 数据库初始化
 
 ### 新建数据库
@@ -166,15 +106,12 @@ mysql -u root -p
 ```sql
 CREATE DATABASE IF NOT EXISTS campus_db
   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE campus_db;
-```
 
-### 建表 SQL
-
-```sql
 CREATE TABLE IF NOT EXISTS student_db (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(32) NOT NULL COMMENT '教务学号',
+                                          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                          student_id VARCHAR(32) NOT NULL COMMENT '教务学号',
     password VARCHAR(128) NOT NULL COMMENT 'BCrypt加密后的密码',
     role VARCHAR(20) NOT NULL DEFAULT 'USER' COMMENT '角色：USER-普通用户，ADMIN-管理员',
     sync_status TINYINT DEFAULT 0 COMMENT '0未同步 1同步中 2成功 3失败',
@@ -183,33 +120,53 @@ CREATE TABLE IF NOT EXISTS student_db (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 CREATE TABLE IF NOT EXISTS personal_info (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+                                             id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                             student_id VARCHAR(32) NOT NULL COMMENT '学号',
     name VARCHAR(64) DEFAULT NULL COMMENT '姓名',
     major VARCHAR(128) DEFAULT NULL COMMENT '专业',
     class_name VARCHAR(128) DEFAULT NULL COMMENT '班级',
     college VARCHAR(128) DEFAULT NULL COMMENT '学院',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='个人信息表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='个人信息表';
 
 CREATE TABLE IF NOT EXISTS course_db (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+                                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                         student_id VARCHAR(32) NOT NULL COMMENT '学号',
     academic_year VARCHAR(16) DEFAULT NULL COMMENT '学年',
     semester VARCHAR(8) DEFAULT NULL COMMENT '学期',
     schedule_json LONGTEXT COMMENT '课表JSON',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课表数据表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课表数据表';
+
+CREATE TABLE IF NOT EXISTS student_grade (
+                                             id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                             student_id VARCHAR(32) NOT NULL COMMENT '学号',
+    academic_year VARCHAR(16) DEFAULT NULL COMMENT '学年',
+    semester VARCHAR(8) DEFAULT NULL COMMENT '学期',
+    course_name VARCHAR(128) DEFAULT NULL COMMENT '课程名称',
+    course_code VARCHAR(64) DEFAULT NULL COMMENT '课程代码',
+    course_nature VARCHAR(64) DEFAULT NULL COMMENT '课程性质',
+    credit VARCHAR(32) DEFAULT NULL COMMENT '学分',
+    score VARCHAR(32) DEFAULT NULL COMMENT '成绩',
+    gpa VARCHAR(32) DEFAULT NULL COMMENT '绩点',
+    teacher VARCHAR(64) DEFAULT NULL COMMENT '任课教师',
+    exam_nature VARCHAR(64) DEFAULT NULL COMMENT '考试性质',
+    course_type VARCHAR(64) DEFAULT NULL COMMENT '课程类别',
+    sync_time DATETIME DEFAULT NULL COMMENT '本次同步时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_student_term (student_id, academic_year, semester)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='成绩数据表';
 
 CREATE TABLE IF NOT EXISTS user_profile_style (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+                                                  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                                  student_id VARCHAR(32) NOT NULL COMMENT '学号',
     avatar VARCHAR(255) DEFAULT NULL COMMENT '头像地址，可为空，空时前端使用姓名首字母兜底',
     background VARCHAR(255) DEFAULT NULL COMMENT '顶部背景地址，可为空，空时前端使用纯白极简背景',
     wallpaper VARCHAR(255) DEFAULT NULL COMMENT '墙纸地址，可为空，空时前端使用浅灰极简背景',
@@ -220,19 +177,35 @@ CREATE TABLE IF NOT EXISTS user_profile_style (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户个性化配置表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户个性化配置表';
 
 CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id VARCHAR(32) NOT NULL COMMENT '学号',
+                                                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                                         student_id VARCHAR(32) NOT NULL COMMENT '学号',
     custom_avatar VARCHAR(255) DEFAULT NULL COMMENT '自定义头像 OSS 地址',
     custom_background VARCHAR(255) DEFAULT NULL COMMENT '自定义顶部背景 OSS 地址',
     custom_wallpaper VARCHAR(255) DEFAULT NULL COMMENT '自定义墙纸 OSS 地址',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
+
 ```
+
+### 核心表
+
+当前初始化脚本位置：`E:\develop\idea\collaborative project\messwuger\deploy\init.sql`
+
+当前至少包含以下表：
+
+- `student_db`
+- `personal_info`
+- `course_db`
+- `student_grade`
+- `user_profile_style`
+- `user_profile_custom_asset`
+
+如需手动初始化，可直接执行 `deploy/init.sql`。
 
 ---
 
@@ -319,71 +292,6 @@ admin:
         url: http://127.0.0.1:8858
 ```
 
-仓库中的示例文件位置：
-
-- `nacos_config/DEFAULT_GROUP/aliyun-oss.yaml`
-- `nacos_config/DEFAULT_GROUP/admin-resources.yaml`
-
----
-
-## SkyWalking 独立界面
-
-如果你当前本机的 SkyWalking 复用了旧项目，最直接的隔离方式是为本项目单独起一套新的 SkyWalking 容器。
-
-### 新增的部署文件
-
-- `deploy/docker-compose.skywalking.yml`
-
-### 推荐端口
-
-| 组件 | 端口 |
-|------|------|
-| SkyWalking UI | `18080` |
-| SkyWalking OAP gRPC | `11810` |
-| SkyWalking OAP HTTP | `12810` |
-| BanyanDB | `17913` |
-
-### 启动新的独立 SkyWalking
-
-```powershell
-cd deploy
-docker compose -f docker-compose.skywalking.yml pull
-docker compose -f docker-compose.skywalking.yml up -d
-```
-
-### 停止并清空这套 SkyWalking 数据
-
-```powershell
-cd deploy
-docker compose -f docker-compose.skywalking.yml down -v
-```
-
-### Java Agent 需要对齐的点
-
-如果你的 Java 服务启用了 SkyWalking Agent，当前仓库已统一通过 `tools/skywalking-agent/config/agent.config` 承担公共配置。
-
-当前建议每个服务的 VM options 只保留：
-
-```text
--javaagent:"E:\develop\idea\collaborative project\messwuger\tools\skywalking-agent\skywalking-agent.jar"
-```
-
-公共配置默认已包含本地 OAP 地址：
-
-```text
-collector.backend_service=127.0.0.1:11810
-```
-
-每个服务再单独提供自己的环境变量 `SW_AGENT_NAME`，例如：
-
-```text
-SW_AGENT_NAME=campusassistant-user-service
-SW_AGENT_NAME=campusassistant-course-service
-SW_AGENT_NAME=campusassistant-gateway-service
-```
-
-如果不改 Agent 上报地址，而仍然继续指向旧的 `11800`，那么新 UI 里也不会有你当前项目的数据。
-
 ---
 
 ## 编译项目
@@ -418,11 +326,13 @@ npm install
 npm run build
 ```
 
+### 5. 服务器一键构建脚本
+
+Linux 服务器可直接使用：`E:\develop\idea\collaborative project\messwuger\deploy\build.sh`
+
 ---
 
 ## 启动顺序
-
-> 本地如果要接入链路追踪，推荐在 IDEA 的 Run Configuration Template 统一填写 `-javaagent`，再在各服务的 Environment variables 里分别填写 `SW_AGENT_NAME`。
 
 | 顺序 | 服务 | 命令 |
 |------|------|------|
@@ -434,7 +344,14 @@ npm run build
 | 6 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
 | 7 | 前端开发服务 | `cd campus-web && npm run dev` |
 
-> Go 爬虫服务启动前必须设置 `PYTHON_PATH`。
+### 辅助脚本
+
+- Windows 中间件启动：`E:\develop\idea\collaborative project\messwuger\deploy\start-docker.ps1`
+- Windows 中间件停止：`E:\develop\idea\collaborative project\messwuger\deploy\stop-docker.ps1`
+- Linux 宿主机启动服务：`E:\develop\idea\collaborative project\messwuger\deploy\start-all.sh`
+- Linux 宿主机停止服务：`E:\develop\idea\collaborative project\messwuger\deploy\stop-all.sh`
+
+> Go 爬虫服务启动前必须设置 `PYTHON_PATH`。若走 Linux 脚本 / systemd，还需要同步配置 `EMPTY_CLASSROOM_CALLBACK_URL` 与 `GRADES_CALLBACK_URL`。
 
 ---
 
@@ -448,7 +365,7 @@ npm run build
 - Nacos：`http://127.0.0.1:8848/nacos`
 - Sentinel：`http://127.0.0.1:8858`
 
-### 个性化配置接口
+### 用户核心接口
 
 - `GET /personalization/get-profile`
 - `PUT /personalization/update-profile`
@@ -456,6 +373,17 @@ npm run build
 - `GET /personalization/get-custom-assets`
 - `POST /personalization/upload-custom-asset`
 - `PUT /user/auto-punch`
+- `POST /user/grades/task`
+- `POST /user/grades/result`
+- `POST /user/empty-classroom/task`
+- `POST /user/empty-classroom/result`
+
+### Go 内部回调接口
+
+- `POST /internal/api/v1/sync/student-data`
+- `POST /internal/api/v1/sync/punch-result`
+- `POST /internal/api/v1/sync/grades`
+- `POST /internal/api/v1/sync/empty-classroom`
 
 ### 管理员接口
 
@@ -468,11 +396,9 @@ npm run build
 - `GET /admin/logs/tail/history`
 - `GET /admin/logs/download`
 
-### OSS 配置
+---
 
-当前 `user-service` 已接入阿里云 OSS，配置前缀为 `aliyun.oss`，至少包括：`endpoint`、`access-key-id`、`access-key-secret`、`bucket-name`、`url-prefix`。
-
-### 默认资源与极简兜底
+## 默认资源与兜底说明
 
 当前版本允许 `avatar`、`background`、`wallpaper` 为空；前端会自动兜底为极简默认样式：
 
@@ -486,34 +412,6 @@ npm run build
 
 ---
 
-## 服务验证
-
-所有服务启动后，可检查端口：
-
-```powershell
-netstat -ano | findstr ":80 "
-netstat -ano | findstr ":8000 "
-netstat -ano | findstr ":9000 "
-netstat -ano | findstr ":8082 "
-netstat -ano | findstr ":8848 "
-netstat -ano | findstr ":18080 "
-netstat -ano | findstr ":5173 "
-```
-
-| 端口 | 服务 |
-|------|------|
-| 80 | Gateway 入口 / 前端反向代理 |
-| 8000 | User-Service |
-| 9000 | Course-Service |
-| 8082 | Go 爬虫服务 |
-| 8848 | Nacos |
-如果你已经统一改成 `agent.config + SW_AGENT_NAME` 方案，优先检查各服务是否仍残留旧的 `-Dskywalking.collector.backend_service` 或旧服务名。
-
-| 18080 | SkyWalking UI |
-| 5173 | 前端开发服务 |
-
----
-
 ## 常见问题
 
 ### Q1：SkyWalking UI 里为什么还会看到历史项目
@@ -524,49 +422,25 @@ netstat -ano | findstr ":5173 "
 
 这是预期行为之一。前端已统一处理“HTTP 200 但响应体 `code = 401`”的场景，会主动清除 token 并跳转登录页。
 
-当前前端会按页面类型分别清理登录态：
-- 用户页只清理 `campus_user_token`
-- 管理员页只清理 `campus_admin_token`
-
-### Q3：资料卡模糊度或字体开关保存后不生效
+### Q3：成绩查询返回空数组，但 Go 似乎没报错
 
 优先检查：
 
-- `user_profile_style.card_blur` 是否存在并有值
-- `user_profile_style.wallpaper_mask` 是否存在并有值
-- `user_profile_style.global_font_enabled` 是否存在并有值
-- `campus-web/public/fonts/SourceHanSerifCN-Regular.ttf` 是否存在
-- 后端返回字段是否为 `cardBlur`、`wallpaperMask` 与 `globalFontEnabled`
+- Go 爬虫是否已重编译，而不是仍在运行旧 `server.exe`
+- `GRADES_CALLBACK_URL` 是否已正确配置
+- `student_grade` 是否已成功落库
+- Java 查询接口是否命中了正确学年 / 学期
 
-### Q4：自动打卡开关点击后无效果
-
-优先检查：
-
-- `student_db.auto_punch_enabled` 字段是否存在
-- `PUT /user/auto-punch` 是否成功落库
-- `GET /user/status` 是否返回 `autoPunchEnabled`
-- 前后端是否统一使用 `0/1` 而非 `true/false`
-
-### Q5：自定义图片已上传到 OSS，但页面显示为空白
+### Q4：空教室提交成功但查询不到结果
 
 优先检查：
 
-- `GET /personalization/get-custom-assets` 是否返回了当前前端约定字段
-- 返回的 OSS URL 是否可直接在浏览器打开
-- `user_profile_custom_asset` 表中是否已正确落库
-- OSS Bucket/CORS/读权限是否允许浏览器访问
+- Go 回调 payload 中是否完整回传 `campusId`、`building`、`roomType`
+- `EMPTY_CLASSROOM_CALLBACK_URL` 是否已正确配置
+- Java 端查询时使用的指纹是否与回调写入指纹一致
+- Redis 中查询状态是否仍卡在 `QUERYING`
 
-### Q6：管理员日志页为什么不会无限显示所有日志
-
-这是当前版本的前端保护策略。管理员日志控制台默认存在前端显示上限，避免长时间轮询后浏览器内存和渲染压力持续上涨。
-
-当前行为：
-
-- 默认最多保留 `3000` 行显示内容
-- 超限后前端会截断显示，并提示“已触发前端显示上限”
-- 如需恢复到最新完整窗口，可点击“重置控制台”重新初始化
-
-### Q7：Go 爬虫服务调用 Python 脚本失败
+### Q5：Go 爬虫服务调用 Python 脚本失败
 
 启动前显式设置：
 

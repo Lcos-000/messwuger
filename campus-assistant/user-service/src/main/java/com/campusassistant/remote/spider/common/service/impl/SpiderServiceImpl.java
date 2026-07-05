@@ -4,6 +4,7 @@ import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.pojo.Result;
 import com.campusassistant.remote.spider.common.client.SpiderServiceClient;
 import com.campusassistant.remote.spider.common.service.SpiderService;
+import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomTaskSubmitDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +83,19 @@ public class SpiderServiceImpl implements SpiderService {
         log.info("开始提交成绩查询任务，学号: {}, 学年: {}, 学期: {}",
                 studentId, dto.getAcademicYear(), dto.getSemester());
         return spiderServiceClient.submitGradesTask(studentId, encryptedPassword, dto);
+    }
+
+    @Override
+    public Result<?> submitEmptyClassroomTask(String studentId, String encryptedPassword, EmptyClassroomTaskSubmitDTO dto) {
+        log.info("开始提交空教室查询任务，学号: {}, 学年: {}, 学期: {}, 星期: {}, 节次掩码: {}, 周次掩码: {}",
+                studentId,
+                dto.getAcademicYear(),
+                dto.getSemester(),
+                dto.getDayOfWeek(),
+                dto.getPeriodsMask(),
+                dto.getWeeksMask());
+
+        return spiderServiceClient.submitEmptyClassroomTask(studentId, encryptedPassword, dto);
     }
 
 }

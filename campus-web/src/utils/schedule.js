@@ -1,65 +1,156 @@
-﻿/**
- * Course schedule utilities
- */
+import { SCHEDULE_CONFIG } from '@/config'
 
-// Generate deterministic color from course name
-const PALETTE = [
-  '#4f86f7','#f97316','#10b981','#8b5cf6',
-  '#ec4899','#06b6d4','#f59e0b','#ef4444',
-  '#14b8a6','#a855f7','#6366f1','#84cc16'
-]
+const DAY_MS = 24 * 60 * 60 * 1000
 
-export function courseColor(name) {
+const buildLocalDate = (year, rule) => {
+  return new Date(year, rule.month - 1, rule.day, 0, 0, 0, 0)
+}
+
+const toLocalDateStart = (date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+}
+
+export const getActiveSemesterStartDate = (referenceDate = new Date()) => {
+  const currentDate = toLocalDateStart(referenceDate)
+  const currentYear = currentDate.getFullYear()
+  const { SPRING, AUTUMN } = SCHEDULE_CONFIG.SEMESTER_START_RULES
+  const springStart = buildLocalDate(currentYear, SPRING)
+  const autumnStart = buildLocalDate(currentYear, AUTUMN)
+
+  if (currentDate >= autumnStart) return autumnStart
+  if (currentDate >= springStart) return springStart
+  return buildLocalDate(currentYear - 1, AUTUMN)
+}
+
+export const getCurrentWeek = () => {
+  const now = toLocalDateStart(new Date())
+  const semesterStart = getActiveSemesterStartDate(now)
+  const diff = Math.floor((now - semesterStart) / (7 * DAY_MS))
+  return Math.max(1, Math.min(diff + 1, SCHEDULE_CONFIG.MAX_WEEK))
+}
+
+export const getTodayColumn = () => {
+  const day = new Date().getDay()
+  return day === 0 ? 7 : day
+}
+
+export const parseWeeksList = (weeks) => {
+  if (!weeks) return []
+  if (Array.isArray(weeks)) {
+    return weeks.map(Number).filter(Number.isFinite)
+  }
+
+  const normalized = String(weeks)
+    .replace(/周/g, '')
+    .replace(/[（(](单|双)[）)]/g, '')
+    .trim()
+
+  const result = []
+  normalized.split(/[，,、]/).forEach(part => {
+    const value = part.trim()
+    if (!value) return
+
+    if (value.includes('-')) {
+      const [start, end] = value.split('-').map(Number)
+      if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+        for (let current = start; current <= end; current += 1) {
+          result.push(current)
+        }
+      }
+      return
+    }
+
+    const single = Number(value)
+    if (Number.isFinite(single) && single > 0) {
+      result.push(single)
+    }
+  })
+
+  return [...new Set(result)].sort((left, right) => left - right)
+}
+
+export const parsePeriodRange = (periodStr) => {
+  if (!periodStr) return { start: 0, end: 0 }
+  const rangeMatch = String(periodStr).match(/(\d+)\D+(\d+)/)
+  if (rangeMatch) {
+    return {
+      start: Number.parseInt(rangeMatch[1], 10),
+      end: Number.parseInt(rangeMatch[2], 10)
+    }
+  }
+
+  const singleMatch = String(periodStr).match(/(\d+)/)
+  if (singleMatch) {
+    const value = Number.parseInt(singleMatch[1], 10)
+    return { start: value, end: value }
+  }
+
+  return { start: 0, end: 0 }
+}
+
+export const getCourseColorPair = (name) => {
+  if (!name) return SCHEDULE_CONFIG.COURSE_COLORS[0]
+
   let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash << 5) - hash + name.charCodeAt(i)
+  for (let index = 0; index < name.length; index += 1) {
+    hash = (hash << 5) - hash + name.charCodeAt(index)
     hash |= 0
   }
-  return PALETTE[Math.abs(hash) % PALETTE.length]
+
+  return SCHEDULE_CONFIG.COURSE_COLORS[Math.abs(hash) % SCHEDULE_CONFIG.COURSE_COLORS.length]
 }
 
-/**
- * Parse "periods" string like "1-3节" -> [1, 2, 3]
- */
-export function parsePeriods(periodsStr) {
-  if (!periodsStr) return []
-  const m = periodsStr.match(/(\d+)-(\d+)节/)
-  if (m) {
-    const start = parseInt(m[1]), end = parseInt(m[2])
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
-  }
-  const single = periodsStr.match(/(\d+)节/)
-  if (single) return [parseInt(single[1])]
-  return []
+export const getCourseColor = (name) => {
+  return getCourseColorPair(name)[0] || SCHEDULE_CONFIG.DEFAULT_COURSE_COLOR
 }
 
-/**
- * Parse weeks string like "1-12周", "4-6周(双)", "13周" -> { start, end, parity }
- * parity: 'all' | 'odd' | 'even'
- */
-export function parseWeeks(weeksStr) {
-  if (!weeksStr) return { start: 0, end: 0, parity: 'all' }
-  let parity = 'all'
-  if (weeksStr.includes('单')) parity = 'odd'
-  if (weeksStr.includes('双')) parity = 'even'
-  const m = weeksStr.match(/(\d+)-(\d+)周/)
-  if (m) return { start: parseInt(m[1]), end: parseInt(m[2]), parity }
-  const single = weeksStr.match(/(\d+)周/)
-  if (single) return { start: parseInt(single[1]), end: parseInt(single[1]), parity }
-  return { start: 0, end: 0, parity }
+export const buildTeacherListLabel = (teachers = []) => {
+  return teachers.map(item => item.name).join('、')
 }
 
-export function isActiveInWeek(course, week) {
-  const { start, end, parity } = parseWeeks(course.weeks)
-  if (week < start || week > end) return false
-  if (parity === 'odd' && week % 2 === 0) return false
-  if (parity === 'even' && week % 2 !== 0) return false
-  return true
+export const buildCourseGroups = (courses, currentWeek) => {
+  const source = Array.isArray(courses) ? courses : []
+  const validCourses = source.filter(item => item.dayOfWeek && item.dayOfWeek > 0)
+  const filteredCourses = currentWeek === 0
+    ? validCourses
+    : validCourses.filter(item => parseWeeksList(item.weeks).includes(currentWeek))
+
+  const groupsMap = {}
+
+  filteredCourses.forEach(course => {
+    const { start, end } = parsePeriodRange(course.periods)
+    if (!start) return
+
+    const key = `${course.dayOfWeek}-${start}-${end}`
+    if (!groupsMap[key]) {
+      groupsMap[key] = {
+        dayOfWeek: course.dayOfWeek,
+        start,
+        end,
+        courses: []
+      }
+    }
+
+    const existingCourse = groupsMap[key].courses.find(item => {
+      return item.courseName === course.courseName && item.classroom === course.classroom && item.campus === course.campus
+    })
+
+    if (existingCourse) {
+      existingCourse.teachers.push({
+        name: course.teacher,
+        weeks: course.weeks
+      })
+      return
+    }
+
+    groupsMap[key].courses.push({
+      ...course,
+      teachers: [{
+        name: course.teacher,
+        weeks: course.weeks
+      }]
+    })
+  })
+
+  return Object.values(groupsMap)
 }
-
-/**
- * All periods 1-14 (typical college schedule)
- */
-export const ALL_PERIODS = Array.from({ length: 14 }, (_, i) => i + 1)
-
-export const DAYS = ['一', '二', '三', '四', '五', '六', '日']

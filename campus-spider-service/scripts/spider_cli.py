@@ -94,7 +94,8 @@ def main():
                 xqh_id=args.xqh_id, lh=args.lh, cdlb_id=args.cdlb_id
             )
             data = client.build_empty_classroom_result(
-                args.student_id, args.xnm, args.xqm, args.xqj, jcd, zcd, raw
+                args.student_id, args.xnm, args.xqm, args.xqj, jcd, zcd,
+                xqh_id=args.xqh_id, lh=args.lh, cdlb_id=args.cdlb_id, raw=raw
             )
             print(json.dumps({
                 "success": True,
