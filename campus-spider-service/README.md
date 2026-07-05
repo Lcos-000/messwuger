@@ -330,6 +330,9 @@ Content-Type: application/json
   "dayOfWeek": "1",
   "periodsMask": "16",
   "weeksMask": "262272",
+  "campusId": "1",
+  "building": "",
+  "roomType": "",
   "classrooms": [
     {
       "building": "32教",
