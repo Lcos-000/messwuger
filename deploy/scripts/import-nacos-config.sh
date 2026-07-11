@@ -26,12 +26,13 @@ if [ -z "$tenant" ]; then
   echo "Creating namespace $NS_NAME..."
   create_resp=$(curl -fsSL -X POST "$NS_API" \
     --data-urlencode "namespaceName=$NS_NAME" \
-    --data-urlencode "namespaceDesc=$NS_NAME" 2>/dev/null || echo "")
-  tenant=$(echo "$create_resp" | sed -n 's/.*"data":"\([^"]*\)".*/\1/p')
-  if [ -z "$tenant" ]; then
-    echo "Failed to create namespace $NS_NAME"
+    --data-urlencode "namespaceDesc=$NS_NAME" \
+    --data-urlencode "customNamespaceId=$NS_NAME" 2>/dev/null || echo "")
+  if [ -z "$create_resp" ] || [ "$create_resp" != "true" ]; then
+    echo "Failed to create namespace $NS_NAME: $create_resp"
     exit 1
   fi
+  tenant="$NS_NAME"
   echo "Created namespace $NS_NAME (id=$tenant)"
 fi
 
