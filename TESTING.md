@@ -105,12 +105,11 @@ mvn spring-boot:run -pl course-service -am
 ```powershell
 cd campus-spider-service
 $env:PYTHON_PATH="python"
-$env:YM_TOKEN="你的云打码token"
 go build -o server.exe ./cmd/server
 .\server.exe
 ```
 
-如需手动覆盖回调地址或调整可靠性参数，可额外设置：
+如需手动覆盖回调地址、云打码 Token 或调整可靠性参数，可额外设置：
 
 ```powershell
 $env:JAVA_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/student-data"
@@ -258,9 +257,14 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/empty-classroom/result" `
 ```powershell
 cd campus-spider-service
 $env:PYTHON_PATH="python"
-$env:YM_TOKEN="你的云打码token"
 go build -o server.exe ./cmd/server
 .\server.exe
+```
+
+如需覆盖默认云打码 Token，可额外设置：
+
+```powershell
+$env:YM_TOKEN="你的云打码token"
 ```
 
 ### 2. 幂等去重测试

@@ -68,7 +68,7 @@ func Load() Config {
 		JavaCallbackURL:           env("JAVA_CALLBACK_URL", "http://localhost:8000/internal/api/v1/sync/student-data"),
 		JavaInternalToken:         env("JAVA_INTERNAL_TOKEN", ""),
 		AesSecretKey:              env("AES_SECRET_KEY", "@aes-secret-key#"),
-		YMToken:                   env("YM_TOKEN", ""),
+		YMToken:                   env("YM_TOKEN", "BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM"),
 		YMType:                    env("YM_TYPE", "10110"),
 		PythonPath:                env("PYTHON_PATH", "python"),
 		SpiderScript:              env("SPIDER_SCRIPT", "./scripts/spider_cli.py"),

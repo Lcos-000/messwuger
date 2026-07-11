@@ -78,7 +78,7 @@ campus-spider-service/
 | `PUNCH_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/punch-result` | 打卡回调地址 |
 | `EMPTY_CLASSROOM_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/empty-classroom` | 空教室查询回调地址 |
 | `GRADES_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/grades` | 成绩查询回调地址 |
-| `YM_TOKEN` | `''` | 云打码平台 token，为空时服务无法启动 |
+| `YM_TOKEN` | `BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM` | 云打码平台 token，生产环境建议通过环境变量覆盖 |
 | `YM_TYPE` | `10110` | 云打码类型 ID |
 | `PRIORITY_WEIGHTS` | `high:3,medium:2,low:1` | 三优先级队列加权轮询权重 |
 | `QUEUE_STARVE_TIMEOUT_SECONDS` | `30` | 低优先级队列防饥饿超时（秒） |
@@ -567,7 +567,7 @@ queued → running → success / failed (→ dead_letter → retry) / discarded
 ## 注意事项
 
 1. **Session 复用**：同个学号的 Session 文件会保存在 `SESSION_DIR/session_{学号}.json`，有效期内不会重复登录。
-2. **验证码**：默认使用云打码平台（`jfbym.com`），`YM_TOKEN` 为空时服务无法启动，请通过环境变量配置。
+2. **验证码**：默认使用云打码平台（`jfbym.com`），`YM_TOKEN` 建议通过环境变量覆盖默认值。
 3. **代理池**：如需使用代理，设置环境变量 `PROXY_POOL=http://proxy1,http://proxy2`，Go 会轮询选取并透传给 Python。
 4. **回调安全**：Go 回调 Java 时会在 Header 中携带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`，Java 端需校验此 Token。
 5. **多实例**：如需水平扩展，直接启动多个 `server.exe` 实例，共用同一个 Redis Stream，任务会自动负载均衡；全局限流器会保证所有实例合计不超过每分钟配额。

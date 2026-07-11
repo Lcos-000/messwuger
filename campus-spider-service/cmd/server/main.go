@@ -39,10 +39,6 @@ type App struct {
 func main() {
 	cfg := config.Load()
 
-	if cfg.YMToken == "" {
-		log.Fatalf("YM_TOKEN 不能为空")
-	}
-
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
 		Password: cfg.RedisPassword,
