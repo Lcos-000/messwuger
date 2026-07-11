@@ -2,11 +2,9 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,164 +13,195 @@ import (
 	"campus-spider-service/internal/crypto"
 	"campus-spider-service/internal/model"
 	"campus-spider-service/internal/spider"
+	"campus-spider-service/internal/store"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// 一个pool就是一个消费团队，在创建的时候就已经指定了group的名字和目标stream的名字
+// Pool 是 Worker 消费池，负责多优先级队列调度、限流、死信队列与任务执行。
 type Pool struct {
 	concurrency int
 	runner      *spider.Runner
 	javaClient  *client.JavaClient
-	rdb         *redis.Client
-	stream      string
-	group       string
+	store       *store.RedisStore
+	scheduler   *PriorityScheduler
+	rateLimiter *store.RateLimiter
+	dlq         *store.DLQ
 	cfg         config.Config
+
+	stopOnce sync.Once
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
 }
 
-// NewPool 创建一个新的消费队列池
-func NewPool(concurrency int, rdb *redis.Client, stream, group string, runner *spider.Runner, javaClient *client.JavaClient, cfg config.Config) *Pool {
+// NewPool 创建 Worker 池
+func NewPool(
+	concurrency int,
+	redisStore *store.RedisStore,
+	scheduler *PriorityScheduler,
+	rateLimiter *store.RateLimiter,
+	dlq *store.DLQ,
+	runner *spider.Runner,
+	javaClient *client.JavaClient,
+	cfg config.Config,
+) *Pool {
 	return &Pool{
 		concurrency: concurrency,
+		store:       redisStore,
+		scheduler:   scheduler,
+		rateLimiter: rateLimiter,
+		dlq:         dlq,
 		runner:      runner,
 		javaClient:  javaClient,
-		rdb:         rdb,
-		stream:      stream,
-		group:       group,
 		cfg:         cfg,
+		stopCh:      make(chan struct{}),
 	}
 }
 
-// Start 启动任务消费队列池
+// Start 启动 Worker 消费池，阻塞直到 ctx 取消。
 func (p *Pool) Start(ctx context.Context) error {
-	var wg sync.WaitGroup
-	// 拿主机名
 	consumerBase := hostname()
 	if consumerBase == "" {
 		consumerBase = "consumer"
 	}
 
 	for i := 0; i < p.concurrency; i++ {
-		wg.Add(1)
-		// 每个消费者都有一个唯一的名称，用于在 Redis 中标识
-		// 消费者名称格式为 "consumer-索引"
-		// 例如："consumer-0"
-		// 例如："consumer-1"
-		// 例如："consumer-2"
-		// 例如："consumer-3"
+		p.wg.Add(1)
 		consumerName := fmt.Sprintf("%s-%d", consumerBase, i)
 		go func(cn string) {
-			defer wg.Done()
-			// 启动消费队列
+			defer p.wg.Done()
 			p.consume(ctx, cn)
 		}(consumerName)
 	}
 
-	wg.Wait()
+	<-ctx.Done()
+	p.stopOnce.Do(func() { close(p.stopCh) })
+	p.wg.Wait()
 	return nil
 }
 
-// consume 消费任务队列
+// Stop 等待所有 Worker 优雅退出。
+func (p *Pool) Stop(ctx context.Context) error {
+	p.stopOnce.Do(func() { close(p.stopCh) })
+	done := make(chan struct{})
+	go func() {
+		p.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// consume 单个 Worker 消费循环
 func (p *Pool) consume(ctx context.Context, consumer string) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-p.stopCh:
+			return
 		default:
 		}
-		// 按照group消费任务队列，为group读
-		res, err := p.rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
-			Group: p.group,
-			// 消费者的名字，用于在 Redis 中标识，与group无关
-			Consumer: consumer,
-			// 目标stream的名字，">>" 表示从stream未消费的消息开始读取
-			// 这里就只独立消费一个stream
-			Streams: []string{p.stream, ">"},
-			// 一次只读一条
-			Count: 1,
-			// 阻塞时间，假如stream没有消息，就阻塞5秒
-			Block: 5 * time.Second,
-		}).Result()
 
-		// 处理错误
-		if err != nil {
-			if err == redis.Nil || strings.Contains(err.Error(), "NOGROUP") {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			if ctx.Err() != nil {
+		// 按优先级调度消费一条消息
+		consumed, _ := p.scheduler.ConsumeOne(ctx, consumer, func(priority string, msg redis.XMessage) {
+			p.handleMessage(ctx, priority, consumer, msg)
+		})
+
+		if !consumed {
+			// 所有队列都为空，短暂休眠避免空转
+			select {
+			case <-time.After(100 * time.Millisecond):
+			case <-ctx.Done():
 				return
 			}
-			time.Sleep(1 * time.Second)
-			continue
 		}
-
-		// 取出所有stream的消息，处理每个消息
-		for _, stream := range res {
-			// 从stream中取出所有消息，处理每个消息
-			for _, msg := range stream.Messages {
-				p.handleMessage(ctx, consumer, msg)
-			}
-		}
-		// 注意在这里当前情况下就只处理一个stream，也只处理一个消息
 	}
 }
 
-// handleMessage 处理任务队列消息
-func (p *Pool) handleMessage(ctx context.Context, consumer string, msg redis.XMessage) {
-	// 将消息转换为任务，放进model.Task
-	task := messageToTask(msg.Values)
-	log.Printf("[Worker] 收到任务 taskId=%s type=%s studentId=%s", task.TaskID, task.Type, task.StudentID)
+// handleMessage 处理单条任务消息
+func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg redis.XMessage) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[Worker] 处理消息 panic consumer=%s err=%v", consumer, r)
+		}
+	}()
 
-	// 缺失必要字段，直接返回
+	task := store.MessageToTask(msg.Values)
+	log.Printf("[Worker] 收到任务 taskId=%s type=%s priority=%s studentId=%s", task.TaskID, task.Type, priority, task.StudentID)
+
+	// 字段校验
 	if task.TaskID == "" || task.StudentID == "" || task.Password == "" {
-		log.Printf("[Worker] 任务字段缺失，跳过")
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		log.Printf("[Worker] 任务字段缺失，跳过 taskId=%s", task.TaskID)
+		_ = p.store.Ack(ctx, priority, msg.ID)
 		return
 	}
 
-	switch task.Type {
-	case "PUNCH_CARD":
-		p.handlePunchCardTask(ctx, msg, task)
-	case "EMPTY_CLASSROOM":
-		p.handleEmptyClassroomTask(ctx, msg, task)
-	case "GRADES":
-		p.handleGradesTask(ctx, msg, task)
-	case "FULL_CRAWL":
-		p.handleSpiderTask(ctx, msg, task)
-	default:
-		log.Printf("[Worker] 未知任务类型: %s", task.Type)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-	}
-}
-
-// handleSpiderTask 处理爬虫任务
-func (p *Pool) handleSpiderTask(ctx context.Context, msg redis.XMessage, task model.Task) {
-	// 解密密码（Java 使用 AES 加密）
+	// 解密密码
 	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
 	if err != nil {
-		log.Printf("[Worker] 爬虫任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+		log.Printf("[Worker] 密码解密失败 taskId=%s err=%v", task.TaskID, err)
+		p.failTask(ctx, priority, msg.ID, task, "密码解密失败: "+err.Error())
 		return
 	}
 	task.Password = plainPassword
 
-	// 运行爬虫
+	// 全局限流：固定窗口，每分钟 10 次，仅在实际执行学校请求前生效
+	if err := p.acquireRateLimit(ctx); err != nil {
+		log.Printf("[Worker] 限流获取失败 taskId=%s err=%v", task.TaskID, err)
+		return
+	}
+
+	// 按任务类型执行
+	var execErr error
+	switch task.Type {
+	case "FULL_CRAWL":
+		execErr = p.handleSpiderTask(ctx, task)
+	case "PUNCH_CARD":
+		execErr = p.handlePunchCardTask(ctx, task)
+	case "EMPTY_CLASSROOM":
+		execErr = p.handleEmptyClassroomTask(ctx, task)
+	case "GRADES":
+		execErr = p.handleGradesTask(ctx, task)
+	default:
+		log.Printf("[Worker] 未知任务类型 taskId=%s type=%s", task.TaskID, task.Type)
+		_ = p.store.Ack(ctx, priority, msg.ID)
+		return
+	}
+
+	if execErr != nil {
+		p.failTask(ctx, priority, msg.ID, task, execErr.Error())
+		return
+	}
+
+	// 成功，确认消息
+	log.Printf("[Worker] 任务处理成功 taskId=%s", task.TaskID)
+	_ = p.store.Ack(ctx, priority, msg.ID)
+}
+
+// failTask 统一失败处理：入队死信队列，然后确认原消息。
+func (p *Pool) failTask(ctx context.Context, priority, msgID string, task model.Task, reason string) {
+	log.Printf("[Worker] 任务失败，转入死信队列 taskId=%s reason=%s", task.TaskID, reason)
+	if err := p.dlq.Enqueue(ctx, task, reason); err != nil {
+		log.Printf("[Worker] 死信队列入队失败 taskId=%s err=%v", task.TaskID, err)
+	}
+	_ = p.store.Ack(ctx, priority, msgID)
+}
+
+func (p *Pool) handleSpiderTask(ctx context.Context, task model.Task) error {
 	log.Printf("[Worker] 开始爬取 taskId=%s", task.TaskID)
 	out, err := p.runner.RunCrawl(ctx, task)
 	if err != nil {
-		log.Printf("[Worker] 爬取失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("爬取失败: %w", err)
 	}
-	log.Printf("[Worker] 爬取成功 taskId=%s", task.TaskID)
 
-	// 将SpiderData转换为CallbackPayload结构体
 	spiderData, ok := out.Data.(model.SpiderData)
 	if !ok {
-		log.Printf("[Worker] 爬取结果类型错误 taskId=%s", task.TaskID)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("爬取结果类型错误")
 	}
 	callbackPayload := spiderData.ToCallbackPayload()
 
@@ -181,77 +210,43 @@ func (p *Pool) handleSpiderTask(ctx context.Context, msg redis.XMessage, task mo
 		callbackURL = p.cfg.JavaCallbackURL
 	}
 
-	// 回调
 	log.Printf("[Worker] 开始回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryCallback(ctx, callbackURL, callbackPayload); err != nil {
-		log.Printf("[Worker] 回调失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("回调失败: %w", err)
 	}
 	log.Printf("[Worker] 回调成功 taskId=%s", task.TaskID)
-	// 回调成功，确认消息
-	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+	return nil
 }
 
-func (p *Pool) handlePunchCardTask(ctx context.Context, msg redis.XMessage, task model.Task) {
-	// 解密密码（Java 使用 AES 加密）
-	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
-	if err != nil {
-		log.Printf("[Worker] 打卡任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.retryPunchCallback(ctx, task.StudentID, false)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
-	}
-
-	// 临时替换为明文密码
-	task.Password = plainPassword
-
+func (p *Pool) handlePunchCardTask(ctx context.Context, task model.Task) error {
 	log.Printf("[Worker] 开始打卡 taskId=%s studentId=%s", task.TaskID, task.StudentID)
 	out, err := p.runner.RunCheckin(ctx, task, p.cfg.CheckinScript, p.cfg.CheckinTimeout)
 	if err != nil {
-		log.Printf("[Worker] 打卡失败 taskId=%s err=%v", task.TaskID, err)
 		_ = p.retryPunchCallback(ctx, task.StudentID, false)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("打卡失败: %w", err)
 	}
-	log.Printf("[Worker] 打卡成功 taskId=%s message=%s", task.TaskID, out.Message)
 
 	callbackURL := task.CallbackURL
 	if callbackURL == "" {
 		callbackURL = p.cfg.PunchCallbackURL
 	}
 	if err := p.retryPunchCallback(ctx, task.StudentID, true); err != nil {
-		log.Printf("[Worker] 打卡回调失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("打卡回调失败: %w", err)
 	}
-	log.Printf("[Worker] 打卡回调成功 taskId=%s", task.TaskID)
-	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+	log.Printf("[Worker] 打卡成功 taskId=%s message=%s", task.TaskID, out.Message)
+	return nil
 }
 
-func (p *Pool) handleEmptyClassroomTask(ctx context.Context, msg redis.XMessage, task model.Task) {
-	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
-	if err != nil {
-		log.Printf("[Worker] 空教室任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
-	}
-	task.Password = plainPassword
-
+func (p *Pool) handleEmptyClassroomTask(ctx context.Context, task model.Task) error {
 	log.Printf("[Worker] 开始查询空教室 taskId=%s", task.TaskID)
 	out, err := p.runner.RunEmptyClassroom(ctx, task)
 	if err != nil {
-		log.Printf("[Worker] 空教室查询失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("空教室查询失败: %w", err)
 	}
-	log.Printf("[Worker] 空教室查询成功 taskId=%s", task.TaskID)
 
 	payload, ok := out.Data.(model.EmptyClassroomPayload)
 	if !ok {
-		log.Printf("[Worker] 空教室结果类型错误 taskId=%s", task.TaskID)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("空教室结果类型错误")
 	}
 
 	callbackURL := task.CallbackURL
@@ -261,37 +256,22 @@ func (p *Pool) handleEmptyClassroomTask(ctx context.Context, msg redis.XMessage,
 
 	log.Printf("[Worker] 开始空教室回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryEmptyClassroomCallback(ctx, callbackURL, payload); err != nil {
-		log.Printf("[Worker] 空教室回调失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("空教室回调失败: %w", err)
 	}
 	log.Printf("[Worker] 空教室回调成功 taskId=%s", task.TaskID)
-	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+	return nil
 }
 
-func (p *Pool) handleGradesTask(ctx context.Context, msg redis.XMessage, task model.Task) {
-	plainPassword, err := crypto.AesDecrypt(task.Password, p.cfg.AesSecretKey)
-	if err != nil {
-		log.Printf("[Worker] 成绩任务密码解密失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
-	}
-	task.Password = plainPassword
-
+func (p *Pool) handleGradesTask(ctx context.Context, task model.Task) error {
 	log.Printf("[Worker] 开始查询成绩 taskId=%s", task.TaskID)
 	out, err := p.runner.RunGrades(ctx, task)
 	if err != nil {
-		log.Printf("[Worker] 成绩查询失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("成绩查询失败: %w", err)
 	}
-	log.Printf("[Worker] 成绩查询成功 taskId=%s", task.TaskID)
 
 	payload, ok := out.Data.(model.GradesPayload)
 	if !ok {
-		log.Printf("[Worker] 成绩结果类型错误 taskId=%s", task.TaskID)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("成绩结果类型错误")
 	}
 
 	callbackURL := task.CallbackURL
@@ -301,12 +281,10 @@ func (p *Pool) handleGradesTask(ctx context.Context, msg redis.XMessage, task mo
 
 	log.Printf("[Worker] 开始成绩回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryGradesCallback(ctx, callbackURL, payload); err != nil {
-		log.Printf("[Worker] 成绩回调失败 taskId=%s err=%v", task.TaskID, err)
-		_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
-		return
+		return fmt.Errorf("成绩回调失败: %w", err)
 	}
 	log.Printf("[Worker] 成绩回调成功 taskId=%s", task.TaskID)
-	_ = p.rdb.XAck(ctx, p.stream, p.group, msg.ID).Err()
+	return nil
 }
 
 // retryPunchCallback 重试打卡回调
@@ -323,7 +301,7 @@ func (p *Pool) retryPunchCallback(ctx context.Context, studentID string, success
 	return lastErr
 }
 
-// retryCallback 回调Java服务
+// retryCallback 重试 Java 回调
 func (p *Pool) retryCallback(ctx context.Context, url string, payload model.CallbackPayload) error {
 	var lastErr error
 	for i := 0; i < 3; i++ {
@@ -365,35 +343,24 @@ func (p *Pool) retryGradesCallback(ctx context.Context, url string, payload mode
 	return lastErr
 }
 
-// messageToTask 将消息转换为任务，放进model.Task
-func messageToTask(values map[string]any) model.Task {
-	toString := func(v any) string {
-		switch x := v.(type) {
-		case string:
-			return x
-		case []byte:
-			return string(x)
-		default:
-			b, _ := json.Marshal(x)
-			return strings.Trim(string(b), `"`)
+// acquireRateLimit 阻塞获取一个限流配额；ctx 取消时直接返回，消息保持 pending 由僵尸恢复机制重试。
+func (p *Pool) acquireRateLimit(ctx context.Context) error {
+	for {
+		allowed, err := p.rateLimiter.Allow(ctx)
+		if err != nil {
+			return err
 		}
-	}
-
-	return model.Task{
-		TaskID:       toString(values["taskId"]),
-		Type:         toString(values["type"]),
-		StudentID:    toString(values["studentId"]),
-		Password:     toString(values["password"]),
-		AcademicYear: toString(values["academicYear"]),
-		Semester:     toString(values["semester"]),
-		CallbackURL:  toString(values["callbackUrl"]),
-		Status:       toString(values["status"]),
-		DayOfWeek:    toString(values["dayOfWeek"]),
-		PeriodsMask:  toString(values["periodsMask"]),
-		WeeksMask:    toString(values["weeksMask"]),
-		CampusID:     toString(values["campusId"]),
-		Building:     toString(values["building"]),
-		RoomType:     toString(values["roomType"]),
+		if allowed {
+			return nil
+		}
+		wait := p.rateLimiter.WaitUntilNextWindow()
+		log.Printf("[Worker] 触发限流，等待下一窗口 %v", wait)
+		select {
+		case <-time.After(wait):
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
