@@ -31,8 +31,8 @@
 确保以下依赖已启动：
 
 ```powershell
-cd deploy
-docker compose -p campusassistant -f docker-compose.middleware.yml up -d
+cd deploy/offline/package
+docker compose up -d mysql redis nacos sentinel
 ```
 
 如需验证链路追踪独立界面，再额外启动：
