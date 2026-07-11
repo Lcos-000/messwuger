@@ -35,6 +35,26 @@ cd deploy/offline/package
 docker compose up -d mysql redis nacos sentinel
 ```
 
+### 清空数据库（可选）
+
+如需在重新测试前恢复干净数据，可清空业务表（保留表结构）：
+
+```powershell
+$SQL = @"
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE student_db;
+TRUNCATE TABLE personal_info;
+TRUNCATE TABLE course_db;
+TRUNCATE TABLE student_grade;
+TRUNCATE TABLE user_profile_style;
+TRUNCATE TABLE user_profile_custom_asset;
+SET FOREIGN_KEY_CHECKS = 1;
+"@
+$SQL | docker exec -i campus-mysql mysql -uroot -p1234 campus_db
+```
+
+> 如果 MySQL root 密码不是 `1234`，请替换命令中的 `-p1234`。
+
 如需验证链路追踪独立界面，再额外启动：
 
 ```powershell

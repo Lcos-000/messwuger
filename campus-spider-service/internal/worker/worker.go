@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -148,7 +149,10 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 		p.failTask(ctx, priority, msg.ID, task, "密码解密失败: "+err.Error())
 		return
 	}
-	task.Password = plainPassword
+
+	// 复制任务副本用于执行，避免修改原任务中的加密密码，确保死信队列重试时能正常解密
+	execTask := task
+	execTask.Password = plainPassword
 
 	// 全局限流：固定窗口，每分钟 10 次，仅在实际执行学校请求前生效
 	if err := p.acquireRateLimit(ctx); err != nil {
@@ -158,17 +162,17 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 
 	// 按任务类型执行
 	var execErr error
-	switch task.Type {
+	switch execTask.Type {
 	case "FULL_CRAWL":
-		execErr = p.handleSpiderTask(ctx, task)
+		execErr = p.handleSpiderTask(ctx, execTask)
 	case "PUNCH_CARD":
-		execErr = p.handlePunchCardTask(ctx, task)
+		execErr = p.handlePunchCardTask(ctx, execTask)
 	case "EMPTY_CLASSROOM":
-		execErr = p.handleEmptyClassroomTask(ctx, task)
+		execErr = p.handleEmptyClassroomTask(ctx, execTask)
 	case "GRADES":
-		execErr = p.handleGradesTask(ctx, task)
+		execErr = p.handleGradesTask(ctx, execTask)
 	default:
-		log.Printf("[Worker] 未知任务类型 taskId=%s type=%s", task.TaskID, task.Type)
+		log.Printf("[Worker] 未知任务类型 taskId=%s type=%s", execTask.TaskID, execTask.Type)
 		_ = p.store.Ack(ctx, priority, msg.ID)
 		return
 	}
@@ -199,9 +203,9 @@ func (p *Pool) handleSpiderTask(ctx context.Context, task model.Task) error {
 		return fmt.Errorf("爬取失败: %w", err)
 	}
 
-	spiderData, ok := out.Data.(model.SpiderData)
-	if !ok {
-		return fmt.Errorf("爬取结果类型错误")
+	var spiderData model.SpiderData
+	if err := convertAnyToStruct(out.Data, &spiderData); err != nil {
+		return fmt.Errorf("爬取结果解析失败: %w", err)
 	}
 	callbackPayload := spiderData.ToCallbackPayload()
 
@@ -244,9 +248,9 @@ func (p *Pool) handleEmptyClassroomTask(ctx context.Context, task model.Task) er
 		return fmt.Errorf("空教室查询失败: %w", err)
 	}
 
-	payload, ok := out.Data.(model.EmptyClassroomPayload)
-	if !ok {
-		return fmt.Errorf("空教室结果类型错误")
+	var payload model.EmptyClassroomPayload
+	if err := convertAnyToStruct(out.Data, &payload); err != nil {
+		return fmt.Errorf("空教室结果解析失败: %w", err)
 	}
 
 	callbackURL := task.CallbackURL
@@ -269,9 +273,9 @@ func (p *Pool) handleGradesTask(ctx context.Context, task model.Task) error {
 		return fmt.Errorf("成绩查询失败: %w", err)
 	}
 
-	payload, ok := out.Data.(model.GradesPayload)
-	if !ok {
-		return fmt.Errorf("成绩结果类型错误")
+	var payload model.GradesPayload
+	if err := convertAnyToStruct(out.Data, &payload); err != nil {
+		return fmt.Errorf("成绩结果解析失败: %w", err)
 	}
 
 	callbackURL := task.CallbackURL
@@ -284,6 +288,18 @@ func (p *Pool) handleGradesTask(ctx context.Context, task model.Task) error {
 		return fmt.Errorf("成绩回调失败: %w", err)
 	}
 	log.Printf("[Worker] 成绩回调成功 taskId=%s", task.TaskID)
+	return nil
+}
+
+// convertAnyToStruct 将 any 类型（通常来自 JSON 反序列化后的 map[string]interface{}）转换为具体结构体
+func convertAnyToStruct(src any, dst any) error {
+	bytes, err := json.Marshal(src)
+	if err != nil {
+		return fmt.Errorf("序列化源数据失败: %w", err)
+	}
+	if err := json.Unmarshal(bytes, dst); err != nil {
+		return fmt.Errorf("反序列化目标结构体失败: %w", err)
+	}
 	return nil
 }
 
