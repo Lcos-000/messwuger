@@ -7,5 +7,4 @@ spring:
     redis:
       host: 127.0.0.1
       port: 6379
-      password: CampusRedis@1234
       database: 0

@@ -25,12 +25,12 @@
 - 课表数据抓取与查询
 - 成绩任务发起、异步回调、成绩落库与查询
 - 空教室任务发起、异步回调、结果缓存与查询
-- 用户同步状态与打卡状态查询
 - 自动打卡开关持久化
 - 用户个性化主页配置保存
 - 用户自定义头像、顶部背景、墙纸上传与地址持久化
 - 阿里云 OSS 上传接入
 - 管理员登录与资源入口查询
+- Go 爬虫服务：多优先级 Redis Stream 队列、幂等去重、死信队列重试、僵尸消息恢复、全局限流
 
 ### 前端侧
 
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
 
 ### 核心表
 
-当前初始化脚本位置：`E:\develop\idea\collaborative project\messwuger\deploy\init.sql`
+当前初始化脚本位置：`deploy/init.sql`
 
 当前至少包含以下表：
 
@@ -326,32 +326,25 @@ npm install
 npm run build
 ```
 
-### 5. 服务器一键构建脚本
+### 5. 服务器部署
 
-Linux 服务器可直接使用：`E:\develop\idea\collaborative project\messwuger\deploy\build.sh`
+生产或服务器环境请直接参考 [DEPLOYMENT.md](DEPLOYMENT.md)，使用离线镜像包一键部署。
 
 ---
 
-## 启动顺序
+## 启动顺序（本地开发）
 
 | 顺序 | 服务 | 命令 |
 |------|------|------|
-| 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy && docker compose -p campusassistant -f docker-compose.middleware.yml up -d` |
-| 2 | SkyWalking（可选） | `cd deploy && docker compose -p campusassistant -f docker-compose.skywalking.yml up -d` |
+| 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy/offline/package && docker compose up -d mysql redis nacos sentinel` |
+| 2 | SkyWalking（可选） | `cd deploy && docker compose -f docker-compose.skywalking.yml up -d` |
 | 3 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
 | 4 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
 | 5 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |
 | 6 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
 | 7 | 前端开发服务 | `cd campus-web && npm run dev` |
 
-### 辅助脚本
-
-- Windows 中间件启动：`E:\develop\idea\collaborative project\messwuger\deploy\start-docker.ps1`
-- Windows 中间件停止：`E:\develop\idea\collaborative project\messwuger\deploy\stop-docker.ps1`
-- Linux 宿主机启动服务：`E:\develop\idea\collaborative project\messwuger\deploy\start-all.sh`
-- Linux 宿主机停止服务：`E:\develop\idea\collaborative project\messwuger\deploy\stop-all.sh`
-
-> Go 爬虫服务启动前必须设置 `PYTHON_PATH`。若走 Linux 脚本 / systemd，还需要同步配置 `EMPTY_CLASSROOM_CALLBACK_URL` 与 `GRADES_CALLBACK_URL`。
+> Go 爬虫服务启动前必须设置 `PYTHON_PATH`，并确保 `JAVA_CALLBACK_URL`、`PUNCH_CALLBACK_URL`、`GRADES_CALLBACK_URL`、`EMPTY_CLASSROOM_CALLBACK_URL` 指向本地 User-Service。
 
 ---
 
@@ -454,4 +447,4 @@ $env:PYTHON_PATH="C:\Users\xxx\AppData\Local\Programs\Python\Python312\python.ex
 
 完整链路测试请查看根目录：
 
-- `E:\develop\idea\collaborative project\messwuger\TESTING.md`
+- [TESTING.md](TESTING.md)

@@ -14,7 +14,7 @@ import static com.campusassistant.remote.common.Constant.*;
 
 @FeignClient(
         name = "campus-spider-service", // 注册中心里 Go 服务的名字
-        url = "http://127.0.0.1:8082", // 本地联调 URL
+        url = "${spider.service.url:http://127.0.0.1:8082}", // 本地联调 URL，Docker 环境通过环境变量覆盖
         configuration = FeignConfig.class, // 通用 Feign 配置
         fallbackFactory = SpiderFallbackFactory.class
 )

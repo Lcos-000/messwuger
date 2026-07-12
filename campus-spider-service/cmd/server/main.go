@@ -23,15 +23,19 @@ import (
 
 // App 是一个应用实例
 type App struct {
-	cfg     config.Config
-	store   *store.RedisStore
-	worker  *worker.Pool
-	spider  *spider.Runner
-	java    *client.JavaClient
-	httpSrv *http.Server
+	cfg             config.Config
+	store           *store.RedisStore
+	idempotency     *store.IdempotencyStore
+	scheduler       *worker.PriorityScheduler
+	rateLimiter     *store.RateLimiter
+	dlq             *store.DLQ
+	zombieRecoverer *store.ZombieRecoverer
+	worker          *worker.Pool
+	spider          *spider.Runner
+	java            *client.JavaClient
+	httpSrv         *http.Server
 }
 
-// main 函数
 func main() {
 	cfg := config.Load()
 
@@ -47,29 +51,77 @@ func main() {
 		log.Fatalf("redis 连接失败: %v", err)
 	}
 
+	// 多优先级 Stream 存储
 	st := store.NewRedisStore(rdb, cfg.TaskStream, cfg.TaskGroup)
-	if err := st.EnsureGroup(context.Background()); err != nil {
+	if err := st.EnsureGroups(context.Background()); err != nil {
 		log.Fatalf("创建 Redis Stream Group 失败: %v", err)
 	}
+
+	// 幂等去重
+	idempotency := store.NewIdempotencyStore(rdb, "campus:spider:idempotency")
+
+	// 优先级调度器：默认 high=3 medium=2 low=1，30 秒防饥饿
+	scheduler := worker.NewPriorityScheduler(st, cfg.PriorityWeights, cfg.QueueStarveTimeout)
+
+	// 固定窗口限流器：每分钟 10 次
+	rateLimiter := store.NewRateLimiter(rdb, cfg.RateLimitKeyPrefix, cfg.RateLimitPerMinute, time.Minute)
+
+	// 死信队列
+	dlq := store.NewDLQ(rdb, cfg.DeadLetterStream, cfg.TaskGroup, cfg.MaxRetryCount, cfg.RetryBaseDelay, cfg.RetryMaxDelay)
+	if err := dlq.EnsureGroup(context.Background()); err != nil {
+		log.Fatalf("创建死信队列 Group 失败: %v", err)
+	}
+
+	// 僵尸消息恢复
+	zombieRecoverer := store.NewZombieRecoverer(st, cfg.ZombieIdleTimeout, cfg.ZombieScanInterval)
 
 	proxyPool := spider.NewProxyPool(cfg.ProxyPool)
 	spiderRunner := spider.NewRunner(cfg.PythonPath, cfg.SpiderScript, cfg.SessionDir, cfg.SpiderTimeout, proxyPool, cfg.YMToken, cfg.YMType)
 	javaClient := client.NewJavaClient(cfg.JavaInternalToken)
 
 	app := &App{
-		cfg:    cfg,
-		store:  st,
-		worker: worker.NewPool(cfg.WorkerConcurrency, rdb, cfg.TaskStream, cfg.TaskGroup, spiderRunner, javaClient, cfg),
+		cfg:             cfg,
+		store:           st,
+		idempotency:     idempotency,
+		scheduler:       scheduler,
+		rateLimiter:     rateLimiter,
+		dlq:             dlq,
+		zombieRecoverer: zombieRecoverer,
+		worker: worker.NewPool(
+			cfg.WorkerConcurrency,
+			st,
+			scheduler,
+			rateLimiter,
+			dlq,
+			spiderRunner,
+			javaClient,
+			cfg,
+		),
 		spider: spiderRunner,
 		java:   javaClient,
 	}
 
+	// 后台全局上下文，用于协程统一退出
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	defer bgCancel()
+
 	// 启动 worker
 	go func() {
-		if err := app.worker.Start(context.Background()); err != nil {
+		if err := app.worker.Start(bgCtx); err != nil {
 			log.Fatalf("worker 启动失败: %v", err)
 		}
 	}()
+
+	// 启动死信队列重处理协程
+	go func() {
+		dlq.StartReprocessor(bgCtx, st, cfg.DeadLetterScanInterval)
+	}()
+
+	// 启动僵尸消息恢复协程
+	go func() {
+		zombieRecoverer.Start(bgCtx)
+	}()
+
 	// 构建路由 mux
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", app.healthHandler)
@@ -95,16 +147,18 @@ func main() {
 	}()
 
 	quit := make(chan os.Signal, 1)
-	// 监听 SIGINT 和 SIGTERM 信号
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	// 优雅关闭
 	<-quit
 	log.Println("收到退出信号，准备关闭...")
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// 先停止后台协程
+	bgCancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
 	_ = app.httpSrv.Shutdown(shutdownCtx)
+	_ = app.worker.Stop(shutdownCtx)
 	log.Println("服务已退出")
 }
 
@@ -115,141 +169,6 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 		Code:    200,
 		Message: "ok",
 		Data:    map[string]string{"status": "ok"},
-	})
-}
-
-// startTaskHandler 处理提交任务请求
-func (a *App) startTaskHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("访问了提交任务接口")
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
-			Code:    405,
-			Message: "method not allowed",
-		})
-		return
-	}
-
-	// 学生账号
-	studentID := r.Header.Get("X-Student-Id")
-	// 学生密码
-	password := r.Header.Get("X-Password")
-	// 校验
-	if studentID == "" || password == "" {
-		fmt.Println("缺少 X-Student-Id 或 X-Password")
-		writeJSON(w, http.StatusBadRequest, model.APIResponse{
-			Code:    400,
-			Message: "缺少 X-Student-Id 或 X-Password",
-		})
-		return
-	}
-
-	// 解析请求体
-	var req model.StartTaskRequest
-	_ = decodeJSON(r, &req) // body 可空
-
-	// 学年值
-	if req.AcademicYear == "" {
-		req.AcademicYear = a.cfg.DefaultAcademicYear
-	}
-	// 学期值
-	if req.Semester == "" {
-		req.Semester = a.cfg.DefaultSemester
-	}
-	// 回调 URL
-	if req.CallbackURL == "" {
-		req.CallbackURL = a.cfg.JavaCallbackURL
-	}
-
-	// 创建任务
-	task := model.Task{
-		TaskID: model.NewTaskID(),
-		Type:   "FULL_CRAWL",
-		// 学生账号密码
-		StudentID: studentID,
-		Password:  password,
-		// 学年学期
-		AcademicYear: req.AcademicYear,
-		Semester:     req.Semester,
-		// 回调URL
-		CallbackURL: req.CallbackURL,
-		// 任务状态
-		Status: "queued",
-		// 时间戳
-		CreatedAt: time.Now().Unix(),
-		UpdatedAt: time.Now().Unix(),
-	}
-
-	// 入队任务
-	if err := a.store.Enqueue(r.Context(), task); err != nil {
-		fmt.Println("任务入队失败:", err)
-		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
-			Code:    500,
-			Message: "任务入队失败: " + err.Error(),
-		})
-		return
-	}
-	fmt.Println("任务入队成功:", task.TaskID)
-	// 返回任务 ID
-	writeJSON(w, http.StatusOK, model.APIResponse{
-		Code:    200,
-		Message: "爬虫任务已提交",
-		Data: map[string]string{
-			"taskId": task.TaskID,
-		},
-	})
-}
-
-// validateCredentialsHandler 处理账号密码验证请求
-func (a *App) validateCredentialsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("访问了账号密码验证接口")
-	if r.Method != http.MethodPost {
-		fmt.Println("method not allowed")
-		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
-			Code:    405,
-			Message: "method not allowed",
-		})
-		return
-	}
-
-	studentID := r.Header.Get("X-Student-Id")
-	password := r.Header.Get("X-Password")
-	if studentID == "" || password == "" {
-		fmt.Println("缺少 X-Student-Id 或 X-Password")
-		writeJSON(w, http.StatusBadRequest, model.APIResponse{
-			Code:    400,
-			Message: "缺少 X-Student-Id 或 X-Password",
-		})
-		return
-	}
-
-	// 解密密码（Java 端使用 AES 加密）
-	plainPassword, err := crypto.AesDecrypt(password, a.cfg.AesSecretKey)
-	if err != nil {
-		fmt.Println("密码解密失败:", err)
-		writeJSON(w, http.StatusOK, model.APIResponse{
-			Code:    401,
-			Message: "密码解密失败: " + err.Error(),
-			Data:    map[string]any{"valid": false},
-		})
-		return
-	}
-
-	// 验证账号密码
-	ok, msg := a.spider.ValidateCredentials(r.Context(), studentID, plainPassword)
-	if !ok {
-		fmt.Println("账号密码验证失败:", msg)
-		writeJSON(w, http.StatusOK, model.APIResponse{
-			Code:    401,
-			Message: msg,
-			Data:    map[string]any{"valid": false},
-		})
-		return
-	}
-	fmt.Println("账号密码验证成功")
-	writeJSON(w, http.StatusOK, model.APIResponse{
-		Code:    200,
-		Message: "账号密码验证成功",
-		Data:    map[string]any{"valid": true},
 	})
 }
 
@@ -277,16 +196,9 @@ func (a *App) submitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// punchCardHandler 处理打卡任务提交请求
-func (a *App) punchCardHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("访问了打卡任务提交接口")
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
-			Code:    405,
-			Message: "method not allowed",
-		})
-		return
-	}
+// validateCredentialsHandler 处理账号密码验证请求（同步，不走队列）
+func (a *App) validateCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("访问了账号密码验证接口")
 
 	studentID := r.Header.Get("X-Student-Id")
 	password := r.Header.Get("X-Password")
@@ -299,9 +211,94 @@ func (a *App) punchCardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 创建打卡任务
+	plainPassword, err := crypto.AesDecrypt(password, a.cfg.AesSecretKey)
+	if err != nil {
+		fmt.Println("密码解密失败:", err)
+		writeJSON(w, http.StatusOK, model.APIResponse{
+			Code:    401,
+			Message: "密码解密失败: " + err.Error(),
+			Data:    map[string]any{"valid": false},
+		})
+		return
+	}
+
+	ok, msg := a.spider.ValidateCredentials(r.Context(), studentID, plainPassword)
+	if !ok {
+		fmt.Println("账号密码验证失败:", msg)
+		writeJSON(w, http.StatusOK, model.APIResponse{
+			Code:    401,
+			Message: msg,
+			Data:    map[string]any{"valid": false},
+		})
+		return
+	}
+	fmt.Println("账号密码验证成功")
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		Code:    200,
+		Message: "账号密码验证成功",
+		Data:    map[string]any{"valid": true},
+	})
+}
+
+// startTaskHandler 处理全量爬取任务提交
+func (a *App) startTaskHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("访问了提交任务接口")
+
+	studentID := r.Header.Get("X-Student-Id")
+	password := r.Header.Get("X-Password")
+	if studentID == "" || password == "" {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 X-Student-Id 或 X-Password",
+		})
+		return
+	}
+
+	var req model.StartTaskRequest
+	_ = decodeJSON(r, &req)
+
+	if req.AcademicYear == "" {
+		req.AcademicYear = a.cfg.DefaultAcademicYear
+	}
+	if req.Semester == "" {
+		req.Semester = a.cfg.DefaultSemester
+	}
+	if req.CallbackURL == "" {
+		req.CallbackURL = a.cfg.JavaCallbackURL
+	}
+
 	task := model.Task{
-		TaskID:      model.NewTaskID(),
+		TaskID:       taskIDFromHeader(r),
+		Type:         "FULL_CRAWL",
+		StudentID:    studentID,
+		Password:     password,
+		AcademicYear: req.AcademicYear,
+		Semester:     req.Semester,
+		CallbackURL:  req.CallbackURL,
+		Status:       "queued",
+		CreatedAt:    time.Now().Unix(),
+		UpdatedAt:    time.Now().Unix(),
+	}
+
+	a.enqueueTask(w, r, task)
+}
+
+// punchCardHandler 处理打卡任务提交
+func (a *App) punchCardHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("访问了打卡任务提交接口")
+
+	studentID := r.Header.Get("X-Student-Id")
+	password := r.Header.Get("X-Password")
+	if studentID == "" || password == "" {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    400,
+			Message: "缺少 X-Student-Id 或 X-Password",
+		})
+		return
+	}
+
+	task := model.Task{
+		TaskID:      taskIDFromHeader(r),
 		Type:        "PUNCH_CARD",
 		StudentID:   studentID,
 		Password:    password,
@@ -311,39 +308,16 @@ func (a *App) punchCardHandler(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   time.Now().Unix(),
 	}
 
-	if err := a.store.Enqueue(r.Context(), task); err != nil {
-		fmt.Println("打卡任务入队失败:", err)
-		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
-			Code:    500,
-			Message: "打卡任务入队失败: " + err.Error(),
-		})
-		return
-	}
-	fmt.Println("打卡任务入队成功:", task.TaskID)
-	writeJSON(w, http.StatusOK, model.APIResponse{
-		Code:    200,
-		Message: "打卡任务已提交",
-		Data: map[string]string{
-			"taskId": task.TaskID,
-		},
-	})
+	a.enqueueTask(w, r, task)
 }
 
-// emptyClassroomHandler 处理空教室任务提交请求
+// emptyClassroomHandler 处理空教室任务提交
 func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("访问了空教室任务提交接口")
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
-			Code:    405,
-			Message: "method not allowed",
-		})
-		return
-	}
 
 	studentID := r.Header.Get("X-Student-Id")
 	password := r.Header.Get("X-Password")
 	if studentID == "" || password == "" {
-		fmt.Println("缺少 X-Student-Id 或 X-Password")
 		writeJSON(w, http.StatusBadRequest, model.APIResponse{
 			Code:    400,
 			Message: "缺少 X-Student-Id 或 X-Password",
@@ -364,30 +338,16 @@ func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
 		req.CallbackURL = a.cfg.EmptyClassroomCallbackURL
 	}
 
-	if req.DayOfWeek == "" {
+	if req.DayOfWeek == "" || req.PeriodsMask == "" || req.WeeksMask == "" {
 		writeJSON(w, http.StatusBadRequest, model.APIResponse{
 			Code:    400,
-			Message: "缺少 dayOfWeek",
-		})
-		return
-	}
-	if req.PeriodsMask == "" {
-		writeJSON(w, http.StatusBadRequest, model.APIResponse{
-			Code:    400,
-			Message: "缺少 periodsMask",
-		})
-		return
-	}
-	if req.WeeksMask == "" {
-		writeJSON(w, http.StatusBadRequest, model.APIResponse{
-			Code:    400,
-			Message: "缺少 weeksMask",
+			Message: "缺少 dayOfWeek / periodsMask / weeksMask",
 		})
 		return
 	}
 
 	task := model.Task{
-		TaskID:       model.NewTaskID(),
+		TaskID:       taskIDFromHeader(r),
 		Type:         "EMPTY_CLASSROOM",
 		StudentID:    studentID,
 		Password:     password,
@@ -405,39 +365,16 @@ func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    time.Now().Unix(),
 	}
 
-	if err := a.store.Enqueue(r.Context(), task); err != nil {
-		fmt.Println("空教室任务入队失败:", err)
-		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
-			Code:    500,
-			Message: "空教室任务入队失败: " + err.Error(),
-		})
-		return
-	}
-	fmt.Println("空教室任务入队成功:", task.TaskID)
-	writeJSON(w, http.StatusOK, model.APIResponse{
-		Code:    200,
-		Message: "空教室任务已提交",
-		Data: map[string]string{
-			"taskId": task.TaskID,
-		},
-	})
+	a.enqueueTask(w, r, task)
 }
 
-// gradesHandler 处理成绩任务提交请求
+// gradesHandler 处理成绩任务提交
 func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("访问了成绩任务提交接口")
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
-			Code:    405,
-			Message: "method not allowed",
-		})
-		return
-	}
 
 	studentID := r.Header.Get("X-Student-Id")
 	password := r.Header.Get("X-Password")
 	if studentID == "" || password == "" {
-		fmt.Println("缺少 X-Student-Id 或 X-Password")
 		writeJSON(w, http.StatusBadRequest, model.APIResponse{
 			Code:    400,
 			Message: "缺少 X-Student-Id 或 X-Password",
@@ -459,7 +396,7 @@ func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task := model.Task{
-		TaskID:       model.NewTaskID(),
+		TaskID:       taskIDFromHeader(r),
 		Type:         "GRADES",
 		StudentID:    studentID,
 		Password:     password,
@@ -471,28 +408,72 @@ func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:    time.Now().Unix(),
 	}
 
-	if err := a.store.Enqueue(r.Context(), task); err != nil {
-		fmt.Println("成绩任务入队失败:", err)
+	a.enqueueTask(w, r, task)
+}
+
+// enqueueTask 统一任务入队逻辑：幂等校验 + 优先级路由 + 入队
+func (a *App) enqueueTask(w http.ResponseWriter, r *http.Request, task model.Task) {
+	if task.TaskID == "" {
+		task.TaskID = model.NewTaskID()
+	}
+
+	// 幂等去重
+	acquired, err := a.idempotency.TryAcquire(r.Context(), task.TaskID, a.cfg.IdempotencyTTL)
+	if err != nil {
+		log.Printf("[HTTP] 幂等校验失败 taskId=%s err=%v", task.TaskID, err)
 		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
 			Code:    500,
-			Message: "成绩任务入队失败: " + err.Error(),
+			Message: "幂等校验失败: " + err.Error(),
 		})
 		return
 	}
-	fmt.Println("成绩任务入队成功:", task.TaskID)
+	if !acquired {
+		log.Printf("[HTTP] 重复任务提交 taskId=%s", task.TaskID)
+		writeJSON(w, http.StatusOK, model.APIResponse{
+			Code:    200,
+			Message: "任务已提交（重复请求）",
+			Data: map[string]string{
+				"taskId": task.TaskID,
+			},
+		})
+		return
+	}
+
+	// 优先级
+	priority := model.NormalizePriority(r.Header.Get("X-Priority"))
+	task.Priority = priority
+
+	// 入队
+	if err := a.store.Enqueue(r.Context(), priority, task); err != nil {
+		// 入队失败时释放幂等锁，允许重试
+		_ = a.idempotency.Release(r.Context(), task.TaskID)
+		log.Printf("[HTTP] 任务入队失败 taskId=%s err=%v", task.TaskID, err)
+		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
+			Code:    500,
+			Message: "任务入队失败: " + err.Error(),
+		})
+		return
+	}
+
+	log.Printf("[HTTP] 任务入队成功 taskId=%s priority=%s", task.TaskID, priority)
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		Code:    200,
-		Message: "成绩任务已提交",
+		Message: "任务已提交",
 		Data: map[string]string{
-			"taskId": task.TaskID,
+			"taskId":   task.TaskID,
+			"priority": priority,
 		},
 	})
+}
+
+// taskIDFromHeader 从 Header 读取 X-Task-Id，为空则返回空字符串（由 enqueueTask 生成）
+func taskIDFromHeader(r *http.Request) string {
+	return r.Header.Get("X-Task-Id")
 }
 
 // writeJSON 写入 JSON 响应
 func writeJSON(w http.ResponseWriter, status int, resp model.APIResponse) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	// 编码 JSON 响应
 	_ = jsonEncode(w, resp)
 }
