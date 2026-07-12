@@ -91,9 +91,22 @@ const {
 }
 
 .grades-backdrop {
+  z-index: 0;
+  filter: saturate(1.02);
+}
+
+.grades-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background:
     radial-gradient(circle at top left, rgba(79, 134, 247, 0.16), transparent 28%),
-    linear-gradient(180deg, #f6f8fc 0%, #edf2f9 100%);
+    linear-gradient(
+      180deg,
+      rgba(246, 248, 252, calc(var(--page-wallpaper-mask-alpha) * 0.88)) 0%,
+      rgba(246, 248, 252, calc(var(--page-wallpaper-mask-alpha) * 0.34)) 30%,
+      rgba(237, 242, 249, calc(var(--page-wallpaper-mask-alpha) * 0.72)) 100%
+    );
 }
 
 .grades-shell {
