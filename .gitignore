@@ -32,7 +32,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.env
 
 ### Node.js ###
 node_modules/
@@ -55,6 +54,22 @@ desktop.ini
 *.env.production
 campus-spider-service/go_callback.json
 campus-assistant/user-service/src/main/resources/application-aliyun.yml
+
+# 默认允许提交 deploy/.env（非敏感默认配置），但忽略其他位置的 .env
+.env
+!deploy/.env
+
+# 敏感配置绝对不允许提交
+deploy/.env.secret
+deploy/offline/package/.env.secret
+
+# 离线部署包构建产物
+deploy/offline/package/images/
+deploy/offline/package/.env
+deploy/offline/package/init.sql
+deploy/offline/package/config/
+deploy/offline/package/scripts/
+deploy/offline/package/nacos_config/
 
 # data volume
 deploy/skywalking/

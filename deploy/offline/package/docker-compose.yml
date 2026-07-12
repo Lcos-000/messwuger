@@ -1,0 +1,227 @@
+name: campusassistant
+
+services:
+  nacos-init:
+    image: curlimages/curl:latest
+    container_name: campus-nacos-init
+    env_file:
+      - .env.secret
+    depends_on:
+      nacos:
+        condition: service_healthy
+    volumes:
+      - ./nacos_config:/nacos_config:ro
+      - ./scripts/import-nacos-config.sh:/import.sh:ro
+    entrypoint: ["/bin/sh", "/import.sh"]
+    networks:
+      - campus-net
+    restart: "no"
+
+  mysql:
+    image: mysql:8.0
+    container_name: campus-mysql
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: campus_db
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - campus_mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2
+    container_name: campus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nacos:
+    image: nacos/nacos-server:v2.4.0-slim
+    container_name: campus-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: ""
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 512m
+      JVM_XMX: 512m
+      JVM_XMN: 256m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    volumes:
+      - campus_nacos_data:/home/nacos/data
+      - campus_nacos_logs:/home/nacos/logs
+    networks:
+      - campus-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  sentinel:
+    image: bladex/sentinel-dashboard:1.8.9
+    container_name: campus-sentinel
+    restart: unless-stopped
+    ports:
+      - "8858:8858"
+    environment:
+      TZ: Asia/Shanghai
+    networks:
+      - campus-net
+
+  gateway:
+    image: campus-assistant/gateway:latest
+    container_name: campus-gateway
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_NACOS_SERVER_ADDR: campus-nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:mysql://campus-mysql:3306/campus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: campus-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      SPIDER_SERVICE_URL: http://campus-spider:8082
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./config/application-docker.yml:/app/application-docker.yml:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+      nacos-init:
+        condition: service_completed_successfully
+    networks:
+      - campus-net
+
+  user-service:
+    image: campus-assistant/user-service:latest
+    container_name: campus-user
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_NACOS_SERVER_ADDR: campus-nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:mysql://campus-mysql:3306/campus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: campus-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPIDER_SERVICE_URL: http://campus-spider:8082
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./config/application-docker.yml:/app/application-docker.yml:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+      nacos-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - campus-net
+
+  course-service:
+    image: campus-assistant/course-service:latest
+    container_name: campus-course
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CLOUD_NACOS_SERVER_ADDR: campus-nacos:8848
+      SPRING_DATASOURCE_URL: jdbc:mysql://campus-mysql:3306/campus_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATA_REDIS_HOST: campus-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./config/application-docker.yml:/app/application-docker.yml:ro
+    depends_on:
+      nacos:
+        condition: service_healthy
+      nacos-init:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
+    networks:
+      - campus-net
+
+  spider-service:
+    image: campus-assistant/spider-service:latest
+    container_name: campus-spider
+    restart: unless-stopped
+    env_file:
+      - .env.secret
+    ports:
+      - "8082:8082"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    environment:
+      REDIS_ADDR: campus-redis:6379
+      HTTP_ADDR: :8082
+      JAVA_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/student-data
+      PUNCH_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/punch-result
+      GRADES_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/grades
+      EMPTY_CLASSROOM_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/empty-classroom
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - campus-net
+
+  web:
+    image: campus-assistant/web:latest
+    container_name: campus-web
+    restart: unless-stopped
+    ports:
+      - "8802:80"
+    depends_on:
+      - gateway
+    networks:
+      - campus-net
+
+volumes:
+  campus_mysql_data:
+  campus_nacos_data:
+  campus_nacos_logs:
+
+networks:
+  campus-net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450

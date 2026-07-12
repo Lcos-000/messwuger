@@ -1,0 +1,19 @@
+# Docker 环境专用覆盖配置
+# 被挂载到 /app/application-docker.yml，配合 SPRING_PROFILES_ACTIVE=docker 生效
+spider:
+  service:
+    url: ${SPIDER_SERVICE_URL:http://campus-spider:8082}
+
+spring:
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:campus-nacos:8848}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:campus-mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:campus_db}?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_ROOT_PASSWORD:1234}
+  data:
+    redis:
+      host: ${REDIS_HOST:campus-redis}
+      port: ${REDIS_PORT:6379}
+      database: 0
