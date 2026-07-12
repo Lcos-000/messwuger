@@ -1,8 +1,8 @@
 # campus-spider-service
 
-Go 调度 + Python 爬虫的西南大学课表抓取微服务。
+Go 调度 + Python 爬虫的西南大学教务数据抓取微服务。
 
-- Go 负责：HTTP 接口、任务调度、Redis Stream 队列、Worker 消费、回调 Java
+- Go 负责：HTTP 接口、任务调度、Redis Stream 多优先级队列、Worker 消费、死信队列、限流、僵尸恢复、回调 Java
 - Python 负责：纯爬虫逻辑，作为命令行工具被 Go 通过子进程调用
 - 云打码：自动识别验证码，无需人工干预
 
@@ -33,13 +33,20 @@ campus-spider-service/
 │  └─ util.go              # JSON 工具函数
 ├─ internal/
 │  ├─ config/config.go     # 环境变量配置
-│  ├─ model/task.go        # 数据模型
-│  ├─ store/redis_store.go # Redis Stream + Hash 存储
+│  ├─ model/task.go        # 数据模型（含优先级、重试字段）
+│  ├─ store/
+│  │  ├─ redis_store.go    # 多优先级 Redis Stream
+│  │  ├─ idempotency.go    # X-Task-Id 幂等去重
+│  │  ├─ ratelimiter.go    # 固定窗口全局限流
+│  │  ├─ dlq.go            # 死信队列与指数退避重试
+│  │  └─ zombie.go         # 僵尸消息恢复
+│  ├─ worker/
+│  │  ├─ worker.go         # Worker 消费池
+│  │  └─ priority.go       # 加权轮询 + 防饥饿调度器
 │  ├─ spider/
 │  │  ├─ proxy_pool.go     # 轮询代理池
 │  │  └─ runner.go         # 子进程调用 Python CLI
-│  ├─ client/java_client.go# 回调 Java 内部接口
-│  └─ worker/worker.go     # Redis Stream 消费者池
+│  └─ client/java_client.go# 回调 Java 内部接口
 ├─ scripts/
 │  ├─ des.js               # DES 加密脚本
 │  ├─ swu_kb.py            # 爬虫核心逻辑
@@ -59,20 +66,32 @@ campus-spider-service/
 | `REDIS_DB` | `0` | Redis 数据库 |
 | `WORKER_CONCURRENCY` | `4` | Worker 并发数 |
 | `JAVA_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/student-data` | Java 回调地址 |
-| `JAVA_INTERNAL_TOKEN` | `internal-token` | 回调 Java 时的 Bearer Token |
-| `AES_SECRET_KEY` | `@aes-secret-key#` | Java 加密/Go 解密密码的 AES 密钥 |
+| `JAVA_INTERNAL_TOKEN` | `''` | 回调 Java 时的 Bearer Token |
+| `AES_SECRET_KEY` | `@aes-secret-key#` | Java 加密/Go 解密密码的 AES 密钥，生产环境请覆盖 |
 | `PYTHON_PATH` | `python` | Python 可执行文件路径 |
 | `SPIDER_SCRIPT` | `./scripts/spider_cli.py` | Python CLI 脚本路径 |
 | `SESSION_DIR` | `./data/sessions` | Session 文件存储目录 |
 | `SPIDER_TIMEOUT_MINUTES` | `20` | 单次爬虫超时（分钟） |
 | `DEFAULT_ACADEMIC_YEAR` | `2025` | 默认学年 |
-| `DEFAULT_SEMESTER` | `12` | 默认学期（12=上学期，3=下学期） |
+| `DEFAULT_SEMESTER` | `12` | 默认学期（12=第二学期，3=第一学期） |
 | `PROXY_POOL` | `''` | 代理池，逗号分隔多个代理 |
 | `PUNCH_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/punch-result` | 打卡回调地址 |
 | `EMPTY_CLASSROOM_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/empty-classroom` | 空教室查询回调地址 |
 | `GRADES_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/grades` | 成绩查询回调地址 |
-| `YM_TOKEN` | `BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM` | 云打码平台 token，建议通过环境变量覆盖 |
+| `YM_TOKEN` | `BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM` | 云打码平台 token，生产环境建议通过环境变量覆盖 |
 | `YM_TYPE` | `10110` | 云打码类型 ID |
+| `PRIORITY_WEIGHTS` | `high:3,medium:2,low:1` | 三优先级队列加权轮询权重 |
+| `QUEUE_STARVE_TIMEOUT_SECONDS` | `30` | 低优先级队列防饥饿超时（秒） |
+| `IDEMPOTENCY_TTL_SECONDS` | `86400` | 幂等去重 key 过期时间（秒） |
+| `DEAD_LETTER_STREAM` | `campus:spider:tasks:dlq` | 死信队列 Stream key |
+| `DEAD_LETTER_SCAN_INTERVAL_SECONDS` | `30` | 死信队列扫描间隔（秒） |
+| `MAX_RETRY_COUNT` | `5` | 任务最大重试次数 |
+| `RETRY_BASE_DELAY_SECONDS` | `10` | 指数退避基数（秒） |
+| `RETRY_MAX_DELAY_SECONDS` | `600` | 指数退避上限（秒） |
+| `ZOMBIE_SCAN_INTERVAL_SECONDS` | `60` | 僵尸消息扫描间隔（秒） |
+| `ZOMBIE_IDLE_TIMEOUT_SECONDS` | `300` | 消息 idle 多久视为僵尸（秒） |
+| `RATE_LIMIT_KEY_PREFIX` | `campus:spider:rate_limit` | 限流 Redis key 前缀 |
+| `RATE_LIMIT_PER_MINUTE` | `10` | 全局每分钟请求学校系统的次数上限 |
 
 ---
 
@@ -135,6 +154,8 @@ GET /health
 
 ```http
 POST /api/v1/task/submit
+X-Task-Id: task-xxx
+X-Priority: high
 X-Student-Id: 222025321262104
 X-Password: your_password
 X-TYPE: FULL_CRAWL
@@ -147,6 +168,16 @@ Content-Type: application/json
 |-----------|------|----------|
 | `VERIFY` | 仅验证账号密码 | **同步**立即返回 |
 | `FULL_CRAWL` | 爬取课表并回调 Java | **异步**入队，Worker 执行后回调 |
+
+**Header 说明：**
+
+| Header | 必填 | 说明 |
+|--------|------|------|
+| `X-Task-Id` | 否 | 任务唯一 ID；Go 会基于该 ID 做 24h 幂等去重，为空时自动生成 |
+| `X-Priority` | 否 | 任务优先级：`high` / `medium` / `low`，非法值默认 `medium` |
+| `X-Student-Id` | 是 | 学号 |
+| `X-Password` | 是 | AES 加密后的密码 |
+| `X-TYPE` | 是 | `VERIFY` 或 `FULL_CRAWL` |
 
 请求体可空，爬取模式下可指定学年和学期：
 ```json
@@ -215,9 +246,10 @@ X-TYPE: FULL_CRAWL
 ```json
 {
   "code": 200,
-  "message": "爬虫任务已提交",
+  "message": "任务已提交",
   "data": {
-    "taskId": "task-xxxx-xxxx-xxxx"
+    "taskId": "task-xxxx-xxxx-xxxx",
+    "priority": "high"
   }
 }
 ```
@@ -233,11 +265,13 @@ X-TYPE: FULL_CRAWL
 **调用链：**
 ```
 Java 调用 Go /api/v1/task/submit (X-TYPE: FULL_CRAWL)
-  → Go 写入 Redis Stream
-    → Worker 消费
-      → Go 调用 python spider_cli.py --mode crawl
-        → Python 登录 + 抓课表 + 输出 JSON
-          → Go 回调 Java 落库接口
+  → 幂等校验 (X-Task-Id)
+    → 按 X-Priority 写入对应 Redis Stream
+      → Worker 按优先级加权轮询消费
+        → 限流通过后才调用 Python
+          → Python 登录 + 抓课表 + 输出 JSON
+            → Go 回调 Java 落库接口
+              → 失败则转入死信队列，按指数退避重试
 ```
 
 **回调 Java 的数据格式：**
@@ -288,6 +322,8 @@ Java 调用 Go /api/v1/task/submit (X-TYPE: FULL_CRAWL)
 
 ```http
 POST /api/v1/task/empty-classroom
+X-Task-Id: task-xxx
+X-Priority: medium
 X-Student-Id: 222025321262104
 X-Password: your_password
 Content-Type: application/json
@@ -355,6 +391,8 @@ Content-Type: application/json
 
 ```http
 POST /api/v1/task/grades
+X-Task-Id: task-xxx
+X-Priority: medium
 X-Student-Id: 222025321262104
 X-Password: your_password
 Content-Type: application/json
@@ -399,6 +437,59 @@ Content-Type: application/json
   ]
 }
 ```
+
+---
+
+### 5. 自动打卡任务
+
+```http
+POST /api/v1/task/punch-card
+X-Task-Id: task-xxx
+X-Priority: low
+X-Student-Id: 222025321262104
+X-Password: your_password
+Content-Type: application/json
+```
+
+该接口无需请求体。任务默认进入 `low` 优先级队列，由 Worker 在限流配额内择机执行打卡脚本，结果回调 `PUNCH_CALLBACK_URL`。
+
+---
+
+## 可靠性机制
+
+### 1. 幂等去重
+
+Java 下发任务时通过 `X-Task-Id` 指定唯一任务 ID。Go 使用 Redis `SET NX` 对该 ID 加锁，TTL 默认 24 小时，防止因网络超时/重试导致同一任务被重复入队。重复提交会返回 `200` 并提示“任务已提交（重复请求）”。
+
+### 2. 多优先级队列
+
+任务按 `X-Priority` 进入三个 Redis Stream：
+
+| 优先级 | Stream key | 用途 |
+|--------|-----------|------|
+| `high` | `campus:spider:tasks:high` | 紧急任务，优先消费 |
+| `medium` | `campus:spider:tasks:medium` | 默认优先级 |
+| `low` | `campus:spider:tasks:low` | 可延后任务，最后消费 |
+
+Worker 采用 **加权轮询**（默认 `high:3, medium:2, low:1`）消费；若某队列超过 `QUEUE_STARVE_TIMEOUT_SECONDS`（默认 30 秒）未被消费，则优先补偿该队列，防止低优先级任务饿死。
+
+### 3. 全局限流
+
+所有 Worker 共享一个固定窗口限流器，默认 **每分钟最多向学校系统发起 10 次请求**。限流在实际调用 Python 前生效，避免空队列 polling 浪费配额。窗口耗尽后 Worker 阻塞等待下一分钟窗口。
+
+### 4. 死信队列与指数退避
+
+任务执行失败（登录失败、爬虫异常、回调失败等）时，消息会被确认并从原队列移除，同时任务写入死信队列 `campus:spider:tasks:dlq`。
+
+独立协程每 30 秒扫描死信队列：
+
+- 超过 `MAX_RETRY_COUNT`（默认 5）的任务直接丢弃。
+- 未达上限的任务按指数退避等待：`baseDelay * 2^(retryCount-1)`，上限 `RETRY_MAX_DELAY_SECONDS`（默认 600 秒）。
+- 退避到期后按原优先级重新入队，RetryCount +1。
+
+### 5. 僵尸消息恢复
+
+Worker 崩溃或异常退出会导致消息长期处于 Pending 状态。独立协程每 60 秒扫描三个优先级队列的 Pending Entries List，认领 idle 超过 300 秒的消息并重新入队，避免任务永久卡住。
 
 ---
 
@@ -459,23 +550,25 @@ python spider_cli.py \
 ## 任务执行流程
 
 ```
-queued → running → success / failed / callback_failed
+queued → running → success / failed (→ dead_letter → retry) / discarded
 ```
 
-- `queued`：已入队，等待 Worker 消费
-- `running`：Worker 正在执行 Python 爬虫
+- `queued`：已按优先级入队，等待 Worker 消费
+- `running`：Worker 已消费，正在执行 Python 爬虫
 - `success`：爬取成功且已回调 Java
-- `failed`：爬虫执行失败（如登录失败、课表接口异常）
-- `callback_failed`：爬取成功但回调 Java 失败（已重试 3 次）
+- `failed`：执行失败，转入死信队列等待重试
+- `dead_letter`：在死信队列中按指数退避等待重新入队
+- `discarded`：超过最大重试次数，任务被丢弃
 
-任务通过 Redis Stream 队列调度，Worker 消费后执行，执行结果通过回调通知 Java 服务。
+任务通过多优先级 Redis Stream 队列调度，Worker 按加权轮询消费；执行结果通过回调通知 Java 服务，失败任务由死信队列自动重试。
 
 ---
 
 ## 注意事项
 
 1. **Session 复用**：同个学号的 Session 文件会保存在 `SESSION_DIR/session_{学号}.json`，有效期内不会重复登录。
-2. **验证码**：默认使用云打码平台（`jfbym.com`），token 建议通过环境变量 `YM_TOKEN` 配置，避免硬编码。
+2. **验证码**：默认使用云打码平台（`jfbym.com`），`YM_TOKEN` 建议通过环境变量覆盖默认值。
 3. **代理池**：如需使用代理，设置环境变量 `PROXY_POOL=http://proxy1,http://proxy2`，Go 会轮询选取并透传给 Python。
 4. **回调安全**：Go 回调 Java 时会在 Header 中携带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`，Java 端需校验此 Token。
-5. **多实例**：如需水平扩展，直接启动多个 `server.exe` 实例，共用同一个 Redis Stream，任务会自动负载均衡。
+5. **多实例**：如需水平扩展，直接启动多个 `server.exe` 实例，共用同一个 Redis Stream，任务会自动负载均衡；全局限流器会保证所有实例合计不超过每分钟配额。
+6. **幂等键**：任务入队成功后，24 小时内相同 `X-Task-Id` 会被视为重复提交；若入队失败，幂等锁会释放，允许 Java 立即重试。
