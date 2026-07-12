@@ -185,6 +185,12 @@ services:
       - .env.secret
     ports:
       - "8082:8082"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
     environment:
       REDIS_ADDR: campus-redis:6379
       HTTP_ADDR: :8082
@@ -203,7 +209,7 @@ services:
     container_name: campus-web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8802:80"
     depends_on:
       - gateway
     networks:
@@ -217,3 +223,5 @@ volumes:
 networks:
   campus-net:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
