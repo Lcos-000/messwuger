@@ -35,6 +35,12 @@ type StartTaskRequest struct {
 	RoomType    string `json:"roomType"`
 }
 
+const (
+	PriorityHigh   = "high"
+	PriorityMedium = "medium"
+	PriorityLow    = "low"
+)
+
 type Task struct {
 	TaskID       string `json:"taskId"`
 	Type         string `json:"type"`
@@ -46,6 +52,12 @@ type Task struct {
 	Status       string `json:"status"`
 	Error        string `json:"error,omitempty"`
 	ResultJSON   string `json:"resultJson,omitempty"`
+
+	// 优先级与重试
+	Priority      string `json:"priority"`
+	RetryCount    int    `json:"retryCount"`
+	LastFailedAt  int64  `json:"lastFailedAt"`
+	FailedReason  string `json:"failedReason,omitempty"`
 
 	// 空教室查询参数
 	DayOfWeek   string `json:"dayOfWeek"`
@@ -163,6 +175,10 @@ func (t Task) ToMap() map[string]any {
 		"status":       t.Status,
 		"error":        t.Error,
 		"resultJson":   t.ResultJSON,
+		"priority":     t.Priority,
+		"retryCount":   fmt.Sprint(t.RetryCount),
+		"lastFailedAt": fmt.Sprint(t.LastFailedAt),
+		"failedReason": t.FailedReason,
 		"dayOfWeek":    t.DayOfWeek,
 		"periodsMask":  t.PeriodsMask,
 		"weeksMask":    t.WeeksMask,
@@ -172,6 +188,28 @@ func (t Task) ToMap() map[string]any {
 		"createdAt":    fmt.Sprint(t.CreatedAt),
 		"updatedAt":    fmt.Sprint(t.UpdatedAt),
 	}
+}
+
+// NormalizePriority 校验并归一化优先级，非法值默认返回 medium
+func NormalizePriority(p string) string {
+	switch p {
+	case PriorityHigh, PriorityMedium, PriorityLow:
+		return p
+	default:
+		return PriorityMedium
+	}
+}
+
+// RetryBackoff 指数退避：base * 2^retryCount，最大上限 max
+func RetryBackoff(retryCount int, base, max time.Duration) time.Duration {
+	if retryCount < 0 {
+		retryCount = 0
+	}
+	d := base * time.Duration(1<<retryCount)
+	if d > max || d <= 0 {
+		return max
+	}
+	return d
 }
 
 func (d SpiderData) ToCallbackPayload() CallbackPayload {
