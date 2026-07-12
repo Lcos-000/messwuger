@@ -1,7 +1,7 @@
 aliyun:
   oss:
-    endpoint: https://oss-cn-beijing.aliyuncs.com
-    access-key-id: your-access-key-id
-    access-key-secret: your-access-key-secret
-    bucket-name: your-bucket-name
-    url-prefix: https://your-bucket-name.oss-cn-beijing.aliyuncs.com
+    endpoint: ${ALIYUN_OSS_ENDPOINT}
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucket-name: ${ALIYUN_OSS_BUCKET_NAME}
+    url-prefix: ${ALIYUN_OSS_URL_PREFIX}
