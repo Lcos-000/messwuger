@@ -9,6 +9,12 @@ interface AuthApi {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): ApiResult<String>
 
+    @POST("auth/register")
+    suspend fun register(@Body request: LoginRequest): ApiResult<String>
+
+    @POST("auth/logout")
+    suspend fun logout(): ApiResult<String>
+
     @POST("auth/refresh")
     suspend fun refreshUserData(): ApiResult<String>
 }

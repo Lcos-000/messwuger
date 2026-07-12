@@ -61,6 +61,7 @@ fun AppRoot(
     onProfileGlobalFontChange: (Boolean) -> Unit,
     onSavePersonalization: () -> Unit,
     onProfileAssetUpload: (String, MultipartBody.Part) -> Unit,
+    onDeleteAccount: () -> Unit,
     onRefreshSchedule: () -> Unit,
     onSyncSchedule: () -> Unit,
     onScheduleWeekModeChange: (ScheduleWeekMode) -> Unit,
@@ -135,6 +136,7 @@ fun AppRoot(
                 onProfileGlobalFontChange = onProfileGlobalFontChange,
                 onSavePersonalization = onSavePersonalization,
                 onProfileAssetUpload = onProfileAssetUpload,
+                onDeleteAccount = onDeleteAccount,
                 onRefreshSchedule = onRefreshSchedule,
                 onSyncSchedule = onSyncSchedule,
                 onScheduleWeekModeChange = onScheduleWeekModeChange,
@@ -216,6 +218,7 @@ private fun MainScreen(
     onProfileGlobalFontChange: (Boolean) -> Unit,
     onSavePersonalization: () -> Unit,
     onProfileAssetUpload: (String, MultipartBody.Part) -> Unit,
+    onDeleteAccount: () -> Unit,
     onRefreshSchedule: () -> Unit,
     onSyncSchedule: () -> Unit,
     onScheduleWeekModeChange: (ScheduleWeekMode) -> Unit,
@@ -313,6 +316,7 @@ private fun MainScreen(
                     onGlobalFontChange = onProfileGlobalFontChange,
                     onSavePersonalization = onSavePersonalization,
                     onAssetUpload = onProfileAssetUpload,
+                    onDeleteAccount = onDeleteAccount,
                     onLogout = onLogout
                 )
             }

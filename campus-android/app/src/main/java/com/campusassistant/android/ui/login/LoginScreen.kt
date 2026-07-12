@@ -74,13 +74,13 @@ fun LoginScreen(
             }
             Spacer(modifier = Modifier.height(18.dp))
             CampusButton(
-                text = if (loading) "登录中" else "登录",
+                text = if (loading) "登录中" else "登录 / 未注册自动创建",
                 onClick = { onLogin(studentId, password) },
                 enabled = !loading
             )
             if (loading) {
                 Spacer(modifier = Modifier.height(14.dp))
-                CampusLoadingState(text = "正在登录", modifier = Modifier.height(64.dp))
+                CampusLoadingState(text = "正在登录，必要时会自动注册", modifier = Modifier.height(64.dp))
             }
         }
         Spacer(modifier = Modifier.height(12.dp))

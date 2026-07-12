@@ -25,4 +25,10 @@ class UserRepository(
         userApi.updateAutoPunch(AutoPunchRequest(autoPunchEnabled = if (enabled) 1 else 0))
             .requireSuccess(tokenDataStore, "自动打卡更新失败")
     }
+
+    suspend fun deleteAccount(): Result<ApiResult<String>> = safeApiCall(tokenDataStore) {
+        val result = userApi.deleteAccount().requireSuccess(tokenDataStore, "注销账号失败")
+        tokenDataStore.clearToken()
+        result
+    }
 }

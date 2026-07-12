@@ -18,10 +18,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +63,7 @@ fun ProfileScreen(
     onGlobalFontChange: (Boolean) -> Unit,
     onSavePersonalization: () -> Unit,
     onAssetUpload: (String, MultipartBody.Part) -> Unit,
+    onDeleteAccount: () -> Unit,
     onLogout: () -> Unit
 ) {
     val draft = profileState.personalizationDraft
@@ -109,6 +113,7 @@ fun ProfileScreen(
                     onGlobalFontChange = onGlobalFontChange,
                     onSavePersonalization = onSavePersonalization,
                     onUploadRequest = onUploadRequest,
+                    onDeleteAccount = onDeleteAccount,
                     onLogout = onLogout
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -253,9 +258,11 @@ private fun ProfileContentPanel(
     onGlobalFontChange: (Boolean) -> Unit,
     onSavePersonalization: () -> Unit,
     onUploadRequest: (String) -> Unit,
+    onDeleteAccount: () -> Unit,
     onLogout: () -> Unit
 ) {
     val cardShape = RoundedCornerShape(18.dp)
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -298,7 +305,42 @@ private fun ProfileContentPanel(
                 value = null,
                 onClick = onLogout
             )
+            SectionDivider()
+            ActionRow(
+                icon = Icons.Default.DeleteOutline,
+                iconBackground = Color(0xFFFFE4E6),
+                iconColor = Color(0xFFB91C1C),
+                label = "注销账号",
+                value = if (profileState.deletingAccount) "处理中" else "删除当前账号数据",
+                onClick = { if (!profileState.deletingAccount) showDeleteConfirm = true }
+            )
         }
     }
+    }
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!profileState.deletingAccount) showDeleteConfirm = false },
+            title = { Text("确认注销账号") },
+            text = { Text("注销会调用后端删除当前用户账号，成功后将自动退出登录。此操作不可在 App 内撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDeleteAccount()
+                    },
+                    enabled = !profileState.deletingAccount
+                ) {
+                    Text("确认注销", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirm = false },
+                    enabled = !profileState.deletingAccount
+                ) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }

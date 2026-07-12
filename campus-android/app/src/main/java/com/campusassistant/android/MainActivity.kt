@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity() {
                     onProfileGlobalFontChange = profileViewModel::updateGlobalFont,
                     onSavePersonalization = profileViewModel::savePersonalization,
                     onProfileAssetUpload = profileViewModel::uploadAsset,
+                    onDeleteAccount = profileViewModel::deleteAccount,
                     onRefreshSchedule = scheduleViewModel::loadSchedule,
                     onSyncSchedule = scheduleViewModel::syncUserDataAndReload,
                     onScheduleWeekModeChange = scheduleViewModel::setWeekMode,

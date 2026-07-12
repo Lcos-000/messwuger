@@ -88,7 +88,7 @@ private fun AutoPunchRow(
 internal fun MessageRows(profileState: ProfileUiState) {
     val error = profileState.errorMessage
     val action = profileState.actionMessage
-    if (error.isNullOrBlank() && action.isNullOrBlank() && !profileState.loading) return
+    if (error.isNullOrBlank() && action.isNullOrBlank() && !profileState.loading && !profileState.deletingAccount) return
 
     SectionDivider()
     if (profileState.loading) {
@@ -99,6 +99,16 @@ internal fun MessageRows(profileState: ProfileUiState) {
         ) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
             Text("正在刷新个人主页", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+    if (profileState.deletingAccount) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            Text("正在注销账号", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
         }
     }
     if (!error.isNullOrBlank()) {

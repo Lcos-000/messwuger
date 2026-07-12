@@ -43,6 +43,7 @@ data class ProfileUiState(
     val loading: Boolean = false,
     val updatingAutoPunch: Boolean = false,
     val savingPersonalization: Boolean = false,
+    val deletingAccount: Boolean = false,
     val uploadingAssetType: String? = null,
     val personalResult: ApiResult<UserPersonal>? = null,
     val statusResult: ApiResult<UserStatus>? = null,
@@ -297,6 +298,34 @@ class ProfileViewModel(
                 errorMessage = null,
                 actionMessage = null
             )
+        }
+    }
+
+    fun deleteAccount() {
+        if (_uiState.value.deletingAccount) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingAccount = true, errorMessage = null, actionMessage = null) }
+            userRepository.deleteAccount()
+                .onSuccess { result ->
+                    if (result.isSuccess) {
+                        _uiState.value = ProfileUiState(actionMessage = result.data ?: result.message ?: "账号已注销")
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                deletingAccount = false,
+                                errorMessage = result.message ?: "注销账号失败"
+                            )
+                        }
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            deletingAccount = false,
+                            errorMessage = throwable.message ?: "注销账号失败"
+                        )
+                    }
+                }
         }
     }
 
