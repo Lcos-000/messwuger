@@ -28,12 +28,14 @@
 
 ## 前置准备
 
-确保以下依赖已启动：
+确保以下中间件已在本地启动（推荐使用 `deploy/offline/package` 下的 Docker Compose，也可用本地安装的 MySQL / Redis / Nacos / Sentinel）：
 
 ```powershell
 cd deploy/offline/package
 docker compose up -d mysql redis nacos sentinel
 ```
+
+> 如果使用本地安装的中间件，请确保 MySQL 监听 `127.0.0.1:3306`，Redis 监听 `127.0.0.1:6379`，Nacos 监听 `127.0.0.1:8848`，Sentinel 监听 `127.0.0.1:8858`。
 
 ### 清空数据库（可选）
 
@@ -50,7 +52,7 @@ TRUNCATE TABLE user_profile_style;
 TRUNCATE TABLE user_profile_custom_asset;
 SET FOREIGN_KEY_CHECKS = 1;
 "@
-$SQL | docker exec -i campus-mysql mysql -uroot -p1234 campus_db
+$SQL | mysql -u root -p1234 campus_db
 ```
 
 > 如果 MySQL root 密码不是 `1234`，请替换命令中的 `-p1234`。
