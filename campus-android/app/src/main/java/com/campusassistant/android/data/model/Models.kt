@@ -175,3 +175,12 @@ data class EmptyClassroomItem(
 data class JsonWrapper(
     val raw: JsonElement? = null
 )
+
+data class PublicNotice(
+    val enabled: Boolean? = null,
+    val version: Int? = null,
+    val title: String? = null,
+    val content: String? = null,
+    val level: String? = null,
+    val updatedAt: String? = null
+)

@@ -55,10 +55,6 @@ internal fun PersonalizationSection(
     onWallpaperMaskChange: (Float) -> Unit,
     onGlobalFontChange: (Boolean) -> Unit,
     onPersonalizationExpandedToggle: () -> Unit,
-    onServerSettingsToggle: () -> Unit,
-    onServerHostChange: (String) -> Unit,
-    onServerPortChange: (String) -> Unit,
-    onSaveServerSettings: () -> Unit,
     onSave: () -> Unit,
     onUploadRequest: (String) -> Unit
 ) {
@@ -142,14 +138,6 @@ internal fun PersonalizationSection(
             }
             Switch(checked = draft.globalFontEnabled, onCheckedChange = onGlobalFontChange)
         }
-
-        ServerSettingsSection(
-            profileState = profileState,
-            onServerSettingsToggle = onServerSettingsToggle,
-            onServerHostChange = onServerHostChange,
-            onServerPortChange = onServerPortChange,
-            onSaveServerSettings = onSaveServerSettings
-        )
 
         Button(
             onClick = onSave,
@@ -237,7 +225,7 @@ private fun CardColorSliderSetting(
 }
 
 @Composable
-private fun ServerSettingsSection(
+internal fun ServerSettingsSection(
     profileState: ProfileUiState,
     onServerSettingsToggle: () -> Unit,
     onServerHostChange: (String) -> Unit,

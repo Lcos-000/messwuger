@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.campusassistant.android.core.datastore.NoticeStore
 import com.campusassistant.android.core.datastore.ServerConfigStore
 import com.campusassistant.android.core.datastore.TokenDataStore
 import com.campusassistant.android.core.network.NetworkModule
@@ -24,6 +25,8 @@ import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomViewModel
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomViewModelFactory
 import com.campusassistant.android.ui.grades.GradesViewModel
 import com.campusassistant.android.ui.grades.GradesViewModelFactory
+import com.campusassistant.android.ui.notice.NoticeViewModel
+import com.campusassistant.android.ui.notice.NoticeViewModelFactory
 import com.campusassistant.android.ui.profile.ProfileViewModel
 import com.campusassistant.android.ui.profile.ProfileViewModelFactory
 import com.campusassistant.android.ui.schedule.ScheduleViewModel
@@ -35,9 +38,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val serverConfigStore = ServerConfigStore(applicationContext)
+        val noticeStore = NoticeStore(applicationContext)
         val tokenDataStore = TokenDataStore(applicationContext)
         val networkModule = NetworkModule(tokenDataStore)
         val authRepository = AuthRepository(networkModule.authApi, tokenDataStore)
+        val noticeViewModelFactory = NoticeViewModelFactory(authRepository, noticeStore)
         val userRepository = UserRepository(networkModule.userApi, tokenDataStore)
         val scheduleRepository = ScheduleRepository(networkModule.scheduleApi, tokenDataStore)
         val gradesRepository = GradesRepository(networkModule.gradesApi, tokenDataStore)
@@ -51,11 +56,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appViewModel: AppViewModel = viewModel(factory = appViewModelFactory)
+            val noticeViewModel: NoticeViewModel = viewModel(factory = noticeViewModelFactory)
             val profileViewModel: ProfileViewModel = viewModel(factory = profileViewModelFactory)
             val scheduleViewModel: ScheduleViewModel = viewModel(factory = scheduleViewModelFactory)
             val gradesViewModel: GradesViewModel = viewModel(factory = gradesViewModelFactory)
             val emptyClassroomViewModel: EmptyClassroomViewModel = viewModel(factory = emptyClassroomViewModelFactory)
             val appState by appViewModel.uiState.collectAsStateWithLifecycle()
+            val noticeState by noticeViewModel.uiState.collectAsStateWithLifecycle()
             val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
             val scheduleState by scheduleViewModel.uiState.collectAsStateWithLifecycle()
             val gradesState by gradesViewModel.uiState.collectAsStateWithLifecycle()
@@ -64,6 +71,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 ServerConfigHolder.update(serverConfigStore.getConfig())
                 profileViewModel.loadServerSettings()
+                noticeViewModel.start()
             }
 
             CampusAssistantTheme(
@@ -71,11 +79,17 @@ class MainActivity : ComponentActivity() {
             ) {
                 AppRoot(
                     appState = appState,
+                    noticeState = noticeState,
                     profileState = profileState,
                     scheduleState = scheduleState,
                     gradesState = gradesState,
                     emptyClassroomState = emptyClassroomState,
                     onLogin = appViewModel::login,
+                    onRefreshNotice = noticeViewModel::refreshNotice,
+                    onOpenLatestNotice = noticeViewModel::openLatestNotice,
+                    onOpenNoticeHistory = noticeViewModel::openHistoryDialog,
+                    onOpenHistoryNotice = noticeViewModel::openHistoryNotice,
+                    onCloseNoticeDialogs = noticeViewModel::closeDialogs,
                     onShowLoginPreview = appViewModel::showLoginPreview,
                     onHideLoginPreview = appViewModel::hideLoginPreview,
                     onLogout = appViewModel::logout,

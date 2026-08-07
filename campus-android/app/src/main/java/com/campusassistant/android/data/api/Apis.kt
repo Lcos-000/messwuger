@@ -8,6 +8,7 @@ import com.campusassistant.android.data.model.EmptyClassroomRequest
 import com.campusassistant.android.data.model.EmptyClassroomResponse
 import com.campusassistant.android.data.model.LoginRequest
 import com.campusassistant.android.data.model.PersonalizationProfile
+import com.campusassistant.android.data.model.PublicNotice
 import com.campusassistant.android.data.model.PersonalizationUpdateRequest
 import com.campusassistant.android.data.model.ScheduleResponse
 import com.campusassistant.android.data.model.UploadAssetResult
@@ -24,6 +25,9 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 
 interface AuthApi {
+    @GET("public/notice")
+    suspend fun getPublicNotice(): ApiResult<PublicNotice>
+
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): ApiResult<String>
 

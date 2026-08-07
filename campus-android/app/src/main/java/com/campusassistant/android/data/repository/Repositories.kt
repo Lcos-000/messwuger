@@ -63,6 +63,10 @@ class AuthRepository(
         tokenDataStore.clearToken()
     }
 
+    suspend fun getPublicNotice() = safeApiCall(tokenDataStore) {
+        authApi.getPublicNotice()
+    }
+
     suspend fun refreshUserData(): Result<String> = safeApiCall(tokenDataStore) {
         val result = authApi.refresh()
         result.requireSuccess(tokenDataStore, "提交同步任务失败")

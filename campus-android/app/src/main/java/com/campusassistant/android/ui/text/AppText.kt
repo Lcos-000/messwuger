@@ -24,7 +24,8 @@ data class CommonText(
     val refresh: String = "刷新",
     val refreshing: String = "刷新中",
     val saving: String = "保存中",
-    val emptyValue: String = "-"
+    val emptyValue: String = "-",
+    val notice: String = "系统公告"
 )
 
 @Immutable
@@ -38,6 +39,7 @@ data class LoginText(
     val kicker: String = "Campus",
     val title: String = "校园课表查询",
     val subtitle: String = "统一登录后进入课表、成绩、空教室查询。未注册账号会使用当前学号自动创建。",
+    val noticeHint: String = "新的服务通知会自动弹出，历史公告仅保留本地缓存。",
     val loginTab: String = "登录",
     val autoRegisterTab: String = "自动注册",
     val studentIdLabel: String = "学号",
