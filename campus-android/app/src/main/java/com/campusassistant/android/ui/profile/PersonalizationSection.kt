@@ -1,5 +1,10 @@
 package com.campusassistant.android.ui.profile
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,10 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
+import com.campusassistant.android.ui.common.CampusSlider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -39,6 +42,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.campusassistant.android.ui.common.CampusButton
+import com.campusassistant.android.ui.common.CampusTextField
+import com.campusassistant.android.ui.common.ModeDot
 import com.campusassistant.android.ui.common.campusCardColorPalette
 import com.campusassistant.android.ui.common.resolveCampusCardBaseColor
 import com.campusassistant.android.ui.text.LocalAppText
@@ -75,76 +81,79 @@ internal fun PersonalizationSection(
             }
         }
 
-        if (!profileState.personalizationSectionState.expanded) {
-            return@Column
-        }
-
-        AssetChoiceRow(
-            label = text.avatar,
-            type = "avatar",
-            selected = draft.avatar,
-            options = assetOptions(
-                text.localInitial,
-                text.avatar,
-                profileState.defaultOptions?.avatars,
-                profileState.customAssets?.customAvatar
-            ),
-            onSelect = onAvatarSelect,
-            onUploadRequest = onUploadRequest
-        )
-        AssetChoiceRow(
-            label = text.background,
-            type = "background",
-            selected = draft.background,
-            options = assetOptions(
-                text.lightBackground,
-                text.background,
-                profileState.defaultOptions?.backgrounds,
-                profileState.customAssets?.customBackground
-            ),
-            onSelect = onBackgroundSelect,
-            onUploadRequest = onUploadRequest
-        )
-        AssetChoiceRow(
-            label = text.wallpaper,
-            type = "wallpaper",
-            selected = draft.wallpaper,
-            options = assetOptions(
-                text.lightWallpaper,
-                text.wallpaper,
-                profileState.defaultOptions?.wallpapers,
-                profileState.customAssets?.customWallpaper
-            ),
-            onSelect = onWallpaperSelect,
-            onUploadRequest = onUploadRequest
-        )
-
-        SliderSetting(text.cardOpacity, draft.cardOpacity, 0.2f..1f, "%.2f".format(draft.cardOpacity), onCardOpacityChange)
-        CardColorSliderSetting(
-            label = text.cardBlur,
-            value = draft.cardBlur,
-            onChange = onCardBlurChange
-        )
-        SliderSetting(text.wallpaperMask, draft.wallpaperMask, 0f..1f, "%.2f".format(draft.wallpaperMask), onWallpaperMaskChange)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        AnimatedVisibility(
+            visible = profileState.personalizationSectionState.expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
         ) {
-            Column {
-                Text(text.globalFont, color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                Text(if (draft.globalFontEnabled) text.enabled else text.disabled, color = TextStrong, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                AssetChoiceRow(
+                    label = text.avatar,
+                    type = "avatar",
+                    selected = draft.avatar,
+                    options = assetOptions(
+                        text.localInitial,
+                        text.avatar,
+                        profileState.defaultOptions?.avatars,
+                        profileState.customAssets?.customAvatar
+                    ),
+                    onSelect = onAvatarSelect,
+                    onUploadRequest = onUploadRequest
+                )
+                AssetChoiceRow(
+                    label = text.background,
+                    type = "background",
+                    selected = draft.background,
+                    options = assetOptions(
+                        text.lightBackground,
+                        text.background,
+                        profileState.defaultOptions?.backgrounds,
+                        profileState.customAssets?.customBackground
+                    ),
+                    onSelect = onBackgroundSelect,
+                    onUploadRequest = onUploadRequest
+                )
+                AssetChoiceRow(
+                    label = text.wallpaper,
+                    type = "wallpaper",
+                    selected = draft.wallpaper,
+                    options = assetOptions(
+                        text.lightWallpaper,
+                        text.wallpaper,
+                        profileState.defaultOptions?.wallpapers,
+                        profileState.customAssets?.customWallpaper
+                    ),
+                    onSelect = onWallpaperSelect,
+                    onUploadRequest = onUploadRequest
+                )
+
+                SliderSetting(text.cardOpacity, draft.cardOpacity, 0.2f..1f, "%.2f".format(draft.cardOpacity), onCardOpacityChange)
+                CardColorSliderSetting(
+                    label = text.cardBlur,
+                    value = draft.cardBlur,
+                    onChange = onCardBlurChange
+                )
+                SliderSetting(text.wallpaperMask, draft.wallpaperMask, 0f..1f, "%.2f".format(draft.wallpaperMask), onWallpaperMaskChange)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(text.globalFont, color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                        Text(if (draft.globalFontEnabled) text.enabled else text.disabled, color = TextStrong, fontWeight = FontWeight.SemiBold)
+                    }
+                    Switch(checked = draft.globalFontEnabled, onCheckedChange = onGlobalFontChange)
+                }
+
+                CampusButton(
+                    text = text.savePersonalization,
+                    onClick = onSave,
+                    enabled = !profileState.savingPersonalization,
+                    loading = profileState.savingPersonalization
+                )
             }
-            Switch(checked = draft.globalFontEnabled, onCheckedChange = onGlobalFontChange)
-        }
-
-        Button(
-            onClick = onSave,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !profileState.savingPersonalization
-        ) {
-            Text(if (profileState.savingPersonalization) LocalAppText.current.common.saving else text.savePersonalization)
         }
     }
 }
@@ -190,6 +199,7 @@ private fun CardColorSliderSetting(
     value: Float,
     onChange: (Float) -> Unit
 ) {
+    val text = LocalAppText.current.profile
     val palette = campusCardColorPalette()
     val selectedIndex = value.roundToInt().coerceIn(0, palette.lastIndex)
     val previewColor = resolveCampusCardBaseColor(value)
@@ -209,13 +219,13 @@ private fun CardColorSliderSetting(
                         .border(1.dp, Color(0xFFD7DFEA), RoundedCornerShape(999.dp))
                 )
                 Text(
-                    if (selectedIndex == 0) "纯白" else "预设 ${selectedIndex}",
+                    if (selectedIndex == 0) text.cardColorWhite else "${text.cardColorPreset} $selectedIndex",
                     color = TextStrong,
                     fontWeight = FontWeight.SemiBold
                 )
             }
         }
-        Slider(
+        CampusSlider(
             value = value,
             onValueChange = onChange,
             valueRange = 0f..30f,
@@ -265,35 +275,36 @@ internal fun ServerSettingsSection(
                 }
             }
 
-            if (draft.expanded) {
-                OutlinedTextField(
-                    value = draft.host,
-                    onValueChange = onServerHostChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(text.serverHostLabel) },
-                    placeholder = { Text(text.serverHostPlaceholder) }
-                )
-                OutlinedTextField(
-                    value = draft.port,
-                    onValueChange = onServerPortChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(text.serverPortLabel) },
-                    placeholder = { Text(text.serverPortPlaceholder) }
-                )
-                Button(
-                    onClick = onSaveServerSettings,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !profileState.savingServerConfig
-                ) {
-                    Text(if (profileState.savingServerConfig) LocalAppText.current.common.saving else text.saveServerSettings)
+            AnimatedVisibility(
+                visible = draft.expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CampusTextField(
+                        value = draft.host,
+                        onValueChange = onServerHostChange,
+                        label = text.serverHostLabel,
+                        placeholder = text.serverHostPlaceholder
+                    )
+                    CampusTextField(
+                        value = draft.port,
+                        onValueChange = onServerPortChange,
+                        label = text.serverPortLabel,
+                        placeholder = text.serverPortPlaceholder
+                    )
+                    CampusButton(
+                        text = text.saveServerSettings,
+                        onClick = onSaveServerSettings,
+                        enabled = !profileState.savingServerConfig,
+                        loading = profileState.savingServerConfig
+                    )
+                    Text(
+                        text = text.serverSettingsHint,
+                        color = TextMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-                Text(
-                    text = text.serverSettingsHint,
-                    color = TextMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
             }
         }
     }
@@ -312,7 +323,7 @@ private fun SliderSetting(
             Text(label, color = TextMuted, style = MaterialTheme.typography.labelMedium)
             Text(valueText, color = TextStrong, fontWeight = FontWeight.SemiBold)
         }
-        Slider(
+        CampusSlider(
             value = value,
             onValueChange = onChange,
             valueRange = range
@@ -373,7 +384,7 @@ private fun AssetTile(
                     )
                 }
                 if (selected) {
-                    ModeDot(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
+                    ModeDot(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp), color = HeroStart)
                 }
             }
         }
@@ -388,7 +399,3 @@ private fun AssetTile(
     }
 }
 
-@Composable
-private fun ModeDot(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.size(8.dp).background(HeroStart, CircleShape))
-}

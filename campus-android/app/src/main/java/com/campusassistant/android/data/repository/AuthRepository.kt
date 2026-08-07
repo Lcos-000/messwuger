@@ -5,6 +5,7 @@ import com.campusassistant.android.core.network.requireSuccess
 import com.campusassistant.android.core.network.safeApiCall
 import com.campusassistant.android.data.api.AuthApi
 import com.campusassistant.android.data.model.LoginRequest
+import com.campusassistant.android.ui.text.AppMessages
 
 class AuthRepository(
     private val authApi: AuthApi,
@@ -14,16 +15,16 @@ class AuthRepository(
 
     suspend fun login(studentId: String, password: String): Result<Unit> = safeApiCall(tokenDataStore) {
         val result = authApi.login(LoginRequest(studentId = studentId, password = password))
-        result.requireSuccess(tokenDataStore, "登录失败")
+        result.requireSuccess(tokenDataStore, AppMessages.Auth.loginFailed)
         val token = result.data?.trim().orEmpty()
-        if (token.isBlank()) error("登录成功但未返回 token")
+        if (token.isBlank()) error(AppMessages.Auth.loginNoToken)
         tokenDataStore.saveToken(token)
     }
 
     suspend fun register(studentId: String, password: String): Result<String> = safeApiCall(tokenDataStore) {
         val result = authApi.register(LoginRequest(studentId = studentId, password = password))
-        result.requireSuccess(tokenDataStore, "注册失败")
-        result.data ?: result.message ?: "注册成功"
+        result.requireSuccess(tokenDataStore, AppMessages.Auth.registerFailed)
+        result.data ?: result.message ?: AppMessages.Auth.registerSuccess
     }
 
     suspend fun loginOrRegister(studentId: String, password: String): Result<Unit> {
@@ -43,9 +44,17 @@ class AuthRepository(
         authApi.getPublicNotice()
     }
 
+    suspend fun getManual() = safeApiCall(tokenDataStore) {
+        authApi.getManual()
+    }
+
+    suspend fun getScheduleConfig() = safeApiCall(tokenDataStore) {
+        authApi.getScheduleConfig()
+    }
+
     suspend fun refreshUserData(): Result<String> = safeApiCall(tokenDataStore) {
         val result = authApi.refresh()
-        result.requireSuccess(tokenDataStore, "提交同步任务失败")
-        result.data ?: result.message ?: "刷新任务已提交"
+        result.requireSuccess(tokenDataStore, AppMessages.Auth.submitSyncTaskFailed)
+        result.data ?: result.message ?: AppMessages.Auth.refreshTaskSubmitted
     }
 }

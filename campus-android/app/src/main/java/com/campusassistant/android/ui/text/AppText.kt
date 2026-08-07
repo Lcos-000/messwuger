@@ -14,7 +14,8 @@ data class AppText(
     val schedule: ScheduleText = ScheduleText(),
     val grades: GradesText = GradesText(),
     val emptyClassroom: EmptyClassroomText = EmptyClassroomText(),
-    val profile: ProfileText = ProfileText()
+    val profile: ProfileText = ProfileText(),
+    val notice: NoticeText = NoticeText()
 )
 
 @Immutable
@@ -49,7 +50,9 @@ data class LoginText(
     val submit: String = "登 录",
     val submitting: String = "处理中...",
     val checkingAccount: String = "正在校验账号",
-    val connectionPrefix: String = "当前连接"
+    val connectionPrefix: String = "当前连接",
+    val hidePassword: String = "隐藏密码",
+    val showPassword: String = "显示密码"
 )
 
 @Immutable
@@ -179,6 +182,8 @@ data class ProfileText(
     val lightWallpaper: String = "浅灰墙纸",
     val cardOpacity: String = "资料卡不透明度",
     val cardBlur: String = "资料卡颜色",
+    val cardColorWhite: String = "纯白",
+    val cardColorPreset: String = "预设",
     val wallpaperMask: String = "墙纸蒙版强度",
     val globalFont: String = "全局字体",
     val serverSettings: String = "服务器设置",
@@ -204,7 +209,29 @@ data class ProfileText(
     val uploadAsset: String = "上传图片",
     val goLoginPage: String = "查看登录页",
     val goLoginPageHint: String = "不退出当前账号，临时返回登录页",
-    val backToApp: String = "返回当前会话"
+    val backToApp: String = "返回当前会话",
+    val logoutConfirmTitle: String = "确认退出登录",
+    val logoutConfirmMessage: String = "退出后将清除本地登录状态，下次使用需要重新输入学号和密码登录。",
+    val logoutConfirm: String = "确认退出",
+    val userManual: String = "使用手册",
+    val userManualHint: String = "查看应用功能说明",
+    val userManualTitle: String = "使用手册",
+    val userManualContent: String = """
+暂未获取到使用手册，请检查网络后重试。
+
+基本功能：
+- 课表：登录后查看本周/全部周次课表，点击课程查看详情。
+- 成绩：筛选学年学期查询成绩，可获取最新成绩。
+- 空教室：选择条件后提交任务查询空教室。
+- 我的：管理个人信息、个性化设置、服务器设置。
+""".trimIndent()
+)
+
+@Immutable
+data class NoticeText(
+    val viewHistory: String = "查看历史",
+    val historyTitle: String = "历史公告",
+    val emptyHistory: String = "暂无历史公告"
 )
 
 val LocalAppText = compositionLocalOf { AppText() }

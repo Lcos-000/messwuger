@@ -21,6 +21,12 @@ import com.campusassistant.android.data.repository.UserRepository
 import com.campusassistant.android.ui.AppRoot
 import com.campusassistant.android.ui.AppViewModel
 import com.campusassistant.android.ui.AppViewModelFactory
+import com.campusassistant.android.ui.AuthActions
+import com.campusassistant.android.ui.EmptyClassroomActions
+import com.campusassistant.android.ui.GradesActions
+import com.campusassistant.android.ui.NoticeActions
+import com.campusassistant.android.ui.ProfileActions
+import com.campusassistant.android.ui.ScheduleActions
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomViewModel
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomViewModelFactory
 import com.campusassistant.android.ui.grades.GradesViewModel
@@ -49,7 +55,7 @@ class MainActivity : ComponentActivity() {
         val emptyClassroomRepository = EmptyClassroomRepository(networkModule.emptyClassroomApi, tokenDataStore)
         val personalizationRepository = PersonalizationRepository(networkModule.personalizationApi, tokenDataStore)
         val appViewModelFactory = AppViewModelFactory(authRepository)
-        val profileViewModelFactory = ProfileViewModelFactory(userRepository, personalizationRepository, serverConfigStore)
+        val profileViewModelFactory = ProfileViewModelFactory(userRepository, personalizationRepository, serverConfigStore, authRepository)
         val scheduleViewModelFactory = ScheduleViewModelFactory(authRepository, scheduleRepository)
         val gradesViewModelFactory = GradesViewModelFactory(gradesRepository)
         val emptyClassroomViewModelFactory = EmptyClassroomViewModelFactory(emptyClassroomRepository)
@@ -84,66 +90,78 @@ class MainActivity : ComponentActivity() {
                     scheduleState = scheduleState,
                     gradesState = gradesState,
                     emptyClassroomState = emptyClassroomState,
-                    onLogin = appViewModel::login,
-                    onRefreshNotice = noticeViewModel::refreshNotice,
-                    onOpenLatestNotice = noticeViewModel::openLatestNotice,
-                    onOpenNoticeHistory = noticeViewModel::openHistoryDialog,
-                    onOpenHistoryNotice = noticeViewModel::openHistoryNotice,
-                    onCloseNoticeDialogs = noticeViewModel::closeDialogs,
-                    onShowLoginPreview = appViewModel::showLoginPreview,
-                    onHideLoginPreview = appViewModel::hideLoginPreview,
-                    onLogout = appViewModel::logout,
-                    onRefreshProfile = profileViewModel::loadProfile,
-                    onAutoPunchChange = profileViewModel::updateAutoPunch,
-                    onProfileAvatarSelect = profileViewModel::selectAvatar,
-                    onProfileBackgroundSelect = profileViewModel::selectBackground,
-                    onProfileWallpaperSelect = profileViewModel::selectWallpaper,
-                    onProfileCardOpacityChange = profileViewModel::updateCardOpacity,
-                    onProfileCardBlurChange = profileViewModel::updateCardBlur,
-                    onProfileWallpaperMaskChange = profileViewModel::updateWallpaperMask,
-                    onProfileGlobalFontChange = profileViewModel::updateGlobalFont,
-                    onPersonalizationExpandedToggle = profileViewModel::togglePersonalizationExpanded,
-                    onServerSettingsToggle = profileViewModel::toggleServerSettingsExpanded,
-                    onServerHostChange = profileViewModel::updateServerHost,
-                    onServerPortChange = profileViewModel::updateServerPort,
-                    onSaveServerSettings = profileViewModel::saveServerSettings,
-                    onSavePersonalization = profileViewModel::savePersonalization,
-                    onProfileAssetUpload = profileViewModel::uploadAsset,
-                    onDeleteAccount = profileViewModel::deleteAccount,
-                    onRefreshSchedule = scheduleViewModel::loadSchedule,
-                    onSyncSchedule = scheduleViewModel::syncUserDataAndReload,
-                    onScheduleWeekModeChange = scheduleViewModel::setWeekMode,
-                    onScheduleCourseClick = scheduleViewModel::selectCourse,
-                    onDismissScheduleCourse = scheduleViewModel::dismissCourseDialog,
-                    onShowOtherCourses = scheduleViewModel::showOtherCourses,
-                    onDismissOtherCourses = scheduleViewModel::dismissOtherCourses,
-                    onGradesYearChange = gradesViewModel::setAcademicYear,
-                    onGradesYearIncrease = gradesViewModel::increaseYear,
-                    onGradesYearDecrease = gradesViewModel::decreaseYear,
-                    onGradesSemesterChange = gradesViewModel::setSemester,
-                    onGradesSortChange = gradesViewModel::setSortMode,
-                    onGradesViewModeChange = gradesViewModel::setViewMode,
-                    onQueryGrades = gradesViewModel::queryGrades,
-                    onSubmitGradeTask = gradesViewModel::submitLatestTask,
-                    onEmptyClassroomYearChange = emptyClassroomViewModel::setAcademicYear,
-                    onEmptyClassroomYearIncrease = emptyClassroomViewModel::increaseYear,
-                    onEmptyClassroomYearDecrease = emptyClassroomViewModel::decreaseYear,
-                    onEmptyClassroomSemesterChange = emptyClassroomViewModel::setSemester,
-                    onEmptyClassroomDayChange = emptyClassroomViewModel::setDayOfWeek,
-                    onEmptyClassroomWeekToggle = emptyClassroomViewModel::toggleWeek,
-                    onEmptyClassroomPeriodToggle = emptyClassroomViewModel::togglePeriod,
-                    onEmptyClassroomCampusChange = emptyClassroomViewModel::setCampus,
-                    onEmptyClassroomBuildingChange = emptyClassroomViewModel::setBuilding,
-                    onSubmitEmptyClassroomTask = emptyClassroomViewModel::submitTask,
-                    onQueryEmptyClassroomResult = emptyClassroomViewModel::queryResult,
-                    onResetEmptyClassroom = emptyClassroomViewModel::resetSelection,
-                    onLoggedOut = {
-                        profileViewModel.reset()
-                        profileViewModel.loadServerSettings()
-                        scheduleViewModel.reset()
-                        gradesViewModel.reset()
-                        emptyClassroomViewModel.reset()
-                    }
+                    authActions = AuthActions(
+                        onLogin = appViewModel::login,
+                        onLogout = appViewModel::logout,
+                        onShowLoginPreview = appViewModel::showLoginPreview,
+                        onHideLoginPreview = appViewModel::hideLoginPreview,
+                        onLoggedOut = {
+                            profileViewModel.reset()
+                            profileViewModel.loadServerSettings()
+                            scheduleViewModel.reset()
+                            gradesViewModel.reset()
+                            emptyClassroomViewModel.reset()
+                        }
+                    ),
+                    noticeActions = NoticeActions(
+                        onRefresh = noticeViewModel::refreshNotice,
+                        onOpenLatest = noticeViewModel::openLatestNotice,
+                        onOpenHistory = noticeViewModel::openHistoryDialog,
+                        onOpenHistoryNotice = noticeViewModel::openHistoryNotice,
+                        onCloseDialogs = noticeViewModel::closeDialogs
+                    ),
+                    profileActions = ProfileActions(
+                        onRefresh = profileViewModel::loadProfile,
+                        onAutoPunchChange = profileViewModel::updateAutoPunch,
+                        onAvatarSelect = profileViewModel::selectAvatar,
+                        onBackgroundSelect = profileViewModel::selectBackground,
+                        onWallpaperSelect = profileViewModel::selectWallpaper,
+                        onCardOpacityChange = profileViewModel::updateCardOpacity,
+                        onCardBlurChange = profileViewModel::updateCardBlur,
+                        onWallpaperMaskChange = profileViewModel::updateWallpaperMask,
+                        onGlobalFontChange = profileViewModel::updateGlobalFont,
+                        onPersonalizationExpandedToggle = profileViewModel::togglePersonalizationExpanded,
+                        onServerSettingsToggle = profileViewModel::toggleServerSettingsExpanded,
+                        onServerHostChange = profileViewModel::updateServerHost,
+                        onServerPortChange = profileViewModel::updateServerPort,
+                        onSaveServerSettings = profileViewModel::saveServerSettings,
+                        onSavePersonalization = profileViewModel::savePersonalization,
+                        onAssetUpload = profileViewModel::uploadAsset,
+                        onDeleteAccount = profileViewModel::deleteAccount
+                    ),
+                    scheduleActions = ScheduleActions(
+                        onRefresh = scheduleViewModel::loadSchedule,
+                        onSync = scheduleViewModel::syncUserDataAndReload,
+                        onWeekModeChange = scheduleViewModel::setWeekMode,
+                        onCourseClick = scheduleViewModel::selectCourse,
+                        onDismissCourse = scheduleViewModel::dismissCourseDialog,
+                        onShowOtherCourses = scheduleViewModel::showOtherCourses,
+                        onDismissOtherCourses = scheduleViewModel::dismissOtherCourses
+                    ),
+                    gradesActions = GradesActions(
+                        onYearChange = gradesViewModel::setAcademicYear,
+                        onYearIncrease = gradesViewModel::increaseYear,
+                        onYearDecrease = gradesViewModel::decreaseYear,
+                        onSemesterChange = gradesViewModel::setSemester,
+                        onSortChange = gradesViewModel::setSortMode,
+                        onViewModeChange = gradesViewModel::setViewMode,
+                        onQuery = gradesViewModel::queryGrades,
+                        onSubmitTask = gradesViewModel::submitLatestTask
+                    ),
+                    emptyClassroomActions = EmptyClassroomActions(
+                        onYearChange = emptyClassroomViewModel::setAcademicYear,
+                        onYearIncrease = emptyClassroomViewModel::increaseYear,
+                        onYearDecrease = emptyClassroomViewModel::decreaseYear,
+                        onSemesterChange = emptyClassroomViewModel::setSemester,
+                        onDayChange = emptyClassroomViewModel::setDayOfWeek,
+                        onWeekToggle = emptyClassroomViewModel::toggleWeek,
+                        onPeriodToggle = emptyClassroomViewModel::togglePeriod,
+                        onCampusChange = emptyClassroomViewModel::setCampus,
+                        onBuildingChange = emptyClassroomViewModel::setBuilding,
+                        onSubmitTask = emptyClassroomViewModel::submitTask,
+                        onQueryResult = emptyClassroomViewModel::queryResult,
+                        onReset = emptyClassroomViewModel::resetSelection
+                    )
                 )
             }
         }

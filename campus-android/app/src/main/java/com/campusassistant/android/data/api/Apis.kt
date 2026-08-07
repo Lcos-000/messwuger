@@ -7,9 +7,11 @@ import com.campusassistant.android.data.model.DefaultAssetOptions
 import com.campusassistant.android.data.model.EmptyClassroomRequest
 import com.campusassistant.android.data.model.EmptyClassroomResponse
 import com.campusassistant.android.data.model.LoginRequest
+import com.campusassistant.android.data.model.ManualConfig
 import com.campusassistant.android.data.model.PersonalizationProfile
 import com.campusassistant.android.data.model.PublicNotice
 import com.campusassistant.android.data.model.PersonalizationUpdateRequest
+import com.campusassistant.android.data.model.ScheduleConfig
 import com.campusassistant.android.data.model.ScheduleResponse
 import com.campusassistant.android.data.model.UploadAssetResult
 import com.campusassistant.android.data.model.UserPersonal
@@ -27,6 +29,12 @@ import retrofit2.http.Part
 interface AuthApi {
     @GET("public/notice")
     suspend fun getPublicNotice(): ApiResult<PublicNotice>
+
+    @GET("public/manual")
+    suspend fun getManual(): ApiResult<ManualConfig>
+
+    @GET("public/schedule-config")
+    suspend fun getScheduleConfig(): ApiResult<ScheduleConfig>
 
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): ApiResult<String>

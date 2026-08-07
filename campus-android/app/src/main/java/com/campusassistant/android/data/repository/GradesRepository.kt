@@ -8,6 +8,7 @@ import com.campusassistant.android.data.model.GradeItem
 import com.campusassistant.android.data.model.GradeTaskRequest
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.campusassistant.android.ui.text.AppMessages
 
 class GradesRepository(
     private val gradesApi: GradesApi,
@@ -15,14 +16,14 @@ class GradesRepository(
 ) {
     suspend fun getGrades(academicYear: String, semester: String): Result<List<GradeItem>> = safeApiCall(tokenDataStore) {
         val result = gradesApi.getGrades(academicYear = academicYear, semester = semester)
-        result.requireSuccess(tokenDataStore, "查询成绩失败")
+        result.requireSuccess(tokenDataStore, AppMessages.Grades.queryFailed)
         parseGrades(result.data)
     }
 
     suspend fun submitGradeTask(academicYear: String, semester: String): Result<String> = safeApiCall(tokenDataStore) {
         val result = gradesApi.submitGradeTask(GradeTaskRequest(academicYear = academicYear, semester = semester))
-        result.requireSuccess(tokenDataStore, "提交成绩同步任务失败")
-        result.data.toReadableMessage() ?: result.message ?: "成绩同步任务已提交"
+        result.requireSuccess(tokenDataStore, AppMessages.Grades.submitSyncFailed)
+        result.data.toReadableMessage() ?: result.message ?: AppMessages.Grades.syncTaskSubmitted
     }
 
     private fun parseGrades(data: JsonElement?): List<GradeItem> {
@@ -101,7 +102,7 @@ class GradesRepository(
             val obj = asJsonObject
             val messageKeys = listOf("message", "msg", "status", "queryStatus", "taskStatus", "result")
             val parts = messageKeys.mapNotNull { key -> obj.get(key)?.asDisplayString()?.takeIf { it.isNotBlank() } }
-            if (parts.isNotEmpty()) return parts.distinct().joinToString("；")
+            if (parts.isNotEmpty()) return parts.distinct().joinToString(AppMessages.Grades.messageSeparator)
         }
         return null
     }

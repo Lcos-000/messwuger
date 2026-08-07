@@ -184,3 +184,14 @@ data class PublicNotice(
     val level: String? = null,
     val updatedAt: String? = null
 )
+
+data class ManualConfig(
+    val title: String? = null,
+    val content: String? = null
+)
+
+data class ScheduleConfig(
+    val springStartDate: String? = null,
+    val autumnStartDate: String? = null,
+    val maxWeek: Int? = null
+)

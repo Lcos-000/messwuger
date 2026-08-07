@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.campusassistant.android.data.model.EmptyClassroomItem
 import com.campusassistant.android.data.model.EmptyClassroomRequest
 import com.campusassistant.android.data.repository.EmptyClassroomRepository
+import com.campusassistant.android.ui.text.AppMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,27 +36,35 @@ data class EmptyClassroomUiState(
     val errorMessage: String? = null
 ) {
     val semesterOptions: List<OptionItem>
-        get() = listOf(
-            OptionItem("3", "秋季/上学期"),
-            OptionItem("6", "小学期"),
-            OptionItem("12", "春季/下学期")
-        )
+        get() = AppMessages.EmptyClassroomOptions.semesters.map { OptionItem(it.first, it.second) }
 
     val dayOptions: List<OptionItem>
-        get() = (1..7).map { OptionItem(it.toString(), "周${listOf("一", "二", "三", "四", "五", "六", "日")[it - 1]}") }
+        get() = (1..7).map { OptionItem(it.toString(), AppMessages.EmptyClassroomOptions.weekdays[it - 1]) }
 
     val campusOptions: List<OptionItem>
-        get() = listOf(
-            OptionItem("1", "南区"),
-            OptionItem("2", "北区"),
-            OptionItem("3", "荣昌校区")
-        )
+        get() = AppMessages.EmptyClassroomOptions.campuses.map { OptionItem(it.first, it.second) }
 
     val buildingOptions: List<OptionItem>
         get() = buildingsForCampus(campusId).map { OptionItem(it, it) }
 
     val requestPreview: String
-        get() = "weeksMask=${selectedWeeks.toBitMask()} | periodsMask=${selectedPeriods.toBitMask()} | campus=$campusId | building=$building"
+        get() {
+            val semesterLabel = semesterOptions.find { it.value == semester }?.label ?: semester
+            val dayLabel = dayOptions.find { it.value == dayOfWeek }?.label ?: dayOfWeek
+            val campusLabel = campusOptions.find { it.value == campusId }?.label ?: campusId
+            val weeks = selectedWeeks.sorted().joinToString("、")
+            val periods = selectedPeriods.sorted().joinToString("、")
+            return buildString {
+                append(semesterLabel)
+                append(" · ")
+                append(dayLabel)
+                if (weeks.isNotBlank()) append(" · 第${weeks}周")
+                if (periods.isNotBlank()) append(" · 第${periods}节")
+                append(" · ")
+                append(campusLabel)
+                if (building.isNotBlank()) append(" · $building")
+            }
+        }
 }
 
 class EmptyClassroomViewModel(
@@ -127,12 +136,12 @@ class EmptyClassroomViewModel(
                             loadingTask = false,
                             queryStatus = response.queryStatus,
                             resultReady = response.resultReady == true,
-                            statusMessage = "任务状态：${response.queryStatus ?: "SUBMITTED"}"
+                            statusMessage = AppMessages.EmptyClassroom.taskStatus(response.queryStatus ?: "SUBMITTED")
                         )
                     }
                 }
                 .onFailure { throwable ->
-                    _uiState.update { it.copy(loadingTask = false, errorMessage = throwable.message ?: "提交任务失败") }
+                    _uiState.update { it.copy(loadingTask = false, errorMessage = throwable.message ?: AppMessages.EmptyClassroom.submitFailed) }
                 }
         }
     }
@@ -150,12 +159,12 @@ class EmptyClassroomViewModel(
                             queryStatus = response.queryStatus,
                             resultReady = response.resultReady == true,
                             classrooms = response.classrooms.orEmpty(),
-                            statusMessage = "查询状态：${response.queryStatus ?: if (response.resultReady == true) "RESULT_READY" else "QUERYING"}"
+                            statusMessage = AppMessages.EmptyClassroom.queryStatus(response.queryStatus ?: if (response.resultReady == true) "RESULT_READY" else "QUERYING")
                         )
                     }
                 }
                 .onFailure { throwable ->
-                    _uiState.update { it.copy(loadingResult = false, errorMessage = throwable.message ?: "查询结果失败") }
+                    _uiState.update { it.copy(loadingResult = false, errorMessage = throwable.message ?: AppMessages.EmptyClassroom.queryFailed) }
                 }
         }
     }
@@ -163,15 +172,15 @@ class EmptyClassroomViewModel(
     private fun requestOrNull(): EmptyClassroomRequest? {
         val state = _uiState.value
         if (state.academicYear.length != 4) {
-            _uiState.update { it.copy(errorMessage = "请输入 4 位学年") }
+            _uiState.update { it.copy(errorMessage = AppMessages.EmptyClassroom.enterYear) }
             return null
         }
         if (state.selectedWeeks.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "请至少选择一个周次") }
+            _uiState.update { it.copy(errorMessage = AppMessages.EmptyClassroom.selectWeek) }
             return null
         }
         if (state.selectedPeriods.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "请至少选择一个节次") }
+            _uiState.update { it.copy(errorMessage = AppMessages.EmptyClassroom.selectPeriod) }
             return null
         }
         return EmptyClassroomRequest(

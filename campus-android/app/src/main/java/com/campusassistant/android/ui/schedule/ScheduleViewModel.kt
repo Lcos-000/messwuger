@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.campusassistant.android.data.model.OtherScheduleCourse
+import com.campusassistant.android.data.model.ScheduleConfig
 import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.data.model.ScheduleResponse
 import com.campusassistant.android.data.repository.AuthRepository
 import com.campusassistant.android.data.repository.ScheduleRepository
 import com.campusassistant.android.data.repository.calculateCurrentWeek
+import com.campusassistant.android.ui.text.AppMessages
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +33,7 @@ data class ScheduleUiState(
     val showOtherCourses: Boolean = false,
     val weekMode: ScheduleWeekMode = ScheduleWeekMode.Current,
     val currentWeek: Int = 1,
+    val scheduleConfig: ScheduleConfig? = null,
     val statusMessage: String? = null,
     val errorMessage: String? = null
 ) {
@@ -52,9 +56,19 @@ class ScheduleViewModel(
         if (_uiState.value.loading) return
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, errorMessage = null, statusMessage = null) }
-            scheduleRepository.getSchedule()
+
+            val scheduleDeferred = async { scheduleRepository.getSchedule() }
+            val configDeferred = async { authRepository.getScheduleConfig() }
+
+            val configResult = configDeferred.await()
+            val scheduleConfig = configResult.getOrNull()?.takeIf { it.isSuccess }?.data
+            if (scheduleConfig != null) {
+                _uiState.update { it.copy(scheduleConfig = scheduleConfig) }
+            }
+
+            scheduleDeferred.await()
                 .onSuccess { parsed ->
-                    val currentWeek = calculateCurrentWeek(parsed.schedule?.semester)
+                    val currentWeek = calculateCurrentWeek(parsed.schedule?.semester, scheduleConfig)
                     val state = _uiState.value.copy(
                         loading = false,
                         schedule = parsed.schedule,
@@ -69,7 +83,7 @@ class ScheduleViewModel(
                     _uiState.update {
                         it.copy(
                             loading = false,
-                            errorMessage = throwable.message ?: "加载课表失败"
+                            errorMessage = throwable.message ?: AppMessages.Schedule.loadFailed
                         )
                     }
                 }
@@ -89,7 +103,7 @@ class ScheduleViewModel(
                     _uiState.update {
                         it.copy(
                             loading = false,
-                            errorMessage = throwable.message ?: "提交同步任务失败"
+                            errorMessage = throwable.message ?: AppMessages.Schedule.submitSyncFailed
                         )
                     }
                 }

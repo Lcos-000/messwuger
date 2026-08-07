@@ -13,14 +13,14 @@ import androidx.compose.ui.text.font.FontFamily
 import com.campusassistant.android.R
 import androidx.compose.ui.unit.dp
 
-private val CampusNavy = Color(0xFF18365E)
-private val CampusBlue = Color(0xFF2F6FED)
-private val CampusTeal = Color(0xFF0F766E)
-private val CampusBackground = Color(0xFFF3F6FA)
-private val CampusSurface = Color(0xFFFBFCFE)
-private val CampusText = Color(0xFF172033)
-private val CampusOutline = Color(0xFFD9E2EE)
-private val CampusError = Color(0xFFB42318)
+internal val CampusNavy = Color(0xFF18365E)
+internal val CampusBlue = Color(0xFF2F6FED)
+internal val CampusTeal = Color(0xFF0F766E)
+internal val CampusBackground = Color(0xFFF3F6FA)
+internal val CampusSurface = Color(0xFFFBFCFE)
+internal val CampusText = Color(0xFF172033)
+internal val CampusOutline = Color(0xFFD9E2EE)
+internal val CampusError = Color(0xFFB42318)
 
 private val SourceHanSerifSubset = FontFamily(Font(R.font.source_han_serif_cn_subset))
 

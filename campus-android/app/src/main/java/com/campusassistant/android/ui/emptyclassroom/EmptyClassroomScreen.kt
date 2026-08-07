@@ -1,6 +1,9 @@
 package com.campusassistant.android.ui.emptyclassroom
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,13 +21,17 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +46,8 @@ import com.campusassistant.android.ui.common.CampusOutlinedButton
 import com.campusassistant.android.ui.common.CampusPageHeader
 import com.campusassistant.android.ui.common.CampusSectionTitle
 import com.campusassistant.android.ui.common.CampusStatusMessages
+import com.campusassistant.android.ui.common.CampusTextField
+import com.campusassistant.android.ui.common.ModeDot
 import com.campusassistant.android.ui.text.LocalAppText
 
 @Composable
@@ -96,10 +105,18 @@ fun EmptyClassroomScreen(
                 errorMessage = state.errorMessage
             )
         }
-        when {
-            state.loadingResult -> item { CampusLoadingState(text.loading, modifier = Modifier.height(220.dp)) }
-            state.resultReady && state.classrooms.isEmpty() -> item { CampusEmptyState(text.empty, modifier = Modifier.height(220.dp)) }
-            else -> items(state.classrooms) { classroom -> ClassroomCard(classroom) }
+        if (state.loadingResult || (state.resultReady && state.classrooms.isEmpty())) {
+            item {
+                Crossfade(targetState = state.loadingResult, label = "classroom-status") { isLoading ->
+                    if (isLoading) {
+                        CampusLoadingState(text.loading, modifier = Modifier.height(220.dp))
+                    } else {
+                        CampusEmptyState(text.empty, modifier = Modifier.height(220.dp))
+                    }
+                }
+            }
+        } else {
+            items(state.classrooms) { classroom -> ClassroomCard(classroom) }
         }
     }
 }
@@ -125,16 +142,15 @@ private fun EmptyClassroomFilterPanel(
     CampusCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                CampusOutlinedButton(text = "-", onClick = onYearDecrease, modifier = Modifier.weight(0.28f), enabled = !busy)
-                OutlinedTextField(
+                YearStepButton(text = "-", enabled = !busy, onClick = onYearDecrease)
+                CampusTextField(
                     value = state.academicYear,
                     onValueChange = onAcademicYearChange,
-                    label = { Text(text.academicYear) },
+                    label = text.academicYear,
                     modifier = Modifier.weight(1f),
-                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
-                CampusOutlinedButton(text = "+", onClick = onYearIncrease, modifier = Modifier.weight(0.28f), enabled = !busy)
+                YearStepButton(text = "+", enabled = !busy, onClick = onYearIncrease)
             }
 
             OptionRow(text.semester, state.semesterOptions, state.semester, onSemesterChange)
@@ -152,10 +168,11 @@ private fun EmptyClassroomFilterPanel(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CampusButton(
-                    text = if (state.loadingTask) text.submitting else text.submitTask,
+                    text = text.submitTask,
                     onClick = onSubmitTask,
                     modifier = Modifier.weight(1f),
-                    enabled = !busy
+                    enabled = !busy,
+                    loading = state.loadingTask
                 )
                 CampusOutlinedButton(
                     text = if (state.loadingResult) text.querying else text.queryResult,
@@ -218,15 +235,6 @@ private fun MultiSelectNumberRow(
 }
 
 @Composable
-private fun ModeDot() {
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .background(Color(0xFF4F86F7), RoundedCornerShape(50))
-    )
-}
-
-@Composable
 private fun ClassroomCard(classroom: EmptyClassroomItem) {
     val text = LocalAppText.current.emptyClassroom
     CampusCard {
@@ -244,7 +252,7 @@ private fun ClassroomCard(classroom: EmptyClassroomItem) {
                             classroom.building?.takeIf { it.isNotBlank() },
                             classroom.campus?.takeIf { it.isNotBlank() },
                             classroom.roomType?.takeIf { it.isNotBlank() }
-                        ).joinToString(" 路 ").ifBlank { text.roomInfoMissing },
+                        ).joinToString(" · ").ifBlank { text.roomInfoMissing },
                         color = Color(0xFF64748B),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
@@ -295,6 +303,34 @@ private fun ClassroomMeta(label: String, value: String?) {
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun YearStepButton(
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(shape)
+            .background(
+                if (enabled) Color.White.copy(alpha = 0.74f) else Color(0xFFE8EDF5).copy(alpha = 0.62f),
+                shape
+            )
+            .border(1.dp, Color(0xFFD6DEE9), shape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (text == "+") Icons.Filled.Add else Icons.Filled.Remove,
+            contentDescription = text,
+            tint = if (enabled) Color(0xFF18365E) else Color(0xFF94A3B8),
+            modifier = Modifier.size(24.dp)
         )
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.campusassistant.android.data.model.PublicNotice
+import com.campusassistant.android.ui.common.verticalFadeEdges
 import com.campusassistant.android.ui.text.LocalAppText
 
 @Composable
@@ -146,7 +147,7 @@ private fun NoticeDetailDialog(
         },
         confirmButton = {
             TextButton(onClick = onShowHistory) {
-                Text("查看历史")
+                Text(LocalAppText.current.notice.viewHistory)
             }
         },
         dismissButton = {
@@ -165,15 +166,17 @@ private fun NoticeHistoryDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("历史公告") },
+        title = { Text(LocalAppText.current.notice.historyTitle) },
         text = {
             if (notices.isEmpty()) {
-                Text("暂无历史公告", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(LocalAppText.current.notice.emptyHistory, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
+                val scrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(scrollState)
+                        .verticalFadeEdges(scrollState),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     notices.forEach { notice ->

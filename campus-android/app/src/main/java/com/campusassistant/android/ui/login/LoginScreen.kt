@@ -1,5 +1,6 @@
 package com.campusassistant.android.ui.login
 
+import androidx.compose.material3.AlertDialog
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -8,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,17 +19,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +56,7 @@ import com.campusassistant.android.ui.common.CampusButton
 import com.campusassistant.android.ui.common.CampusLoadingState
 import com.campusassistant.android.ui.common.CampusMessage
 import com.campusassistant.android.ui.common.CampusTextField
+import com.campusassistant.android.ui.common.verticalFadeEdges
 import com.campusassistant.android.ui.profile.ServerSettingsDraft
 import com.campusassistant.android.ui.text.LocalAppText
 
@@ -76,11 +80,13 @@ fun LoginScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LoginBackground()
+        val scrollState = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .verticalFadeEdges(scrollState)
                 .padding(horizontal = 22.dp, vertical = 26.dp),
             verticalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterVertically)
         ) {
@@ -225,35 +231,21 @@ private fun BrandSection() {
             )
         }
         Spacer(modifier = Modifier.height(15.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .height(72.dp)
-                    .border(
-                        width = 2.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(Color(0xFFE7F0FF).copy(alpha = 0.92f), Color(0xFFE7F0FF).copy(alpha = 0.16f))
-                        ),
-                        shape = RoundedCornerShape(999.dp)
-                    )
+        Column {
+            Text(
+                text = text.title,
+                color = Color(0xFFF4F8FF),
+                fontSize = 31.sp,
+                lineHeight = 36.sp,
+                fontWeight = FontWeight.ExtraBold
             )
-            Column {
-                Text(
-                    text = text.title,
-                    color = Color(0xFFF4F8FF),
-                    fontSize = 31.sp,
-                    lineHeight = 36.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = text.subtitle,
-                    color = Color(0xFFDDE7F6).copy(alpha = 0.78f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 23.sp
-                )
-            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = text.subtitle,
+                color = Color(0xFFDDE7F6).copy(alpha = 0.78f),
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 23.sp
+            )
         }
     }
 }
@@ -287,7 +279,7 @@ private fun LoginPanel(
         shadowElevation = 18.dp
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)) {
-            LoginModeTabs()
+            LoginModeIndicator()
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = text.studentIdLabel,
@@ -299,7 +291,8 @@ private fun LoginPanel(
             CampusTextField(
                 value = studentId,
                 onValueChange = onStudentIdChange,
-                label = text.studentIdPlaceholder
+                label = text.studentIdPlaceholder,
+                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) }
             )
             Spacer(modifier = Modifier.height(14.dp))
             Text(
@@ -309,19 +302,17 @@ private fun LoginPanel(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
+            CampusTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text(text.passwordPlaceholder) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+                label = text.passwordPlaceholder,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
                 trailingIcon = {
                     IconButton(onClick = onPasswordVisibilityChange) {
                         Icon(
                             imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                            contentDescription = if (passwordVisible) LocalAppText.current.login.hidePassword else LocalAppText.current.login.showPassword
                         )
                     }
                 }
@@ -332,9 +323,10 @@ private fun LoginPanel(
             }
             Spacer(modifier = Modifier.height(18.dp))
             CampusButton(
-                text = if (loading) text.submitting else text.submit,
+                text = text.submit,
                 onClick = onLogin,
-                enabled = !loading
+                enabled = !loading,
+                loading = loading
             )
             Spacer(modifier = Modifier.height(10.dp))
             ServerSettingsEntry(
@@ -367,100 +359,115 @@ private fun ServerSettingsEntry(
     onSave: () -> Unit
 ) {
     val profileText = LocalAppText.current.profile
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = profileText.serverSettings,
-                color = Color(0xFF5D6B84),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (showBackToApp) {
-                    TextButton(onClick = onBackToApp) {
-                        Text(profileText.backToApp)
-                    }
-                }
-                TextButton(onClick = onToggle) {
-                    Text(if (draft.expanded) profileText.collapse else profileText.expand)
+    var dialogOpen by rememberSaveable { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = profileText.serverSettings,
+            color = Color(0xFF5D6B84),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showBackToApp) {
+                TextButton(onClick = onBackToApp) {
+                    Text(profileText.backToApp)
                 }
             }
+            TextButton(onClick = { dialogOpen = true }) {
+                Text(profileText.expand)
+            }
         }
-        if (draft.expanded) {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = draft.host,
-                onValueChange = onHostChange,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(profileText.serverHostLabel) },
-                placeholder = { Text(profileText.serverHostPlaceholder) }
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedTextField(
-                value = draft.port,
-                onValueChange = onPortChange,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text(profileText.serverPortLabel) },
-                placeholder = { Text(profileText.serverPortPlaceholder) }
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = profileText.serverSummaryPrefix + draft.host.ifBlank { profileText.serverHostPlaceholder } + ":" + draft.port.ifBlank { profileText.serverPortPlaceholder },
-                    modifier = Modifier.weight(1f),
-                    color = Color(0xFF7B89A1),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+    }
+
+    if (dialogOpen) {
+        AlertDialog(
+            onDismissRequest = { dialogOpen = false },
+            title = { Text(profileText.serverSettings) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CampusTextField(
+                        value = draft.host,
+                        onValueChange = onHostChange,
+                        label = profileText.serverHostLabel,
+                        placeholder = profileText.serverHostPlaceholder
+                    )
+                    CampusTextField(
+                        value = draft.port,
+                        onValueChange = onPortChange,
+                        label = profileText.serverPortLabel,
+                        placeholder = profileText.serverPortPlaceholder
+                    )
+                    Text(
+                        text = profileText.serverSummaryPrefix + draft.host.ifBlank { profileText.serverHostPlaceholder } + ":" + draft.port.ifBlank { profileText.serverPortPlaceholder },
+                        color = Color(0xFF7B89A1),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = profileText.serverSettingsHint,
+                        color = Color(0xFF7B89A1),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
                 CampusButton(
-                    text = if (saving) LocalAppText.current.common.saving else profileText.saveServerSettings,
-                    onClick = onSave,
+                    text = profileText.saveServerSettings,
+                    onClick = {
+                        onSave()
+                        dialogOpen = false
+                    },
                     enabled = !saving,
-                    modifier = Modifier.width(144.dp)
+                    loading = saving
                 )
+            },
+            dismissButton = {
+                TextButton(onClick = { dialogOpen = false }) {
+                    Text(profileText.collapse)
+                }
             }
-        }
+        )
     }
 }
 
 @Composable
-private fun LoginModeTabs() {
+private fun LoginModeIndicator() {
     val text = LocalAppText.current.login
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(42.dp)
             .background(Color(0xFF152742).copy(alpha = 0.06f), RoundedCornerShape(14.dp))
-            .padding(4.dp),
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier
-                .weight(1f)
-                .height(42.dp)
-                .background(Color.White, RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text.loginTab, color = Color(0xFF173150), fontWeight = FontWeight.Bold)
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(42.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text.autoRegisterTab, color = Color(0xFF7B89A1), fontWeight = FontWeight.Bold)
-        }
+                .size(8.dp)
+                .background(Color(0xFF173150), CircleShape)
+        )
+        Text(
+            text = text.loginTab,
+            color = Color(0xFF173150),
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+        Text(
+            text = "·",
+            color = Color(0xFF7B89A1),
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = text.autoRegisterTab,
+            color = Color(0xFF7B89A1),
+            fontSize = 13.sp
+        )
     }
 }

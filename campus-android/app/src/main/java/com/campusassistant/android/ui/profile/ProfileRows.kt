@@ -55,8 +55,8 @@ internal fun StatusRows(
     onAutoPunchChange: (Boolean) -> Unit
 ) {
     val text = LocalAppText.current.profile
-    ProfileRow(Icons.Default.Cached, syncStatusColor(status?.syncStatus).copy(alpha = 0.12f), syncStatusColor(status?.syncStatus), text.syncStatus, syncStatusText(status?.syncStatus))
-    ProfileRow(Icons.Default.Schedule, punchStatusColor(status?.punchStatus).copy(alpha = 0.12f), punchStatusColor(status?.punchStatus), text.punchStatus, punchStatusText(status?.punchStatus))
+    ProfileRow(Icons.Default.Cached, statusColor(status?.syncStatus).copy(alpha = 0.12f), statusColor(status?.syncStatus), text.syncStatus, statusText(status?.syncStatus, SyncLabels))
+    ProfileRow(Icons.Default.Schedule, statusColor(status?.punchStatus).copy(alpha = 0.12f), statusColor(status?.punchStatus), text.punchStatus, statusText(status?.punchStatus, PunchLabels))
     AutoPunchRow(autoPunchEnabled, loading, updatingAutoPunch, status != null, onAutoPunchChange)
 }
 
@@ -165,32 +165,21 @@ internal fun SectionDivider() {
     HorizontalDivider(modifier = Modifier.padding(horizontal = 18.dp), color = Color(0xFFE8EEF7))
 }
 
-private fun syncStatusText(value: Int?): String = when (value) {
-    0 -> "未同步"
-    1 -> "已同步"
-    2 -> "同步中"
-    3 -> "同步失败"
+private data class StatusLabels(val idle: String, val done: String, val running: String, val failed: String)
+
+private val SyncLabels = StatusLabels("未同步", "已同步", "同步中", "同步失败")
+private val PunchLabels = StatusLabels("未打卡", "已打卡", "打卡中", "打卡失败")
+
+private fun statusText(value: Int?, labels: StatusLabels): String = when (value) {
+    0 -> labels.idle
+    1 -> labels.done
+    2 -> labels.running
+    3 -> labels.failed
     null -> "-"
     else -> "状态 $value"
 }
 
-private fun punchStatusText(value: Int?): String = when (value) {
-    0 -> "未打卡"
-    1 -> "已打卡"
-    2 -> "打卡中"
-    3 -> "打卡失败"
-    null -> "-"
-    else -> "状态 $value"
-}
-
-private fun syncStatusColor(value: Int?): Color = when (value) {
-    1 -> Color(0xFF10B981)
-    2 -> HeroStart
-    3 -> Color(0xFFEF4444)
-    else -> Color(0xFF94A3B8)
-}
-
-private fun punchStatusColor(value: Int?): Color = when (value) {
+private fun statusColor(value: Int?): Color = when (value) {
     1 -> Color(0xFF10B981)
     2 -> HeroStart
     3 -> Color(0xFFEF4444)
