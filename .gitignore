@@ -41,11 +41,27 @@ yarn-debug.log*
 yarn-error.log*
 **/.vite/deps/
 **/.vite/
+pnpm-debug.log*
 
 ### OS ###
 .DS_Store
 Thumbs.db
 desktop.ini
+
+### Android / Gradle ###
+**/.gradle/
+**/local.properties
+**/.kotlin/
+**/captures/
+**/.externalNativeBuild/
+**/.cxx/
+**/*.apk
+**/*.aab
+**/*.ap_
+**/.codex-localappdata/
+**/build/
+**/app/release/
+**/app/debug/
 
 ### Sensitive ###
 *.pem
