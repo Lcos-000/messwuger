@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,15 +23,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -40,16 +40,17 @@ import com.campusassistant.android.ui.common.CampusButton
 import com.campusassistant.android.ui.common.CampusCard
 import com.campusassistant.android.ui.common.CampusEmptyState
 import com.campusassistant.android.ui.common.CampusLoadingState
-import com.campusassistant.android.ui.common.CampusMessage
 import com.campusassistant.android.ui.common.CampusOutlinedButton
-import com.campusassistant.android.ui.common.CampusPagePadding
 import com.campusassistant.android.ui.common.CampusPageHeader
+import com.campusassistant.android.ui.common.CampusPagePadding
+import com.campusassistant.android.ui.common.CampusSection
+import com.campusassistant.android.ui.common.CampusStatusMessages
 import com.campusassistant.android.ui.text.LocalAppText
 
 private val SemesterOptions = listOf(
-    SemesterOption("3", "秋季/上"),
+    SemesterOption("3", "秋季/上学期"),
     SemesterOption("6", "小学期"),
-    SemesterOption("12", "春季/下")
+    SemesterOption("12", "春季/下学期")
 )
 
 @Composable
@@ -92,11 +93,11 @@ fun GradesScreen(
             )
         }
 
-        if (!state.statusMessage.isNullOrBlank()) {
-            item { CampusMessage(state.statusMessage, isError = false) }
-        }
-        if (!state.errorMessage.isNullOrBlank()) {
-            item { CampusMessage(state.errorMessage, isError = true) }
+        item {
+            CampusStatusMessages(
+                statusMessage = state.statusMessage,
+                errorMessage = state.errorMessage
+            )
         }
 
         when {
@@ -123,7 +124,7 @@ private fun GradeFilterPanel(
     val text = LocalAppText.current.grades
     CampusCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilterGroup(title = text.academicYear) {
+            CampusSection(title = text.academicYear) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -152,7 +153,7 @@ private fun GradeFilterPanel(
                 }
             }
 
-            FilterGroup(title = text.semesterFilter) {
+            CampusSection(title = text.semesterFilter) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -168,7 +169,7 @@ private fun GradeFilterPanel(
                 }
             }
 
-            FilterGroup(title = text.sortFilter) {
+            CampusSection(title = text.sortFilter) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -188,7 +189,7 @@ private fun GradeFilterPanel(
                 }
             }
 
-            FilterGroup(title = text.viewFilter) {
+            CampusSection(title = text.viewFilter) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -223,26 +224,6 @@ private fun GradeFilterPanel(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun FilterGroup(
-    title: String,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        Text(
-            text = title,
-            color = Color(0xFF64748B),
-            fontWeight = FontWeight.SemiBold,
-            style = MaterialTheme.typography.labelMedium
-        )
-        content()
     }
 }
 
@@ -407,7 +388,7 @@ private fun GradeCard(grade: GradeItem) {
                             grade.courseCode?.takeIf { it.isNotBlank() },
                             grade.courseNature?.takeIf { it.isNotBlank() },
                             grade.courseType?.takeIf { it.isNotBlank() }
-                        ).joinToString(" · ").ifBlank { text.courseInfoMissing },
+                        ).joinToString(" 路 ").ifBlank { text.courseInfoMissing },
                         color = Color(0xFF64748B),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,

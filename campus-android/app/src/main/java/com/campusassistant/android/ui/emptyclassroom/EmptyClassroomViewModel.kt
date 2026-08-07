@@ -36,9 +36,9 @@ data class EmptyClassroomUiState(
 ) {
     val semesterOptions: List<OptionItem>
         get() = listOf(
-            OptionItem("3", "秋季/上"),
+            OptionItem("3", "秋季/上学期"),
             OptionItem("6", "小学期"),
-            OptionItem("12", "春季/下")
+            OptionItem("12", "春季/下学期")
         )
 
     val dayOptions: List<OptionItem>
@@ -55,7 +55,7 @@ data class EmptyClassroomUiState(
         get() = buildingsForCampus(campusId).map { OptionItem(it, it) }
 
     val requestPreview: String
-        get() = "weeksMask=${selectedWeeks.toBitMask()} · periodsMask=${selectedPeriods.toBitMask()} · campus=$campusId · building=$building"
+        get() = "weeksMask=${selectedWeeks.toBitMask()} | periodsMask=${selectedPeriods.toBitMask()} | campus=$campusId | building=$building"
 }
 
 class EmptyClassroomViewModel(

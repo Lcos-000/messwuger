@@ -35,10 +35,10 @@ import androidx.compose.ui.unit.dp
 import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.ui.common.CampusEmptyState
 import com.campusassistant.android.ui.common.CampusLoadingState
-import com.campusassistant.android.ui.common.CampusMessage
 import com.campusassistant.android.ui.common.CampusOutlinedButton
 import com.campusassistant.android.ui.common.CampusPage
 import com.campusassistant.android.ui.common.CampusPageHeader
+import com.campusassistant.android.ui.common.CampusStatusMessages
 import com.campusassistant.android.ui.common.campusGlassContainerColor
 import com.campusassistant.android.ui.text.LocalAppText
 
@@ -144,20 +144,18 @@ private fun ScheduleHeader(
         state.schedule?.let { schedule ->
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${schedule.academicYear ?: "-"} ${text.academicYear} · ${text.semester} ${schedule.semester ?: "-"} · ${state.visibleCourses.size} ${text.courseCountSuffix}",
+                text = "${schedule.academicYear ?: "-"} ${text.academicYear} 路 ${text.semester} ${schedule.semester ?: "-"} 路 ${state.visibleCourses.size} ${text.courseCountSuffix}",
                 color = Color(0xFF64748B),
                 style = MaterialTheme.typography.bodySmall
             )
         }
 
-        if (!state.errorMessage.isNullOrBlank() && !state.isEmpty) {
+        if ((!state.errorMessage.isNullOrBlank() && !state.isEmpty) || !state.statusMessage.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            CampusMessage(state.errorMessage, isError = true)
-        }
-
-        if (!state.statusMessage.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            CampusMessage(state.statusMessage, isError = false)
+            CampusStatusMessages(
+                statusMessage = state.statusMessage,
+                errorMessage = state.errorMessage.takeUnless { state.isEmpty }
+            )
         }
     }
 }
@@ -251,7 +249,6 @@ private fun ScheduleGrid(
     }
 }
 
-
 private data class CourseSlotKey(
     val dayOfWeek: Int,
     val startPeriod: Int,
@@ -295,7 +292,6 @@ private fun CourseSlot(
         }
     }
 }
-
 
 private fun Int.floorMod(modulus: Int): Int = ((this % modulus) + modulus) % modulus
 
@@ -357,7 +353,7 @@ private fun CourseCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = listOfNotNull(course.classroom, course.teacher).joinToString(" · ").ifBlank { course.weeks.orEmpty() },
+                text = listOfNotNull(course.classroom, course.teacher).joinToString(" 路 ").ifBlank { course.weeks.orEmpty() },
                 color = Color.White.copy(alpha = 0.88f),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,

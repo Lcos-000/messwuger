@@ -116,9 +116,7 @@ fun campusGlassContainerColor(base: Color = resolveCampusCardBaseColor(LocalCamp
 }
 
 @Composable
-fun campusGlassBorder(): BorderStroke {
-    return BorderStroke(1.dp, Color.White.copy(alpha = 0.62f))
-}
+fun campusGlassBorder(): BorderStroke = BorderStroke(1.dp, Color.White.copy(alpha = 0.62f))
 
 @Composable
 fun campusGlassElevation(base: Dp = 0.dp): Dp = base
@@ -272,6 +270,32 @@ fun CampusCard(
 }
 
 @Composable
+fun CampusSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        CampusSectionTitle(title = title)
+        content()
+    }
+}
+
+@Composable
+fun CampusSectionTitle(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        modifier = modifier,
+        color = Color(0xFF64748B),
+        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.labelMedium
+    )
+}
+
+@Composable
 fun CampusLoadingState(
     text: String = "加载中",
     modifier: Modifier = Modifier
@@ -334,4 +358,25 @@ fun CampusMessage(
         style = MaterialTheme.typography.bodySmall,
         lineHeight = 18.sp
     )
+}
+
+@Composable
+fun CampusStatusMessages(
+    statusMessage: String?,
+    errorMessage: String?,
+    modifier: Modifier = Modifier,
+    verticalSpacing: Dp = 10.dp
+) {
+    if (statusMessage.isNullOrBlank() && errorMessage.isNullOrBlank()) return
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+    ) {
+        if (!statusMessage.isNullOrBlank()) {
+            CampusMessage(message = statusMessage, isError = false)
+        }
+        if (!errorMessage.isNullOrBlank()) {
+            CampusMessage(message = errorMessage, isError = true)
+        }
+    }
 }
