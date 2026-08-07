@@ -1,343 +1,214 @@
 # 校园助手项目部署手册
 
-> 目标：零配置、离线化、一键启动完成全部服务部署。
->
-> 核心思路：在一台有网络的构建机上把所有业务镜像和中间件镜像预先构建/拉取好，导出为 tar 包并整理部署文件；将离线包传输到服务器后，执行一条命令即可加载镜像并启动全部服务。
+本文档描述当前项目的部署方式，并补充 Android 客户端分发与后端公共配置对齐要求。
 
 ---
 
-## 一、方案概述
+## 一、部署范围
 
-本项目采用 **Docker 容器化 + 离线镜像包** 的方式部署，包含：
+当前仓库包含以下交付物：
 
-- **中间件**：MySQL 8.0、Redis 7.2、Nacos 2.4、Sentinel 1.8.9
-- **Java 微服务**：Gateway、User-Service、Course-Service
-- **Go + Python 爬虫服务**：Spider-Service
-- **前端**：基于 Nginx 托管的 Vue 3 静态页面
+- Java 微服务后端：`campus-assistant`
+- Go + Python 爬虫服务：`campus-spider-service`
+- Web 前端：`campus-web`
+- Android 原生客户端源码：`campus-android`
 
-所有服务通过单个 `docker-compose.yml` 编排，首次启动时自动完成：
+其中：
 
-- MySQL 建库建表（`init.sql`）
-- Nacos `dev` 命名空间创建
-- Nacos 配置导入（`nacos_config/`）
-- 敏感占位符替换（`ALIYUN_OSS_*`、`JAVA_INTERNAL_TOKEN`、`AES_SECRET_KEY` 等）
+- 服务端与 Web 前端适合 Docker / 离线包部署
+- Android 客户端当前以 APK 本地打包和分发为主，不在服务器容器内运行
 
 ---
 
-## 二、部署前准备
+## 二、服务端部署目标
 
-### 2.1 服务器要求
+部署完成后，建议至少提供以下稳定入口：
 
-| 项目 | 最低配置 | 推荐配置 |
-|------|---------|---------|
-| CPU | 2 核 | 4 核 |
-| 内存 | 8 GB | 16 GB |
-| 磁盘 | 60 GB SSD | 100 GB SSD |
-| 系统 | Linux x86_64（推荐 Ubuntu 22.04） | Linux x86_64 |
-| 软件 | Docker 20.10+、Docker Compose 2.0+ | 最新稳定版 |
+- Web 前端：`http://<host>/`
+- 网关 API：`http://<host>/api/`
+- 静态资源前缀：`http://<host>/`
 
-### 2.2 需要开放的端口
+这与当前安卓客户端的动态服务器设置保持一致。安卓端默认按如下规则拼接：
 
-| 端口 | 用途 |
-|------|------|
-| 22 | SSH |
-| 80 | 前端入口 |
-| 8080 | 网关入口 |
-| 3306 | MySQL |
-| 6379 | Redis |
-| 8848 | Nacos 控制台 |
-| 9848/9849 | Nacos 2.x gRPC |
-| 8858 | Sentinel 控制台 |
-| 8082 | Go 爬虫服务 |
+- API：`scheme://host:port/api/`
+- 静态资源：`scheme://host:port/`
 
-生产环境建议仅暴露 `80/443` 与 `8080`，其余端口限制内网访问。
-
-### 2.3 必须获取的离线包
-
-协作者从 GitHub 拉取代码后，仍需向项目维护者索取以下文件（**切勿提交到 GitHub**）：
-
-- `deploy/.env.secret`：包含 `JAVA_INTERNAL_TOKEN`、`AES_SECRET_KEY`、`YM_TOKEN`、`YM_TYPE`、阿里云 OSS 密钥等敏感配置
-- 构建好的离线包目录 `deploy/offline/package/`（或压缩后的等价文件）
-
-> 说明：`deploy/.env` 默认配置（如 MySQL root 密码 `1234`）已随仓库提交，无需单独发送。
+如果你未来切换为域名反向代理，也建议继续保留这两个公开入口约定，避免客户端额外适配。
 
 ---
 
-## 三、构建离线包（构建机操作）
+## 三、离线部署方案概述
 
-在任意一台已安装 Docker 且能访问外网的机器上执行：
+项目采用 Docker 容器化 + 离线镜像包方式部署，主要包含：
 
-```bash
-cd campus(1)(4)
-bash deploy/offline/build-and-export.sh
-```
+- MySQL 8.0
+- Redis 7.2
+- Nacos 2.4
+- Sentinel 1.8.9
+- Gateway
+- User-Service
+- Course-Service
+- Spider-Service
+- Web（Nginx 托管）
 
-> 说明：离线包中业务镜像统一使用 `latest` 标签，构建脚本和服务器端均无需指定版本号。
-
-脚本会自动完成：
-
-1. 构建 5 个业务镜像：
-   - `campus-assistant/gateway`
-   - `campus-assistant/user-service`
-   - `campus-assistant/course-service`
-   - `campus-assistant/spider-service`
-   - `campus-assistant/web`
-2. 拉取 5 个中间件镜像：
-   - `mysql:8.0`
-   - `redis:7.2`
-   - `nacos/nacos-server:v2.4.0-slim`
-   - `bladex/sentinel-dashboard:1.8.9`
-   - `curlimages/curl:latest`
-3. 导出镜像到 `deploy/offline/package/images/`
-   - `business.tar`：业务镜像
-   - `middleware.tar`：中间件镜像
-4. 复制部署文件到 `deploy/offline/package/`
-
-构建完成后，`deploy/offline/package/` 结构如下：
+离线包目录位于：
 
 ```text
 deploy/offline/package/
-├── .env
-├── .env.secret
-├── docker-compose.yml
-├── load-and-start.sh
-├── stop.sh
-├── init.sql
-├── config/
-│   └── application-docker.yml
-├── scripts/
-│   └── import-nacos-config.sh
-├── nacos_config/
-│   ├── DEFAULT_GROUP/
-│   ├── DATASOURCE_GROUP/
-│   └── GATEWAY_GROUP/
-└── images/
-    ├── business.tar
-    └── middleware.tar
 ```
 
 ---
 
-## 四、传输到服务器
+## 四、关键外部端口建议
 
-将 `deploy/offline/package/` 整体打包并传输到服务器，例如：
-
-```bash
-# 构建机端
-cd deploy/offline
-tar -czvf campus-assistant-offline.tar.gz package/
-
-# 传输到服务器（示例使用 scp）
-scp campus-assistant-offline.tar.gz root@<服务器IP>:/opt/
-
-# 服务器端
-ssh root@<服务器IP>
-cd /opt
-tar -xzvf campus-assistant-offline.tar.gz
-```
-
----
-
-## 五、服务器一键启动
-
-进入离线包目录并执行启动脚本：
-
-```bash
-cd /opt/package
-bash load-and-start.sh
-```
-
-脚本会：
-
-1. 检查 `.env.secret` 和镜像包是否存在
-2. 加载 `business.tar` 和 `middleware.tar`
-3. 启动所有容器
-4. 等待约 20 秒后展示服务状态
-
-首次启动时，MySQL 会自动执行 `init.sql` 建表，Nacos 会自动导入配置并替换占位符。
-
----
-
-## 六、验证部署
-
-### 6.1 查看服务状态
-
-```bash
-cd /opt/package
-docker compose ps
-```
-
-### 6.2 访问入口
-
-| 地址 | 说明 |
+| 端口 | 用途 |
 |------|------|
-| `http://<服务器IP>/` | 前端页面 |
-| `http://<服务器IP>:8080/gateway/auth/login` | 网关登录接口 |
-| `http://<服务器IP>:8848/nacos` | Nacos 控制台 |
-| `http://<服务器IP>:8858` | Sentinel 控制台 |
+| 80 / 443 | Web 与统一公网入口 |
+| 8848 | Nacos 控制台 |
+| 8858 | Sentinel 控制台 |
+| 3306 | MySQL（建议仅内网） |
+| 6379 | Redis（建议仅内网） |
+| 8082 | Spider-Service（建议仅内网） |
 
-### 6.3 常用检查命令
+如果希望 Android 客户端长期稳定访问，最实际的方式仍然是：
 
-```bash
-# 查看网关日志
-docker logs -f campus-gateway
-
-# 查看用户服务日志
-docker logs -f campus-user
-
-# 查看爬虫服务日志
-docker logs -f campus-spider
-
-# 进入 MySQL 检查表
-docker exec -it campus-mysql mysql -uroot -p1234 campus_db -e "SHOW TABLES;"
-
-# 检查 Redis
-docker exec -it campus-redis redis-cli ping
-```
+1. 给网关提供稳定域名
+2. 由公网入口统一反代到当前网关实际监听端口
+3. Android 端保留服务器设置作为兜底，而不是主路径
 
 ---
 
-## 七、本地验证（可选）
+## 五、Nacos 配置要求
 
-如果你想在本地先验证离线部署流程，可以直接在本地执行构建和启动脚本，跳过压缩传输步骤。
+除数据源、日志、OSS 外，当前部署还需要公共客户端配置文件：
 
-前提：
+### `publicclient-config.yaml`
 
-- Windows 用户需安装 Docker Desktop 并启用 WSL2 后端
-- 保证 80、8080、3306、6379、8848、8858、8082 端口未被占用
-- 内存建议 8G 以上
+```yaml
+campus:
+  notice:
+    enabled: true
+    version: 1
+    title: 系统公告
+    content: |
+      当前服务如有迁移，请先修改客户端服务器设置。
+    level: info
+    updatedAt: 2026-08-07 18:00:00
 
-步骤：
+  manual:
+    version: 1
+    title: 使用手册
+    content: |
+      1. 登录前请确认服务器地址。
+      2. 若成绩、课表、空教室为空，请先提交同步任务。
+
+  schedule:
+    springStartDate: 2026-03-02
+    autumnStartDate: 2026-09-01
+    maxWeek: 20
+```
+
+网关对外建议提供：
+
+- `GET /api/public/notice`
+- `GET /api/public/manual`
+- `GET /api/public/schedule-config`
+
+这样 Web 与 Android 都能复用同一份来源。
+
+---
+
+## 六、离线包构建与启动
+
+### 构建机
 
 ```bash
 bash deploy/offline/build-and-export.sh
-cd deploy/offline/package
+```
+
+### 服务器端
+
+```bash
+cd /opt/package
 bash load-and-start.sh
 ```
 
-本地访问：
-
-- 前端：`http://localhost/`
-- 网关：`http://localhost:8080/gateway/auth/login`
-
----
-
-## 八、停止服务
-
-在离线包目录执行：
+首次启动后建议验证：
 
 ```bash
-bash stop.sh
+docker compose ps
+docker logs -f campus-gateway
+docker logs -f campus-user
+docker logs -f campus-spider
 ```
-
-该命令会停止并移除容器，但保留数据卷（MySQL 数据、Nacos 数据等）。
-
-如需完全清理并重新初始化：
-
-```bash
-docker compose down -v
-```
-
-> 注意：`-v` 会删除数据卷，所有业务数据将丢失，请谨慎操作。
 
 ---
 
-## 九、协作者零配置部署
+## 七、Android 分发说明
 
-协作者只需完成以下两步：
+Android 不参与 Docker 部署，当前分发方式如下：
 
-1. 从 GitHub 拉取代码（获取 `deploy/offline/package/` 中的编排文件和脚本）
-2. 向维护者索取：
-   - `deploy/.env.secret`
-   - 构建好的 `deploy/offline/package/images/` 下的两个 tar 包（或完整离线包压缩文件）
+1. 在 Android Studio 打开 `campus-android/`
+2. 使用 `Build > Generate App Bundles or APKs > Generate APKs`
+3. 产出 APK 后发给测试人员或安装到真机
 
-将 `.env.secret` 放到 `package/` 目录，将镜像包放到 `package/images/`，然后执行：
+首次安装后，建议测试人员在登录页先完成服务器设置：
 
-```bash
-cd deploy/offline/package
-bash load-and-start.sh
-```
+- 本机开发后端：模拟器可填写 `10.0.2.2` 对应映射逻辑后的服务地址
+- 局域网调试：填写电脑局域网 IP + 网关端口
+- 生产环境：填写稳定域名或公网 IP + 端口
 
-无需修改任何配置即可启动。
+如果后端静态资源与 API 不在同一路径层级，优先在网关或 Nginx 层统一，而不是继续增加客户端特殊分支。
 
 ---
 
-## 十、配置说明
+## 八、常见部署问题
 
-### 10.1 默认配置
-
-- MySQL root 密码：`1234`（可在 `deploy/.env` 中修改）
-- Redis：无密码（与中间件编排保持一致）
-- Nacos：无认证，命名空间为 `dev`
-- 内部调用 Token：`campus-internal-token`（生产必须修改）
-
-### 10.2 敏感配置
-
-所有敏感信息集中在 `deploy/.env.secret`，包括：
-
-- `JAVA_INTERNAL_TOKEN`
-- `AES_SECRET_KEY`
-- `YM_TOKEN`
-- `YM_TYPE`
-- `ALIYUN_OSS_ENDPOINT`
-- `ALIYUN_OSS_ACCESS_KEY_ID`
-- `ALIYUN_OSS_ACCESS_KEY_SECRET`
-- `ALIYUN_OSS_BUCKET_NAME`
-- `ALIYUN_OSS_URL_PREFIX`
-
-`import-nacos-config.sh` 会在首次启动时读取 `.env.secret`，将 `nacos_config/` 中的 `${VAR}` 占位符替换为真实值后导入 Nacos。
-
----
-
-## 十一、常见问题
-
-### 11.1 启动后 Java 服务不断重启
+### 1. Nacos 配置已存在但服务读取不到
 
 优先检查：
 
-- Nacos 是否健康：`docker logs campus-nacos`
-- `nacos-init` 是否成功：`docker logs campus-nacos-init`
-- MySQL 是否可用：`docker exec -it campus-mysql mysql -uroot -p1234 -e "SELECT 1;"`
-- 数据库连接 URL 环境变量是否注入：`docker inspect campus-user | grep SPRING_DATASOURCE_URL`
+- `application-nacos.yml` 是否已 import 对应配置文件
+- 配置 group 是否正确
+- YAML 缩进是否有效
+- `@ConfigurationProperties(prefix = ...)` 前缀是否与配置层级一致
+- 是否需要 `@RefreshScope`
 
-### 11.2 成绩/空教室回调失败
-
-优先检查：
-
-- 爬虫服务是否启动：`docker logs campus-spider`
-- `JAVA_CALLBACK_URL` 等回调地址是否正确
-- `JAVA_INTERNAL_TOKEN` 是否一致
-
-### 11.3 前端页面空白或接口 404
+### 2. Android 能打开登录页但始终网络异常
 
 优先检查：
 
-- `campus-web` 容器是否启动
-- Nginx 配置中 `/api/` 反向代理是否指向 `campus-gateway:8080/gateway/`
+- 网关是否已暴露 `/api/` 前缀
+- 手机是否能访问当前 IP/域名与端口
+- 是否把 `/gateway/` 与 `/api/` 搞混
+- 服务端是否真的收到请求日志
 
-### 11.4 镜像包传输到服务器后 load 失败
+### 3. 默认图片能返回但 Android 不显示
 
-可能是 Windows 传输导致 shell 脚本换行符变为 CRLF。`load-and-start.sh` 已自动处理 `import-nacos-config.sh` 的换行问题。如其他脚本也报错，可执行：
+优先检查：
 
-```bash
-sed -i 's/\r$//' *.sh scripts/*.sh
-```
-
----
-
-## 十二、生产环境加固
-
-部署到生产前，请至少完成以下修改：
-
-1. 修改 `deploy/.env` 中的 `MYSQL_ROOT_PASSWORD` 为强密码
-2. 同步修改 `deploy/init.sql` 中涉及到的默认密码引用（如有）
-3. 修改 `deploy/.env.secret` 中的 `JAVA_INTERNAL_TOKEN` 和 `AES_SECRET_KEY`
-4. 替换 `YM_TOKEN` / `YM_TYPE` 为当前有效的学校系统凭证
-5. 替换阿里云 OSS 为真实可用的 Bucket 和 AccessKey
-6. 关闭不必要的外部端口，仅保留 `80/443` 对外
-7. 为 Nacos 开启认证，并调整 `NACOS_AUTH_ENABLE`
-8. 为 Redis 增加密码，并同步修改配置
+- 返回的是相对路径还是完整 URL
+- 当前服务器设置对应的静态资源基础前缀是否正确
+- OSS bucket 是否允许公开读取或有临时访问签名
 
 ---
 
-完成以上步骤后，项目即可通过离线镜像包实现零配置一键部署。
+## 九、仓库本地文件约束
+
+部署仓库不应包含以下本地文件：
+
+- `node_modules/`
+- `local.properties`
+- `.gradle/`
+- Android `build/` 产物
+- IDE 私有目录
+
+如果历史上已经提交过这些目录，除了补 `.gitignore` 外，还需要执行一次取消追踪。
+
+---
+
+## 十、关联文档
+
+- 总览说明：[README.md](README.md)
+- 测试说明：[TESTING.md](TESTING.md)
+- Android 说明：[campus-android/README.md](campus-android/README.md)
