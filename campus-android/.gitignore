@@ -1,0 +1,19 @@
+# Local machine / IDE
+local.properties
+.idea/
+.kotlin/
+
+# Gradle cache
+.gradle/
+
+# Build outputs
+build/
+**/build/
+
+# Android Studio / IntelliJ misc
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab

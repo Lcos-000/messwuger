@@ -9,8 +9,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.campusassistant.android.core.datastore.ServerConfigStore
 import com.campusassistant.android.core.datastore.TokenDataStore
-import com.campusassistant.android.core.network.ServerConfigHolder
 import com.campusassistant.android.core.network.NetworkModule
+import com.campusassistant.android.core.network.ServerConfigHolder
 import com.campusassistant.android.data.repository.AuthRepository
 import com.campusassistant.android.data.repository.EmptyClassroomRepository
 import com.campusassistant.android.data.repository.GradesRepository
@@ -76,6 +76,8 @@ class MainActivity : ComponentActivity() {
                     gradesState = gradesState,
                     emptyClassroomState = emptyClassroomState,
                     onLogin = appViewModel::login,
+                    onShowLoginPreview = appViewModel::showLoginPreview,
+                    onHideLoginPreview = appViewModel::hideLoginPreview,
                     onLogout = appViewModel::logout,
                     onRefreshProfile = profileViewModel::loadProfile,
                     onAutoPunchChange = profileViewModel::updateAutoPunch,

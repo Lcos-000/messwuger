@@ -32,24 +32,67 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.campusassistant.android.ui.theme.CampusCardShape
+import kotlin.math.roundToInt
 
 val CampusPagePadding = 18.dp
-val CampusButtonHeight = 50.dp
+val CampusButtonHeight = 56.dp
 val CampusCardPadding = 16.dp
 val CampusMutedText = Color(0xFF5F6F85)
 val CampusSuccessText = Color(0xFF047857)
 
+private val CampusCardPalette = listOf(
+    Color(0xFFFFFFFF),
+    Color(0xFFF7F7F8),
+    Color(0xFFF5F7FA),
+    Color(0xFFF4F4F5),
+    Color(0xFFF6F1EE),
+    Color(0xFFF7F3E8),
+    Color(0xFFF7EEDF),
+    Color(0xFFF4E7D8),
+    Color(0xFFF7F0F5),
+    Color(0xFFF3E8F3),
+    Color(0xFFEFE5F6),
+    Color(0xFFE7E8F7),
+    Color(0xFFE6ECFA),
+    Color(0xFFE9F1FB),
+    Color(0xFFE5F3F7),
+    Color(0xFFE6F5F2),
+    Color(0xFFEAF6EC),
+    Color(0xFFF0F6E7),
+    Color(0xFFF5F4E7),
+    Color(0xFFFAF3E7),
+    Color(0xFFF8EEE8),
+    Color(0xFFF7E9EA),
+    Color(0xFFF4E6EA),
+    Color(0xFFEDE8F2),
+    Color(0xFFE8EDF5),
+    Color(0xFFE8F1F2),
+    Color(0xFFEAF3EF),
+    Color(0xFFF1F4EE),
+    Color(0xFFF5F2ED),
+    Color(0xFFF3EFEA),
+    Color(0xFFECECEC)
+)
+
 @Immutable
 data class CampusCardStyle(
     val opacity: Float = 1f,
-    val blur: Float = 14f
+    val blur: Float = 0f
 )
 
 val LocalCampusCardStyle = compositionLocalOf { CampusCardStyle() }
+
+fun campusCardColorPalette(): List<Color> = CampusCardPalette
+
+fun resolveCampusCardBaseColor(index: Float): Color {
+    val safeIndex = index.roundToInt().coerceIn(0, CampusCardPalette.lastIndex)
+    return CampusCardPalette[safeIndex]
+}
 
 @Composable
 fun CampusCardStyleProvider(
@@ -67,25 +110,18 @@ fun CampusCardStyleProvider(
 }
 
 @Composable
-fun campusGlassStrength(): Float = (LocalCampusCardStyle.current.blur / 30f).coerceIn(0f, 1f)
-
-@Composable
-fun campusGlassContainerColor(base: Color = MaterialTheme.colorScheme.surface): Color {
+fun campusGlassContainerColor(base: Color = resolveCampusCardBaseColor(LocalCampusCardStyle.current.blur)): Color {
     val style = LocalCampusCardStyle.current
     return base.copy(alpha = style.opacity.coerceIn(0.34f, 1f))
 }
 
 @Composable
 fun campusGlassBorder(): BorderStroke {
-    val strength = campusGlassStrength()
-    return BorderStroke((0.8f + strength * 0.7f).dp, Color.White.copy(alpha = 0.52f + strength * 0.2f))
+    return BorderStroke(1.dp, Color.White.copy(alpha = 0.62f))
 }
 
 @Composable
-fun campusGlassElevation(base: Dp = 1.dp): Dp {
-    val strength = campusGlassStrength()
-    return base + (strength * 10).dp
-}
+fun campusGlassElevation(base: Dp = 0.dp): Dp = base
 
 @Composable
 fun CampusPage(
@@ -152,7 +188,13 @@ fun CampusButton(
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp)
     ) {
-        Text(text = text, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 16.sp,
+            maxLines = 2
+        )
     }
 }
 
@@ -176,7 +218,13 @@ fun CampusOutlinedButton(
             contentColor = MaterialTheme.colorScheme.primary
         )
     ) {
-        Text(text = text, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 16.sp,
+            maxLines = 2
+        )
     }
 }
 
@@ -217,7 +265,7 @@ fun CampusCard(
         shape = CampusCardShape,
         colors = CardDefaults.cardColors(containerColor = campusGlassContainerColor()),
         border = campusGlassBorder(),
-        elevation = CardDefaults.cardElevation(defaultElevation = campusGlassElevation(2.dp))
+        elevation = CardDefaults.cardElevation(defaultElevation = campusGlassElevation(0.dp))
     ) {
         Column(modifier = Modifier.padding(CampusCardPadding), content = content)
     }

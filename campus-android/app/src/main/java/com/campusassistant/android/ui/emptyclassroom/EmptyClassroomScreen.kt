@@ -1,6 +1,7 @@
 package com.campusassistant.android.ui.emptyclassroom
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -57,43 +59,46 @@ fun EmptyClassroomScreen(
     onReset: () -> Unit
 ) {
     val text = LocalAppText.current.emptyClassroom
-    CampusPage {
-        CampusPageHeader(
-            title = text.title,
-            subtitle = text.subtitle
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-        EmptyClassroomFilterPanel(
-            state = state,
-            onAcademicYearChange = onAcademicYearChange,
-            onYearIncrease = onYearIncrease,
-            onYearDecrease = onYearDecrease,
-            onSemesterChange = onSemesterChange,
-            onDayChange = onDayChange,
-            onWeekToggle = onWeekToggle,
-            onPeriodToggle = onPeriodToggle,
-            onCampusChange = onCampusChange,
-            onBuildingChange = onBuildingChange,
-            onSubmitTask = onSubmitTask,
-            onQueryResult = onQueryResult,
-            onReset = onReset
-        )
-
+    val listState = rememberLazyListState()
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        state = listState,
+        contentPadding = PaddingValues(top = 18.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            CampusPageHeader(
+                title = text.title,
+                subtitle = text.subtitle
+            )
+        }
+        item {
+            EmptyClassroomFilterPanel(
+                state = state,
+                onAcademicYearChange = onAcademicYearChange,
+                onYearIncrease = onYearIncrease,
+                onYearDecrease = onYearDecrease,
+                onSemesterChange = onSemesterChange,
+                onDayChange = onDayChange,
+                onWeekToggle = onWeekToggle,
+                onPeriodToggle = onPeriodToggle,
+                onCampusChange = onCampusChange,
+                onBuildingChange = onBuildingChange,
+                onSubmitTask = onSubmitTask,
+                onQueryResult = onQueryResult,
+                onReset = onReset
+            )
+        }
         if (!state.statusMessage.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(10.dp))
-            CampusMessage(state.statusMessage, isError = false)
+            item { CampusMessage(state.statusMessage, isError = false) }
         }
         if (!state.errorMessage.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(10.dp))
-            CampusMessage(state.errorMessage, isError = true)
+            item { CampusMessage(state.errorMessage, isError = true) }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
         when {
-            state.loadingResult -> CampusLoadingState(text.loading)
-            state.resultReady && state.classrooms.isEmpty() -> CampusEmptyState(text.empty)
-            else -> ClassroomList(classrooms = state.classrooms)
+            state.loadingResult -> item { CampusLoadingState(text.loading, modifier = Modifier.height(220.dp)) }
+            state.resultReady && state.classrooms.isEmpty() -> item { CampusEmptyState(text.empty, modifier = Modifier.height(220.dp)) }
+            else -> items(state.classrooms) { classroom -> ClassroomCard(classroom) }
         }
     }
 }
@@ -226,8 +231,8 @@ private fun ModeDot() {
 
 @Composable
 private fun ClassroomList(classrooms: List<EmptyClassroomItem>) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(classrooms) { classroom ->
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        classrooms.forEach { classroom ->
             ClassroomCard(classroom)
         }
     }

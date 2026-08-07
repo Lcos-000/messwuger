@@ -13,13 +13,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -37,14 +45,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.campusassistant.android.ui.common.CampusButton
 import com.campusassistant.android.ui.common.CampusLoadingState
 import com.campusassistant.android.ui.common.CampusMessage
 import com.campusassistant.android.ui.common.CampusTextField
-import com.campusassistant.android.ui.text.LocalAppText
 import com.campusassistant.android.ui.profile.ServerSettingsDraft
+import com.campusassistant.android.ui.text.LocalAppText
 
 @Composable
 fun LoginScreen(
@@ -56,21 +66,25 @@ fun LoginScreen(
     onServerHostChange: (String) -> Unit,
     onServerPortChange: (String) -> Unit,
     onSaveServerSettings: () -> Unit,
+    showBackToApp: Boolean,
+    onBackToApp: () -> Unit,
     onLogin: (String, String) -> Unit
 ) {
     var studentId by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LoginBackground()
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp, vertical = 26.dp),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterVertically)
         ) {
             BrandSection()
-            Spacer(modifier = Modifier.height(26.dp))
             LoginPanel(
                 studentId = studentId,
                 password = password,
@@ -82,8 +96,12 @@ fun LoginScreen(
                 onServerHostChange = onServerHostChange,
                 onServerPortChange = onServerPortChange,
                 onSaveServerSettings = onSaveServerSettings,
+                showBackToApp = showBackToApp,
+                onBackToApp = onBackToApp,
                 onStudentIdChange = { studentId = it },
                 onPasswordChange = { password = it },
+                passwordVisible = passwordVisible,
+                onPasswordVisibilityChange = { passwordVisible = !passwordVisible },
                 onLogin = { onLogin(studentId, password) }
             )
         }
@@ -252,8 +270,12 @@ private fun LoginPanel(
     onServerHostChange: (String) -> Unit,
     onServerPortChange: (String) -> Unit,
     onSaveServerSettings: () -> Unit,
+    showBackToApp: Boolean,
+    onBackToApp: () -> Unit,
     onStudentIdChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onPasswordVisibilityChange: () -> Unit,
     onLogin: () -> Unit
 ) {
     val text = LocalAppText.current.login
@@ -287,11 +309,22 @@ private fun LoginPanel(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            CampusTextField(
+            OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = text.passwordPlaceholder,
-                visualTransformation = PasswordVisualTransformation()
+                label = { Text(text.passwordPlaceholder) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = onPasswordVisibilityChange) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                        )
+                    }
+                }
             )
             if (!errorMessage.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -310,6 +343,8 @@ private fun LoginPanel(
                 onToggle = onServerSettingsToggle,
                 onHostChange = onServerHostChange,
                 onPortChange = onServerPortChange,
+                showBackToApp = showBackToApp,
+                onBackToApp = onBackToApp,
                 onSave = onSaveServerSettings
             )
             if (loading) {
@@ -327,6 +362,8 @@ private fun ServerSettingsEntry(
     onToggle: () -> Unit,
     onHostChange: (String) -> Unit,
     onPortChange: (String) -> Unit,
+    showBackToApp: Boolean,
+    onBackToApp: () -> Unit,
     onSave: () -> Unit
 ) {
     val profileText = LocalAppText.current.profile
@@ -342,8 +379,15 @@ private fun ServerSettingsEntry(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
-            TextButton(onClick = onToggle) {
-                Text(if (draft.expanded) profileText.collapse else profileText.expand)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (showBackToApp) {
+                    TextButton(onClick = onBackToApp) {
+                        Text(profileText.backToApp)
+                    }
+                }
+                TextButton(onClick = onToggle) {
+                    Text(if (draft.expanded) profileText.collapse else profileText.expand)
+                }
             }
         }
         if (draft.expanded) {
@@ -375,13 +419,16 @@ private fun ServerSettingsEntry(
                     text = profileText.serverSummaryPrefix + draft.host.ifBlank { profileText.serverHostPlaceholder } + ":" + draft.port.ifBlank { profileText.serverPortPlaceholder },
                     modifier = Modifier.weight(1f),
                     color = Color(0xFF7B89A1),
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 CampusButton(
                     text = if (saving) LocalAppText.current.common.saving else profileText.saveServerSettings,
                     onClick = onSave,
-                    enabled = !saving
+                    enabled = !saving,
+                    modifier = Modifier.width(144.dp)
                 )
             }
         }

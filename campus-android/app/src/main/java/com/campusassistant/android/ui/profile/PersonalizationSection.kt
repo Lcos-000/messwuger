@@ -3,20 +3,14 @@ package com.campusassistant.android.ui.profile
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +22,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -38,15 +33,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.campusassistant.android.ui.common.campusCardColorPalette
+import com.campusassistant.android.ui.common.resolveCampusCardBaseColor
 import com.campusassistant.android.ui.text.LocalAppText
+import kotlin.math.roundToInt
 
 @Composable
 internal fun PersonalizationSection(
@@ -86,7 +82,6 @@ internal fun PersonalizationSection(
         if (!profileState.personalizationSectionState.expanded) {
             return@Column
         }
-
 
         AssetChoiceRow(
             label = text.avatar,
@@ -129,7 +124,11 @@ internal fun PersonalizationSection(
         )
 
         SliderSetting(text.cardOpacity, draft.cardOpacity, 0.2f..1f, "%.2f".format(draft.cardOpacity), onCardOpacityChange)
-        SliderSetting(text.cardBlur, draft.cardBlur, 0f..30f, "%.0f".format(draft.cardBlur), onCardBlurChange)
+        CardColorSliderSetting(
+            label = text.cardBlur,
+            value = draft.cardBlur,
+            onChange = onCardBlurChange
+        )
         SliderSetting(text.wallpaperMask, draft.wallpaperMask, 0f..1f, "%.2f".format(draft.wallpaperMask), onWallpaperMaskChange)
 
         Row(
@@ -183,9 +182,7 @@ private fun AssetChoiceRow(
                     value = value,
                     selected = isSameAsset(selected, value),
                     avatarStyle = type == "avatar",
-                    onClick = {
-                        onSelect(value)
-                    }
+                    onClick = { onSelect(value) }
                 )
             }
             AssetTile(
@@ -196,6 +193,46 @@ private fun AssetChoiceRow(
                 onClick = { onUploadRequest(type) }
             )
         }
+    }
+}
+
+@Composable
+private fun CardColorSliderSetting(
+    label: String,
+    value: Float,
+    onChange: (Float) -> Unit
+) {
+    val palette = campusCardColorPalette()
+    val selectedIndex = value.roundToInt().coerceIn(0, palette.lastIndex)
+    val previewColor = resolveCampusCardBaseColor(value)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, color = TextMuted, style = MaterialTheme.typography.labelMedium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 30.dp, height = 18.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(previewColor)
+                        .border(1.dp, Color(0xFFD7DFEA), RoundedCornerShape(999.dp))
+                )
+                Text(
+                    if (selectedIndex == 0) "纯白" else "预设 ${selectedIndex}",
+                    color = TextStrong,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            valueRange = 0f..30f,
+            steps = 29
+        )
     }
 }
 
@@ -287,67 +324,10 @@ private fun SliderSetting(
             Text(label, color = TextMuted, style = MaterialTheme.typography.labelMedium)
             Text(valueText, color = TextStrong, fontWeight = FontWeight.SemiBold)
         }
-        CompactSlider(
+        Slider(
             value = value,
-            range = range,
-            onChange = onChange
-        )
-    }
-}
-
-@Composable
-private fun CompactSlider(
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onChange: (Float) -> Unit
-) {
-    val density = LocalDensity.current
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(28.dp)
-            .padding(horizontal = 7.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        val widthPx = with(density) { maxWidth.toPx() }
-        val fraction = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
-        val updateFromFraction: (Float) -> Unit = { nextFraction ->
-            val coerced = nextFraction.coerceIn(0f, 1f)
-            onChange(range.start + (range.endInclusive - range.start) * coerced)
-        }
-        val activeWidth = maxWidth * fraction
-        val thumbOffset = (maxWidth * fraction - 7.dp).coerceIn((-7).dp, maxWidth - 7.dp)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xFFE2E8F0))
-                .pointerInput(widthPx) {
-                    detectTapGestures { offset -> updateFromFraction(offset.x / widthPx) }
-                }
-        )
-        Box(
-            modifier = Modifier
-                .width(activeWidth)
-                .height(3.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(HeroStart.copy(alpha = 0.82f))
-        )
-        Box(
-            modifier = Modifier
-                .offset(x = thumbOffset)
-                .size(14.dp)
-                .clip(CircleShape)
-                .background(Color.White)
-                .border(3.dp, HeroStart, CircleShape)
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        if (widthPx > 0f) updateFromFraction(fraction + delta / widthPx)
-                    }
-                )
+            onValueChange = onChange,
+            valueRange = range
         )
     }
 }
