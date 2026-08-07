@@ -286,10 +286,12 @@ fun CampusTextField(
     leadingIcon: (@Composable () -> Unit)? = null,
     placeholder: String? = null
 ) {
+    val labelContent = label.takeIf { it.isNotBlank() }?.let { text -> @Composable { Text(text) } }
+    val placeholderContent = placeholder?.takeIf { it.isNotBlank() }?.let { text -> @Composable { Text(text) } }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = labelContent,
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         singleLine = true,
@@ -298,7 +300,7 @@ fun CampusTextField(
         keyboardOptions = keyboardOptions,
         trailingIcon = trailingIcon,
         leadingIcon = leadingIcon,
-        placeholder = placeholder?.let { { Text(it) } },
+        placeholder = placeholderContent,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.78f),
