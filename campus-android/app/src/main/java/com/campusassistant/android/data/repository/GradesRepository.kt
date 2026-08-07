@@ -101,7 +101,7 @@ class GradesRepository(
             val obj = asJsonObject
             val messageKeys = listOf("message", "msg", "status", "queryStatus", "taskStatus", "result")
             val parts = messageKeys.mapNotNull { key -> obj.get(key)?.asDisplayString()?.takeIf { it.isNotBlank() } }
-            if (parts.isNotEmpty()) return parts.distinct().joinToString("，")
+            if (parts.isNotEmpty()) return parts.distinct().joinToString("；")
         }
         return null
     }

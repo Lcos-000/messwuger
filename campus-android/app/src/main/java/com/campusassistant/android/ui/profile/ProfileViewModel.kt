@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 
 data class ServerSettingsDraft(
     val host: String = ServerConfig().host,
@@ -131,9 +132,7 @@ class ProfileViewModel(
     fun loadProfile() {
         if (_uiState.value.loading) return
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(loading = true, errorMessage = null, actionMessage = null)
-            }
+            beginLoadingProfile()
 
             val personalDeferred = async { userRepository.getPersonal() }
             val statusDeferred = async { userRepository.getStatus() }
@@ -147,39 +146,13 @@ class ProfileViewModel(
             val defaultOptionsResult = defaultOptionsDeferred.await()
             val customAssetsResult = customAssetsDeferred.await()
 
-            _uiState.update { current ->
-                val personalApiResult = personalResult.getOrNull()
-                val statusApiResult = statusResult.getOrNull()
-                val personalizationApiResult = personalizationResult.getOrNull()
-                val defaultOptionsApiResult = defaultOptionsResult.getOrNull()
-                val customAssetsApiResult = customAssetsResult.getOrNull()
-                val personalization = personalizationApiResult?.takeIf { it.isSuccess }?.data
-                val defaultOptions = defaultOptionsApiResult?.takeIf { it.isSuccess }?.data.withFallbackDefaults()
-
-                val errorMessages = listOfNotNull(
-                    personalResult.exceptionOrNull()?.message,
-                    statusResult.exceptionOrNull()?.message,
-                    personalizationResult.exceptionOrNull()?.message,
-                    defaultOptionsResult.exceptionOrNull()?.message,
-                    customAssetsResult.exceptionOrNull()?.message,
-                    personalApiResult?.takeUnless { it.isSuccess }?.message,
-                    statusApiResult?.takeUnless { it.isSuccess }?.message,
-                    personalizationApiResult?.takeUnless { it.isSuccess }?.message,
-                    defaultOptionsApiResult?.takeUnless { it.isSuccess }?.message,
-                    customAssetsApiResult?.takeUnless { it.isSuccess }?.message
-                ).map { it.trim() }.filter { it.isNotBlank() }.distinct()
-
-                current.copy(
-                    loading = false,
-                    personalResult = personalApiResult ?: current.personalResult,
-                    statusResult = statusApiResult ?: current.statusResult,
-                    personalizationResult = personalizationApiResult ?: current.personalizationResult,
-                    defaultOptionsResult = defaultOptionsApiResult?.copy(data = defaultOptions) ?: current.defaultOptionsResult,
-                    customAssetsResult = customAssetsApiResult ?: current.customAssetsResult,
-                    personalizationDraft = personalization?.toDraft() ?: current.personalizationDraft,
-                    errorMessage = errorMessages.joinToString("；").ifBlank { null }
-                )
-            }
+            applyLoadedProfile(
+                personalResult = personalResult,
+                statusResult = statusResult,
+                personalizationResult = personalizationResult,
+                defaultOptionsResult = defaultOptionsResult,
+                customAssetsResult = customAssetsResult
+            )
         }
     }
 
@@ -205,7 +178,7 @@ class ProfileViewModel(
                         _uiState.update { current ->
                             current.copy(
                                 updatingAutoPunch = false,
-                                actionMessage = "自动打卡已更新"
+                                actionMessage = "自动打卡状态已更新"
                             )
                         }
                         loadProfile()
@@ -278,9 +251,12 @@ class ProfileViewModel(
         val draft = _uiState.value.serverSettingsDraft
         val config = ServerConfig(host = draft.host, port = draft.port)
         if (!config.isValid()) {
-            _uiState.update { it.copy(errorMessage = "服务器地址格式无效，请检查 IP/域名 和端口") }
+            _uiState.update {
+                it.copy(errorMessage = "服务器地址格式无效，请检查 IP/域名 和端口")
+            }
             return
         }
+
         viewModelScope.launch {
             _uiState.update { it.copy(savingServerConfig = true, errorMessage = null, actionMessage = null) }
             serverConfigStore.saveConfig(config)
@@ -297,6 +273,7 @@ class ProfileViewModel(
     fun savePersonalization() {
         if (_uiState.value.savingPersonalization) return
         val request = _uiState.value.personalizationDraft.toRequest()
+
         viewModelScope.launch {
             _uiState.update { it.copy(savingPersonalization = true, errorMessage = null, actionMessage = null) }
             personalizationRepository.updateProfile(request)
@@ -311,26 +288,16 @@ class ProfileViewModel(
                             )
                         }
                     } else {
-                        _uiState.update {
-                            it.copy(
-                                savingPersonalization = false,
-                                errorMessage = result.message ?: "保存个性化配置失败"
-                            )
-                        }
+                        finishPersonalizationSaveError(result.message ?: "保存个性化配置失败")
                     }
                 }
                 .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            savingPersonalization = false,
-                            errorMessage = throwable.message ?: "保存个性化配置失败"
-                        )
-                    }
+                    finishPersonalizationSaveError(throwable.message ?: "保存个性化配置失败")
                 }
         }
     }
 
-    fun uploadAsset(type: String, file: okhttp3.MultipartBody.Part) {
+    fun uploadAsset(type: String, file: MultipartBody.Part) {
         if (_uiState.value.uploadingAssetType != null) return
         viewModelScope.launch {
             _uiState.update { it.copy(uploadingAssetType = type, errorMessage = null, actionMessage = null) }
@@ -338,27 +305,111 @@ class ProfileViewModel(
                 .onSuccess { result ->
                     val url = result.data?.url.orEmpty()
                     if (!result.isSuccess || url.isBlank()) {
-                        _uiState.update {
-                            it.copy(
-                                uploadingAssetType = null,
-                                errorMessage = result.message ?: "上传图片失败"
-                            )
-                        }
+                        finishUploadError(result.message ?: "上传图片失败")
                         return@onSuccess
                     }
+
                     val nextDraft = _uiState.value.personalizationDraft.withAsset(type, url)
                     _uiState.update { it.copy(personalizationDraft = nextDraft) }
                     saveUploadedSelection(nextDraft, type)
                 }
                 .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            uploadingAssetType = null,
-                            errorMessage = throwable.message ?: "上传图片失败"
-                        )
-                    }
+                    finishUploadError(throwable.message ?: "上传图片失败")
                 }
         }
+    }
+
+    fun deleteAccount() {
+        if (_uiState.value.deletingAccount) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingAccount = true, errorMessage = null, actionMessage = null) }
+            userRepository.deleteAccount()
+                .onSuccess { result ->
+                    if (result.isSuccess) {
+                        _uiState.value = ProfileUiState(actionMessage = result.data ?: result.message ?: "账号已注销")
+                    } else {
+                        finishDeleteAccountError(result.message ?: "注销账号失败")
+                    }
+                }
+                .onFailure { throwable ->
+                    finishDeleteAccountError(throwable.message ?: "注销账号失败")
+                }
+        }
+    }
+
+    private fun beginLoadingProfile() {
+        _uiState.update {
+            it.copy(loading = true, errorMessage = null, actionMessage = null)
+        }
+    }
+
+    private fun applyLoadedProfile(
+        personalResult: Result<ApiResult<UserPersonal>>,
+        statusResult: Result<ApiResult<UserStatus>>,
+        personalizationResult: Result<ApiResult<PersonalizationProfile>>,
+        defaultOptionsResult: Result<ApiResult<DefaultAssetOptions>>,
+        customAssetsResult: Result<ApiResult<CustomAssets>>
+    ) {
+        _uiState.update { current ->
+            val personalApiResult = personalResult.getOrNull()
+            val statusApiResult = statusResult.getOrNull()
+            val personalizationApiResult = personalizationResult.getOrNull()
+            val defaultOptionsApiResult = defaultOptionsResult.getOrNull()
+            val customAssetsApiResult = customAssetsResult.getOrNull()
+            val personalization = personalizationApiResult?.takeIf { it.isSuccess }?.data
+            val defaultOptions = defaultOptionsApiResult?.takeIf { it.isSuccess }?.data.withFallbackDefaults()
+
+            current.copy(
+                loading = false,
+                personalResult = personalApiResult ?: current.personalResult,
+                statusResult = statusApiResult ?: current.statusResult,
+                personalizationResult = personalizationApiResult ?: current.personalizationResult,
+                defaultOptionsResult = defaultOptionsApiResult?.copy(data = defaultOptions) ?: current.defaultOptionsResult,
+                customAssetsResult = customAssetsApiResult ?: current.customAssetsResult,
+                personalizationDraft = personalization?.toDraft() ?: current.personalizationDraft,
+                errorMessage = collectProfileLoadErrors(
+                    personalResult = personalResult,
+                    statusResult = statusResult,
+                    personalizationResult = personalizationResult,
+                    defaultOptionsResult = defaultOptionsResult,
+                    customAssetsResult = customAssetsResult,
+                    personalApiResult = personalApiResult,
+                    statusApiResult = statusApiResult,
+                    personalizationApiResult = personalizationApiResult,
+                    defaultOptionsApiResult = defaultOptionsApiResult,
+                    customAssetsApiResult = customAssetsApiResult
+                )
+            )
+        }
+    }
+
+    private fun collectProfileLoadErrors(
+        personalResult: Result<ApiResult<UserPersonal>>,
+        statusResult: Result<ApiResult<UserStatus>>,
+        personalizationResult: Result<ApiResult<PersonalizationProfile>>,
+        defaultOptionsResult: Result<ApiResult<DefaultAssetOptions>>,
+        customAssetsResult: Result<ApiResult<CustomAssets>>,
+        personalApiResult: ApiResult<UserPersonal>?,
+        statusApiResult: ApiResult<UserStatus>?,
+        personalizationApiResult: ApiResult<PersonalizationProfile>?,
+        defaultOptionsApiResult: ApiResult<DefaultAssetOptions>?,
+        customAssetsApiResult: ApiResult<CustomAssets>?
+    ): String? {
+        val errorMessages = listOfNotNull(
+            personalResult.exceptionOrNull()?.message,
+            statusResult.exceptionOrNull()?.message,
+            personalizationResult.exceptionOrNull()?.message,
+            defaultOptionsResult.exceptionOrNull()?.message,
+            customAssetsResult.exceptionOrNull()?.message,
+            personalApiResult?.takeUnless { it.isSuccess }?.message,
+            statusApiResult?.takeUnless { it.isSuccess }?.message,
+            personalizationApiResult?.takeUnless { it.isSuccess }?.message,
+            defaultOptionsApiResult?.takeUnless { it.isSuccess }?.message,
+            customAssetsApiResult?.takeUnless { it.isSuccess }?.message
+        ).mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
+            .distinct()
+
+        return errorMessages.joinToString("；").ifBlank { null }
     }
 
     private suspend fun saveUploadedSelection(draft: PersonalizationDraft, type: String) {
@@ -375,22 +426,39 @@ class ProfileViewModel(
                     }
                     loadProfile()
                 } else {
-                    _uiState.update {
-                        it.copy(
-                            uploadingAssetType = null,
-                            errorMessage = result.message ?: "上传成功，但保存选择失败"
-                        )
-                    }
+                    finishUploadError(result.message ?: "上传成功，但保存选择失败")
                 }
             }
             .onFailure { throwable ->
-                _uiState.update {
-                    it.copy(
-                        uploadingAssetType = null,
-                        errorMessage = throwable.message ?: "上传成功，但保存选择失败"
-                    )
-                }
+                finishUploadError(throwable.message ?: "上传成功，但保存选择失败")
             }
+    }
+
+    private fun finishPersonalizationSaveError(message: String) {
+        _uiState.update {
+            it.copy(
+                savingPersonalization = false,
+                errorMessage = message
+            )
+        }
+    }
+
+    private fun finishUploadError(message: String) {
+        _uiState.update {
+            it.copy(
+                uploadingAssetType = null,
+                errorMessage = message
+            )
+        }
+    }
+
+    private fun finishDeleteAccountError(message: String) {
+        _uiState.update {
+            it.copy(
+                deletingAccount = false,
+                errorMessage = message
+            )
+        }
     }
 
     private fun updateDraft(block: (PersonalizationDraft) -> PersonalizationDraft) {
@@ -400,34 +468,6 @@ class ProfileViewModel(
                 errorMessage = null,
                 actionMessage = null
             )
-        }
-    }
-
-    fun deleteAccount() {
-        if (_uiState.value.deletingAccount) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(deletingAccount = true, errorMessage = null, actionMessage = null) }
-            userRepository.deleteAccount()
-                .onSuccess { result ->
-                    if (result.isSuccess) {
-                        _uiState.value = ProfileUiState(actionMessage = result.data ?: result.message ?: "账号已注销")
-                    } else {
-                        _uiState.update {
-                            it.copy(
-                                deletingAccount = false,
-                                errorMessage = result.message ?: "注销账号失败"
-                            )
-                        }
-                    }
-                }
-                .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            deletingAccount = false,
-                            errorMessage = throwable.message ?: "注销账号失败"
-                        )
-                    }
-                }
         }
     }
 

@@ -1,13 +1,12 @@
 package com.campusassistant.android.ui.emptyclassroom
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,10 +35,10 @@ import com.campusassistant.android.ui.common.CampusButton
 import com.campusassistant.android.ui.common.CampusCard
 import com.campusassistant.android.ui.common.CampusEmptyState
 import com.campusassistant.android.ui.common.CampusLoadingState
-import com.campusassistant.android.ui.common.CampusMessage
 import com.campusassistant.android.ui.common.CampusOutlinedButton
-import com.campusassistant.android.ui.common.CampusPage
 import com.campusassistant.android.ui.common.CampusPageHeader
+import com.campusassistant.android.ui.common.CampusSectionTitle
+import com.campusassistant.android.ui.common.CampusStatusMessages
 import com.campusassistant.android.ui.text.LocalAppText
 
 @Composable
@@ -61,7 +60,9 @@ fun EmptyClassroomScreen(
     val text = LocalAppText.current.emptyClassroom
     val listState = rememberLazyListState()
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 18.dp),
         state = listState,
         contentPadding = PaddingValues(top = 18.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -89,11 +90,11 @@ fun EmptyClassroomScreen(
                 onReset = onReset
             )
         }
-        if (!state.statusMessage.isNullOrBlank()) {
-            item { CampusMessage(state.statusMessage, isError = false) }
-        }
-        if (!state.errorMessage.isNullOrBlank()) {
-            item { CampusMessage(state.errorMessage, isError = true) }
+        item {
+            CampusStatusMessages(
+                statusMessage = state.statusMessage,
+                errorMessage = state.errorMessage
+            )
         }
         when {
             state.loadingResult -> item { CampusLoadingState(text.loading, modifier = Modifier.height(220.dp)) }
@@ -176,7 +177,7 @@ private fun OptionRow(
     onSelect: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, color = Color(0xFF64748B), style = MaterialTheme.typography.bodySmall)
+        CampusSectionTitle(title = label)
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -200,11 +201,7 @@ private fun MultiSelectNumberRow(
     onToggle: (Int) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = "$label：${selectedValues.sorted().joinToString("、")}",
-            color = Color(0xFF64748B),
-            style = MaterialTheme.typography.bodySmall
-        )
+        CampusSectionTitle(title = "$label：${selectedValues.sorted().joinToString("、")}")
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -230,15 +227,6 @@ private fun ModeDot() {
 }
 
 @Composable
-private fun ClassroomList(classrooms: List<EmptyClassroomItem>) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        classrooms.forEach { classroom ->
-            ClassroomCard(classroom)
-        }
-    }
-}
-
-@Composable
 private fun ClassroomCard(classroom: EmptyClassroomItem) {
     val text = LocalAppText.current.emptyClassroom
     CampusCard {
@@ -256,7 +244,7 @@ private fun ClassroomCard(classroom: EmptyClassroomItem) {
                             classroom.building?.takeIf { it.isNotBlank() },
                             classroom.campus?.takeIf { it.isNotBlank() },
                             classroom.roomType?.takeIf { it.isNotBlank() }
-                        ).joinToString(" · ").ifBlank { text.roomInfoMissing },
+                        ).joinToString(" 路 ").ifBlank { text.roomInfoMissing },
                         color = Color(0xFF64748B),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
