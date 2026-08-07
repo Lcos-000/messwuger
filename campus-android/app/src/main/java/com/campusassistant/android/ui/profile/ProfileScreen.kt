@@ -12,10 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ArrowForward
@@ -252,7 +252,9 @@ private fun AvatarView(text: String, url: String?) {
             AsyncImage(
                 model = url,
                 contentDescription = "头像",
-                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
         }
@@ -285,6 +287,7 @@ private fun ProfileContentPanel(
     val text = LocalAppText.current.profile
     val cardShape = RoundedCornerShape(18.dp)
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -294,65 +297,70 @@ private fun ProfileContentPanel(
             tonalElevation = campusGlassElevation(0.dp),
             shadowElevation = 0.dp
         ) {
-        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            InfoRows(personal = profileState.personal, tokenExists = tokenExists)
-            SectionDivider()
-            StatusRows(
-                status = profileState.status,
-                loading = profileState.loading,
-                updatingAutoPunch = profileState.updatingAutoPunch,
-                autoPunchEnabled = profileState.autoPunchEnabled,
-                onAutoPunchChange = onAutoPunchChange
-            )
-            MessageRows(profileState = profileState)
-            SectionDivider()
-            PersonalizationSection(
-                profileState = profileState,
-                onAvatarSelect = onAvatarSelect,
-                onBackgroundSelect = onBackgroundSelect,
-                onWallpaperSelect = onWallpaperSelect,
-                onCardOpacityChange = onCardOpacityChange,
-                onCardBlurChange = onCardBlurChange,
-                onWallpaperMaskChange = onWallpaperMaskChange,
-                onGlobalFontChange = onGlobalFontChange,
-                onPersonalizationExpandedToggle = onPersonalizationExpandedToggle,
-                onServerSettingsToggle = onServerSettingsToggle,
-                onServerHostChange = onServerHostChange,
-                onServerPortChange = onServerPortChange,
-                onSaveServerSettings = onSaveServerSettings,
-                onSave = onSavePersonalization,
-                onUploadRequest = onUploadRequest
-            )
-            SectionDivider()
-            ActionRow(
-                icon = Icons.Default.ArrowForward,
-                iconBackground = Color(0xFFEFF6FF),
-                iconColor = HeroStart,
-                label = text.goLoginPage,
-                value = text.goLoginPageHint,
-                onClick = onShowLoginPreview
-            )
-            SectionDivider()
-            ActionRow(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                iconBackground = Color(0xFFFFE4E6),
-                iconColor = Color(0xFFE5484D),
-                label = text.logout,
-                value = null,
-                onClick = onLogout
-            )
-            SectionDivider()
-            ActionRow(
-                icon = Icons.Default.DeleteOutline,
-                iconBackground = Color(0xFFFFE4E6),
-                iconColor = Color(0xFFB91C1C),
-                label = text.deleteAccount,
-                value = if (profileState.deletingAccount) text.processing else text.deleteAccountHint,
-                onClick = { if (!profileState.deletingAccount) showDeleteConfirm = true }
-            )
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                InfoRows(personal = profileState.personal, tokenExists = tokenExists)
+                SectionDivider()
+                StatusRows(
+                    status = profileState.status,
+                    loading = profileState.loading,
+                    updatingAutoPunch = profileState.updatingAutoPunch,
+                    autoPunchEnabled = profileState.autoPunchEnabled,
+                    onAutoPunchChange = onAutoPunchChange
+                )
+                MessageRows(profileState = profileState)
+                SectionDivider()
+                PersonalizationSection(
+                    profileState = profileState,
+                    onAvatarSelect = onAvatarSelect,
+                    onBackgroundSelect = onBackgroundSelect,
+                    onWallpaperSelect = onWallpaperSelect,
+                    onCardOpacityChange = onCardOpacityChange,
+                    onCardBlurChange = onCardBlurChange,
+                    onWallpaperMaskChange = onWallpaperMaskChange,
+                    onGlobalFontChange = onGlobalFontChange,
+                    onPersonalizationExpandedToggle = onPersonalizationExpandedToggle,
+                    onSave = onSavePersonalization,
+                    onUploadRequest = onUploadRequest
+                )
+                SectionDivider()
+                ServerSettingsSection(
+                    profileState = profileState,
+                    onServerSettingsToggle = onServerSettingsToggle,
+                    onServerHostChange = onServerHostChange,
+                    onServerPortChange = onServerPortChange,
+                    onSaveServerSettings = onSaveServerSettings
+                )
+                SectionDivider()
+                ActionRow(
+                    icon = Icons.Default.ArrowForward,
+                    iconBackground = Color(0xFFEFF6FF),
+                    iconColor = HeroStart,
+                    label = text.goLoginPage,
+                    value = text.goLoginPageHint,
+                    onClick = onShowLoginPreview
+                )
+                SectionDivider()
+                ActionRow(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    iconBackground = Color(0xFFFFE4E6),
+                    iconColor = Color(0xFFE5484D),
+                    label = text.logout,
+                    value = null,
+                    onClick = onLogout
+                )
+                SectionDivider()
+                ActionRow(
+                    icon = Icons.Default.DeleteOutline,
+                    iconBackground = Color(0xFFFFE4E6),
+                    iconColor = Color(0xFFB91C1C),
+                    label = text.deleteAccount,
+                    value = if (profileState.deletingAccount) text.processing else text.deleteAccountHint,
+                    onClick = { if (!profileState.deletingAccount) showDeleteConfirm = true }
+                )
+            }
         }
     }
-    }
+
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { if (!profileState.deletingAccount) showDeleteConfirm = false },
