@@ -28,7 +28,7 @@ public class ProfileWriteSupport {
 
     @Transactional(rollbackFor = Exception.class)
     public void initByStudentId() {
-        initByStudentId(UserContextUtil.requireStudentId());
+        this.initByStudentId(UserContextUtil.requireStudentId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -48,7 +48,7 @@ public class ProfileWriteSupport {
         UserProfileStyleEntity exist = profileReadSupport.getByStudentId();
         Long id;
         if (exist == null) {
-            initByStudentId();
+            this.initByStudentId();
             id = profileReadSupport.getByStudentId().getId();
         }else {
             id = exist.getId();

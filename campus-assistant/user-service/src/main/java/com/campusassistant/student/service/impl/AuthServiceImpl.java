@@ -94,6 +94,7 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(plainPassword, userEntity.getPassword())){ //验证密码
             throw new BusinessException(ResultCodeEnum.UNAUTHORIZED.getCode(),"密码错误");
         }
+        
         // 第二步：验证通过后，立即加密密码
         String encryptedPassword;
         try {
@@ -119,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
         stringRedisTemplate.opsForValue().
                 set(userPwdCacheKey.getKey(studentId),
                         encryptedPassword,
-                        15,
+                        30,
                         TimeUnit.DAYS);
 
         if (!Objects.equals(userEntity.getSyncStatus(), SYNCING_SUCCESS.getCode())) {
