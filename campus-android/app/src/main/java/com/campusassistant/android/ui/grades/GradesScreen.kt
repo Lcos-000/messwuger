@@ -1,5 +1,7 @@
 package com.campusassistant.android.ui.grades
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,10 +22,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +50,7 @@ import com.campusassistant.android.ui.common.CampusOutlinedButton
 import com.campusassistant.android.ui.common.CampusPageHeader
 import com.campusassistant.android.ui.common.CampusPagePadding
 import com.campusassistant.android.ui.common.CampusSection
+import com.campusassistant.android.ui.common.CampusTextField
 import com.campusassistant.android.ui.common.CampusStatusMessages
 import com.campusassistant.android.ui.text.LocalAppText
 
@@ -100,11 +107,20 @@ fun GradesScreen(
             )
         }
 
-        when {
-            state.loading -> item { CampusLoadingState(text.loading, modifier = Modifier.height(260.dp)) }
-            state.isEmptyResult -> item { CampusEmptyState(text.empty, modifier = Modifier.height(260.dp)) }
-            state.viewMode == GradeViewMode.Table -> item { GradeTable(grades = state.visibleGrades) }
-            else -> items(state.visibleGrades) { grade -> GradeCard(grade) }
+        if (state.loading || state.isEmptyResult) {
+            item {
+                Crossfade(targetState = state.loading, label = "grades-status") { isLoading ->
+                    if (isLoading) {
+                        CampusLoadingState(text.loading, modifier = Modifier.height(260.dp))
+                    } else {
+                        CampusEmptyState(text.empty, modifier = Modifier.height(260.dp))
+                    }
+                }
+            }
+        } else if (state.viewMode == GradeViewMode.Table) {
+            item { GradeTable(grades = state.visibleGrades) }
+        } else {
+            items(state.visibleGrades) { grade -> GradeCard(grade) }
         }
     }
 }
@@ -134,16 +150,15 @@ private fun GradeFilterPanel(
                         onClick = onYearDecrease,
                         enabled = !state.loading && !state.submittingTask
                     )
-                    OutlinedTextField(
+                    CampusTextField(
                         value = state.academicYear,
                         onValueChange = onAcademicYearChange,
-                        placeholder = { Text("2025") },
+                        label = text.academicYear,
+                        placeholder = "2025",
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                     YearStepButton(
                         text = "+",
@@ -211,10 +226,11 @@ private fun GradeFilterPanel(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CampusButton(
-                    text = if (state.loading) text.querying else text.query,
+                    text = text.query,
                     onClick = onQueryGrades,
                     modifier = Modifier.weight(1f),
-                    enabled = !state.loading && !state.submittingTask
+                    enabled = !state.loading && !state.submittingTask,
+                    loading = state.loading
                 )
                 CampusOutlinedButton(
                     text = if (state.submittingTask) text.submitting else text.latest,
@@ -236,7 +252,7 @@ private fun YearStepButton(
     val shape = RoundedCornerShape(14.dp)
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(shape)
             .background(
                 if (enabled) Color.White.copy(alpha = 0.74f) else Color(0xFFE8EDF5).copy(alpha = 0.62f),
@@ -246,11 +262,11 @@ private fun YearStepButton(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            color = if (enabled) Color(0xFF18365E) else Color(0xFF94A3B8),
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
+        Icon(
+            imageVector = if (text == "+") Icons.Filled.Add else Icons.Filled.Remove,
+            contentDescription = text,
+            tint = if (enabled) Color(0xFF18365E) else Color(0xFF94A3B8),
+            modifier = Modifier.size(24.dp)
         )
     }
 }
@@ -263,20 +279,32 @@ private fun ActiveOptionChip(
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(999.dp)
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) Color(0xFF18365E) else Color.White.copy(alpha = 0.72f),
+        label = "chip-bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) Color(0xFF18365E) else Color(0xFFD6DEE9),
+        label = "chip-border"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) Color.White else Color(0xFF334155),
+        label = "chip-text"
+    )
     Box(
         modifier = modifier
             .shadow(if (selected) 4.dp else 0.dp, shape, clip = false)
             .clip(shape)
-            .background(if (selected) Color(0xFF18365E) else Color.White.copy(alpha = 0.72f), shape)
-            .border(1.dp, if (selected) Color(0xFF18365E) else Color(0xFFD6DEE9), shape)
+            .background(bgColor, shape)
+            .border(1.dp, borderColor, shape)
             .clickable(onClick = onClick)
-            .defaultMinSize(minHeight = 36.dp)
+            .defaultMinSize(minHeight = 48.dp)
             .padding(horizontal = 8.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            color = if (selected) Color.White else Color(0xFF334155),
+            color = textColor,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 2,
@@ -388,7 +416,7 @@ private fun GradeCard(grade: GradeItem) {
                             grade.courseCode?.takeIf { it.isNotBlank() },
                             grade.courseNature?.takeIf { it.isNotBlank() },
                             grade.courseType?.takeIf { it.isNotBlank() }
-                        ).joinToString(" 路 ").ifBlank { text.courseInfoMissing },
+                        ).joinToString(" · ").ifBlank { text.courseInfoMissing },
                         color = Color(0xFF64748B),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
@@ -414,15 +442,18 @@ private fun GradeCard(grade: GradeItem) {
 
 @Composable
 private fun ScoreBadge(score: String?) {
+    val isFail = score?.trim()?.toFloatOrNull()?.let { it < 60f } ?: false
+    val bgColor = if (isFail) Color(0xFFFFEAEA) else Color(0xFFEAF1FF)
+    val textColor = if (isFail) Color(0xFFDC2626) else Color(0xFF18365E)
     Box(
         modifier = Modifier
-            .background(Color(0xFFEAF1FF), RoundedCornerShape(12.dp))
+            .background(bgColor, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = score?.takeIf { it.isNotBlank() } ?: "-",
-            color = Color(0xFF18365E),
+            color = textColor,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleLarge
         )

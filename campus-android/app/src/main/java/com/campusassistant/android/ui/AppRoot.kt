@@ -1,6 +1,7 @@
 package com.campusassistant.android.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -18,12 +19,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.campusassistant.android.data.model.PublicNotice
-import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.ui.common.CampusCardStyleProvider
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomUiState
-import com.campusassistant.android.ui.grades.GradeSortMode
-import com.campusassistant.android.ui.grades.GradeViewMode
 import com.campusassistant.android.ui.grades.GradesUiState
 import com.campusassistant.android.ui.login.LoginScreen
 import com.campusassistant.android.ui.navigation.MainShell
@@ -31,11 +28,9 @@ import com.campusassistant.android.ui.notice.NoticeOverlay
 import com.campusassistant.android.ui.notice.NoticeUiState
 import com.campusassistant.android.ui.profile.ProfileUiState
 import com.campusassistant.android.ui.schedule.ScheduleUiState
-import com.campusassistant.android.ui.schedule.ScheduleWeekMode
 import com.campusassistant.android.ui.splash.SplashScreen
 import com.campusassistant.android.ui.text.AppTextProvider
 import kotlinx.coroutines.delay
-import okhttp3.MultipartBody
 
 @Composable
 fun AppRoot(
@@ -45,76 +40,28 @@ fun AppRoot(
     scheduleState: ScheduleUiState,
     gradesState: GradesUiState,
     emptyClassroomState: EmptyClassroomUiState,
-    onLogin: (String, String) -> Unit,
-    onRefreshNotice: () -> Unit,
-    onOpenLatestNotice: () -> Unit,
-    onOpenNoticeHistory: () -> Unit,
-    onOpenHistoryNotice: (PublicNotice) -> Unit,
-    onCloseNoticeDialogs: () -> Unit,
-    onShowLoginPreview: () -> Unit,
-    onHideLoginPreview: () -> Unit,
-    onLogout: () -> Unit,
-    onRefreshProfile: () -> Unit,
-    onAutoPunchChange: (Boolean) -> Unit,
-    onProfileAvatarSelect: (String) -> Unit,
-    onProfileBackgroundSelect: (String) -> Unit,
-    onProfileWallpaperSelect: (String) -> Unit,
-    onProfileCardOpacityChange: (Float) -> Unit,
-    onProfileCardBlurChange: (Float) -> Unit,
-    onProfileWallpaperMaskChange: (Float) -> Unit,
-    onProfileGlobalFontChange: (Boolean) -> Unit,
-    onPersonalizationExpandedToggle: () -> Unit,
-    onServerSettingsToggle: () -> Unit,
-    onServerHostChange: (String) -> Unit,
-    onServerPortChange: (String) -> Unit,
-    onSaveServerSettings: () -> Unit,
-    onSavePersonalization: () -> Unit,
-    onProfileAssetUpload: (String, MultipartBody.Part) -> Unit,
-    onDeleteAccount: () -> Unit,
-    onRefreshSchedule: () -> Unit,
-    onSyncSchedule: () -> Unit,
-    onScheduleWeekModeChange: (ScheduleWeekMode) -> Unit,
-    onScheduleCourseClick: (ScheduleCourse) -> Unit,
-    onDismissScheduleCourse: () -> Unit,
-    onShowOtherCourses: () -> Unit,
-    onDismissOtherCourses: () -> Unit,
-    onGradesYearChange: (String) -> Unit,
-    onGradesYearIncrease: () -> Unit,
-    onGradesYearDecrease: () -> Unit,
-    onGradesSemesterChange: (String) -> Unit,
-    onGradesSortChange: (GradeSortMode) -> Unit,
-    onGradesViewModeChange: (GradeViewMode) -> Unit,
-    onQueryGrades: () -> Unit,
-    onSubmitGradeTask: () -> Unit,
-    onEmptyClassroomYearChange: (String) -> Unit,
-    onEmptyClassroomYearIncrease: () -> Unit,
-    onEmptyClassroomYearDecrease: () -> Unit,
-    onEmptyClassroomSemesterChange: (String) -> Unit,
-    onEmptyClassroomDayChange: (String) -> Unit,
-    onEmptyClassroomWeekToggle: (Int) -> Unit,
-    onEmptyClassroomPeriodToggle: (Int) -> Unit,
-    onEmptyClassroomCampusChange: (String) -> Unit,
-    onEmptyClassroomBuildingChange: (String) -> Unit,
-    onSubmitEmptyClassroomTask: () -> Unit,
-    onQueryEmptyClassroomResult: () -> Unit,
-    onResetEmptyClassroom: () -> Unit,
-    onLoggedOut: () -> Unit
+    authActions: AuthActions,
+    noticeActions: NoticeActions,
+    profileActions: ProfileActions,
+    scheduleActions: ScheduleActions,
+    gradesActions: GradesActions,
+    emptyClassroomActions: EmptyClassroomActions
 ) {
     var splashVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         delay(1700)
         splashVisible = false
-        onRefreshNotice()
+        noticeActions.onRefresh()
     }
 
     LaunchedEffect(appState.authState, appState.sessionVersion) {
         when (appState.authState) {
             AuthState.LoggedIn -> {
-                onRefreshProfile()
-                onRefreshSchedule()
+                profileActions.onRefresh()
+                scheduleActions.onRefresh()
             }
-            AuthState.LoggedOut -> onLoggedOut()
+            AuthState.LoggedOut -> authActions.onLoggedOut()
             AuthState.Checking -> Unit
         }
     }
@@ -130,11 +77,6 @@ fun AppRoot(
                 opacity = profileState.personalizationDraft.cardOpacity,
                 blur = profileState.personalizationDraft.cardBlur
             ) {
-                if (splashVisible) {
-                    SplashScreen()
-                    return@CampusCardStyleProvider
-                }
-
                 AnimatedContent(
                     targetState = appState.authState to appState.loginPreviewVisible,
                     transitionSpec = {
@@ -156,13 +98,13 @@ fun AppRoot(
                                 errorMessage = appState.loginError,
                                 serverSettingsDraft = profileState.serverSettingsDraft,
                                 savingServerConfig = profileState.savingServerConfig,
-                                onServerSettingsToggle = onServerSettingsToggle,
-                                onServerHostChange = onServerHostChange,
-                                onServerPortChange = onServerPortChange,
-                                onSaveServerSettings = onSaveServerSettings,
+                                onServerSettingsToggle = profileActions.onServerSettingsToggle,
+                                onServerHostChange = profileActions.onServerHostChange,
+                                onServerPortChange = profileActions.onServerPortChange,
+                                onSaveServerSettings = profileActions.onSaveServerSettings,
                                 showBackToApp = appState.tokenExists && loginPreviewVisible,
-                                onBackToApp = onHideLoginPreview,
-                                onLogin = onLogin
+                                onBackToApp = authActions.onHideLoginPreview,
+                                onLogin = authActions.onLogin
                             )
                         }
 
@@ -172,13 +114,13 @@ fun AppRoot(
                                 errorMessage = appState.loginError,
                                 serverSettingsDraft = profileState.serverSettingsDraft,
                                 savingServerConfig = profileState.savingServerConfig,
-                                onServerSettingsToggle = onServerSettingsToggle,
-                                onServerHostChange = onServerHostChange,
-                                onServerPortChange = onServerPortChange,
-                                onSaveServerSettings = onSaveServerSettings,
+                                onServerSettingsToggle = profileActions.onServerSettingsToggle,
+                                onServerHostChange = profileActions.onServerHostChange,
+                                onServerPortChange = profileActions.onServerPortChange,
+                                onSaveServerSettings = profileActions.onSaveServerSettings,
                                 showBackToApp = true,
-                                onBackToApp = onHideLoginPreview,
-                                onLogin = onLogin
+                                onBackToApp = authActions.onHideLoginPreview,
+                                onLogin = authActions.onLogin
                             )
                         }
 
@@ -189,52 +131,12 @@ fun AppRoot(
                                 scheduleState = scheduleState,
                                 gradesState = gradesState,
                                 emptyClassroomState = emptyClassroomState,
-                                onShowLoginPreview = onShowLoginPreview,
-                                onLogout = onLogout,
-                                onRefreshProfile = onRefreshProfile,
-                                onAutoPunchChange = onAutoPunchChange,
-                                onProfileAvatarSelect = onProfileAvatarSelect,
-                                onProfileBackgroundSelect = onProfileBackgroundSelect,
-                                onProfileWallpaperSelect = onProfileWallpaperSelect,
-                                onProfileCardOpacityChange = onProfileCardOpacityChange,
-                                onProfileCardBlurChange = onProfileCardBlurChange,
-                                onProfileWallpaperMaskChange = onProfileWallpaperMaskChange,
-                                onProfileGlobalFontChange = onProfileGlobalFontChange,
-                                onPersonalizationExpandedToggle = onPersonalizationExpandedToggle,
-                                onServerSettingsToggle = onServerSettingsToggle,
-                                onServerHostChange = onServerHostChange,
-                                onServerPortChange = onServerPortChange,
-                                onSaveServerSettings = onSaveServerSettings,
-                                onSavePersonalization = onSavePersonalization,
-                                onProfileAssetUpload = onProfileAssetUpload,
-                                onDeleteAccount = onDeleteAccount,
-                                onRefreshSchedule = onRefreshSchedule,
-                                onSyncSchedule = onSyncSchedule,
-                                onScheduleWeekModeChange = onScheduleWeekModeChange,
-                                onScheduleCourseClick = onScheduleCourseClick,
-                                onDismissScheduleCourse = onDismissScheduleCourse,
-                                onShowOtherCourses = onShowOtherCourses,
-                                onDismissOtherCourses = onDismissOtherCourses,
-                                onGradesYearChange = onGradesYearChange,
-                                onGradesYearIncrease = onGradesYearIncrease,
-                                onGradesYearDecrease = onGradesYearDecrease,
-                                onGradesSemesterChange = onGradesSemesterChange,
-                                onGradesSortChange = onGradesSortChange,
-                                onGradesViewModeChange = onGradesViewModeChange,
-                                onQueryGrades = onQueryGrades,
-                                onSubmitGradeTask = onSubmitGradeTask,
-                                onEmptyClassroomYearChange = onEmptyClassroomYearChange,
-                                onEmptyClassroomYearIncrease = onEmptyClassroomYearIncrease,
-                                onEmptyClassroomYearDecrease = onEmptyClassroomYearDecrease,
-                                onEmptyClassroomSemesterChange = onEmptyClassroomSemesterChange,
-                                onEmptyClassroomDayChange = onEmptyClassroomDayChange,
-                                onEmptyClassroomWeekToggle = onEmptyClassroomWeekToggle,
-                                onEmptyClassroomPeriodToggle = onEmptyClassroomPeriodToggle,
-                                onEmptyClassroomCampusChange = onEmptyClassroomCampusChange,
-                                onEmptyClassroomBuildingChange = onEmptyClassroomBuildingChange,
-                                onSubmitEmptyClassroomTask = onSubmitEmptyClassroomTask,
-                                onQueryEmptyClassroomResult = onQueryEmptyClassroomResult,
-                                onResetEmptyClassroom = onResetEmptyClassroom
+                                onShowLoginPreview = authActions.onShowLoginPreview,
+                                onLogout = authActions.onLogout,
+                                profileActions = profileActions,
+                                scheduleActions = scheduleActions,
+                                gradesActions = gradesActions,
+                                emptyClassroomActions = emptyClassroomActions
                             )
                         }
                     }
@@ -242,11 +144,18 @@ fun AppRoot(
 
                 NoticeOverlay(
                     state = noticeState,
-                    onOpenLatestNotice = onOpenLatestNotice,
-                    onOpenNoticeHistory = onOpenNoticeHistory,
-                    onOpenHistoryNotice = onOpenHistoryNotice,
-                    onCloseNoticeDialogs = onCloseNoticeDialogs
+                    onOpenLatestNotice = noticeActions.onOpenLatest,
+                    onOpenNoticeHistory = noticeActions.onOpenHistory,
+                    onOpenHistoryNotice = noticeActions.onOpenHistoryNotice,
+                    onCloseNoticeDialogs = noticeActions.onCloseDialogs
                 )
+
+                AnimatedVisibility(
+                    visible = splashVisible,
+                    exit = fadeOut(animationSpec = tween(600))
+                ) {
+                    SplashScreen()
+                }
             }
         }
     }

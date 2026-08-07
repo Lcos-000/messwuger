@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.campusassistant.android.data.repository.AuthRepository
+import com.campusassistant.android.ui.text.AppMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +47,7 @@ class AppViewModel(
     fun login(studentId: String, password: String) {
         if (_uiState.value.loginLoading) return
         if (studentId.isBlank() || password.isBlank()) {
-            _uiState.update { it.copy(loginError = "请输入学号和密码") }
+            _uiState.update { it.copy(loginError = AppMessages.Auth.enterStudentIdAndPassword) }
             return
         }
         viewModelScope.launch {
@@ -69,7 +70,7 @@ class AppViewModel(
                         it.copy(
                             authState = AuthState.LoggedOut,
                             loginLoading = false,
-                            loginError = throwable.message ?: "登录失败",
+                            loginError = throwable.message ?: AppMessages.Auth.loginFailed,
                             tokenExists = false,
                             loginPreviewVisible = false,
                             sessionVersion = it.sessionVersion + 1

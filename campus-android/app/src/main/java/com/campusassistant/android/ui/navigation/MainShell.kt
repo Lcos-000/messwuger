@@ -5,8 +5,6 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,20 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomScreen
 import com.campusassistant.android.ui.emptyclassroom.EmptyClassroomUiState
-import com.campusassistant.android.ui.grades.GradeSortMode
-import com.campusassistant.android.ui.grades.GradeViewMode
 import com.campusassistant.android.ui.grades.GradesScreen
 import com.campusassistant.android.ui.grades.GradesUiState
 import com.campusassistant.android.ui.profile.ProfileScreen
 import com.campusassistant.android.ui.profile.ProfileUiState
 import com.campusassistant.android.ui.schedule.ScheduleScreen
 import com.campusassistant.android.ui.schedule.ScheduleUiState
-import com.campusassistant.android.ui.schedule.ScheduleWeekMode
 import com.campusassistant.android.ui.text.LocalAppText
-import okhttp3.MultipartBody
+import com.campusassistant.android.ui.EmptyClassroomActions
+import com.campusassistant.android.ui.GradesActions
+import com.campusassistant.android.ui.ProfileActions
+import com.campusassistant.android.ui.ScheduleActions
 
 @Composable
 fun MainShell(
@@ -52,50 +49,10 @@ fun MainShell(
     emptyClassroomState: EmptyClassroomUiState,
     onShowLoginPreview: () -> Unit,
     onLogout: () -> Unit,
-    onRefreshProfile: () -> Unit,
-    onAutoPunchChange: (Boolean) -> Unit,
-    onProfileAvatarSelect: (String) -> Unit,
-    onProfileBackgroundSelect: (String) -> Unit,
-    onProfileWallpaperSelect: (String) -> Unit,
-    onProfileCardOpacityChange: (Float) -> Unit,
-    onProfileCardBlurChange: (Float) -> Unit,
-    onProfileWallpaperMaskChange: (Float) -> Unit,
-    onProfileGlobalFontChange: (Boolean) -> Unit,
-    onPersonalizationExpandedToggle: () -> Unit,
-    onServerSettingsToggle: () -> Unit,
-    onServerHostChange: (String) -> Unit,
-    onServerPortChange: (String) -> Unit,
-    onSaveServerSettings: () -> Unit,
-    onSavePersonalization: () -> Unit,
-    onProfileAssetUpload: (String, MultipartBody.Part) -> Unit,
-    onDeleteAccount: () -> Unit,
-    onRefreshSchedule: () -> Unit,
-    onSyncSchedule: () -> Unit,
-    onScheduleWeekModeChange: (ScheduleWeekMode) -> Unit,
-    onScheduleCourseClick: (ScheduleCourse) -> Unit,
-    onDismissScheduleCourse: () -> Unit,
-    onShowOtherCourses: () -> Unit,
-    onDismissOtherCourses: () -> Unit,
-    onGradesYearChange: (String) -> Unit,
-    onGradesYearIncrease: () -> Unit,
-    onGradesYearDecrease: () -> Unit,
-    onGradesSemesterChange: (String) -> Unit,
-    onGradesSortChange: (GradeSortMode) -> Unit,
-    onGradesViewModeChange: (GradeViewMode) -> Unit,
-    onQueryGrades: () -> Unit,
-    onSubmitGradeTask: () -> Unit,
-    onEmptyClassroomYearChange: (String) -> Unit,
-    onEmptyClassroomYearIncrease: () -> Unit,
-    onEmptyClassroomYearDecrease: () -> Unit,
-    onEmptyClassroomSemesterChange: (String) -> Unit,
-    onEmptyClassroomDayChange: (String) -> Unit,
-    onEmptyClassroomWeekToggle: (Int) -> Unit,
-    onEmptyClassroomPeriodToggle: (Int) -> Unit,
-    onEmptyClassroomCampusChange: (String) -> Unit,
-    onEmptyClassroomBuildingChange: (String) -> Unit,
-    onSubmitEmptyClassroomTask: () -> Unit,
-    onQueryEmptyClassroomResult: () -> Unit,
-    onResetEmptyClassroom: () -> Unit
+    profileActions: ProfileActions,
+    scheduleActions: ScheduleActions,
+    gradesActions: GradesActions,
+    emptyClassroomActions: EmptyClassroomActions
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Schedule) }
     val navText = LocalAppText.current.nav
@@ -127,16 +84,9 @@ fun MainShell(
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    val forward = targetState.ordinal > initialState.ordinal
                     ContentTransform(
-                        targetContentEnter = slideInHorizontally(
-                            animationSpec = tween(260),
-                            initialOffsetX = { width -> if (forward) width / 7 else -width / 7 }
-                        ) + fadeIn(animationSpec = tween(220)),
-                        initialContentExit = slideOutHorizontally(
-                            animationSpec = tween(220),
-                            targetOffsetX = { width -> if (forward) -width / 10 else width / 10 }
-                        ) + fadeOut(animationSpec = tween(180))
+                        targetContentEnter = fadeIn(animationSpec = tween(380)),
+                        initialContentExit = fadeOut(animationSpec = tween(320))
                     )
                 },
                 label = "tab-transition"
@@ -144,62 +94,62 @@ fun MainShell(
                 when (currentTab) {
                     MainTab.Schedule -> ScheduleScreen(
                         state = scheduleState,
-                        onRefresh = onSyncSchedule,
-                        onWeekModeChange = onScheduleWeekModeChange,
-                        onCourseClick = onScheduleCourseClick,
-                        onDismissCourse = onDismissScheduleCourse,
-                        onShowOtherCourses = onShowOtherCourses,
-                        onDismissOtherCourses = onDismissOtherCourses
+                        onRefresh = scheduleActions.onSync,
+                        onWeekModeChange = scheduleActions.onWeekModeChange,
+                        onCourseClick = scheduleActions.onCourseClick,
+                        onDismissCourse = scheduleActions.onDismissCourse,
+                        onShowOtherCourses = scheduleActions.onShowOtherCourses,
+                        onDismissOtherCourses = scheduleActions.onDismissOtherCourses
                     )
 
                     MainTab.Grades -> GradesScreen(
                         state = gradesState,
-                        onAcademicYearChange = onGradesYearChange,
-                        onYearIncrease = onGradesYearIncrease,
-                        onYearDecrease = onGradesYearDecrease,
-                        onSemesterChange = onGradesSemesterChange,
-                        onSortModeChange = onGradesSortChange,
-                        onViewModeChange = onGradesViewModeChange,
-                        onQueryGrades = onQueryGrades,
-                        onSubmitGradeTask = onSubmitGradeTask
+                        onAcademicYearChange = gradesActions.onYearChange,
+                        onYearIncrease = gradesActions.onYearIncrease,
+                        onYearDecrease = gradesActions.onYearDecrease,
+                        onSemesterChange = gradesActions.onSemesterChange,
+                        onSortModeChange = gradesActions.onSortChange,
+                        onViewModeChange = gradesActions.onViewModeChange,
+                        onQueryGrades = gradesActions.onQuery,
+                        onSubmitGradeTask = gradesActions.onSubmitTask
                     )
 
                     MainTab.EmptyClassroom -> EmptyClassroomScreen(
                         state = emptyClassroomState,
-                        onAcademicYearChange = onEmptyClassroomYearChange,
-                        onYearIncrease = onEmptyClassroomYearIncrease,
-                        onYearDecrease = onEmptyClassroomYearDecrease,
-                        onSemesterChange = onEmptyClassroomSemesterChange,
-                        onDayChange = onEmptyClassroomDayChange,
-                        onWeekToggle = onEmptyClassroomWeekToggle,
-                        onPeriodToggle = onEmptyClassroomPeriodToggle,
-                        onCampusChange = onEmptyClassroomCampusChange,
-                        onBuildingChange = onEmptyClassroomBuildingChange,
-                        onSubmitTask = onSubmitEmptyClassroomTask,
-                        onQueryResult = onQueryEmptyClassroomResult,
-                        onReset = onResetEmptyClassroom
+                        onAcademicYearChange = emptyClassroomActions.onYearChange,
+                        onYearIncrease = emptyClassroomActions.onYearIncrease,
+                        onYearDecrease = emptyClassroomActions.onYearDecrease,
+                        onSemesterChange = emptyClassroomActions.onSemesterChange,
+                        onDayChange = emptyClassroomActions.onDayChange,
+                        onWeekToggle = emptyClassroomActions.onWeekToggle,
+                        onPeriodToggle = emptyClassroomActions.onPeriodToggle,
+                        onCampusChange = emptyClassroomActions.onCampusChange,
+                        onBuildingChange = emptyClassroomActions.onBuildingChange,
+                        onSubmitTask = emptyClassroomActions.onSubmitTask,
+                        onQueryResult = emptyClassroomActions.onQueryResult,
+                        onReset = emptyClassroomActions.onReset
                     )
 
                     MainTab.Profile -> ProfileScreen(
                         tokenExists = tokenExists,
                         profileState = profileState,
-                        onRefresh = onRefreshProfile,
-                        onAutoPunchChange = onAutoPunchChange,
-                        onAvatarSelect = onProfileAvatarSelect,
-                        onBackgroundSelect = onProfileBackgroundSelect,
-                        onWallpaperSelect = onProfileWallpaperSelect,
-                        onCardOpacityChange = onProfileCardOpacityChange,
-                        onCardBlurChange = onProfileCardBlurChange,
-                        onWallpaperMaskChange = onProfileWallpaperMaskChange,
-                        onGlobalFontChange = onProfileGlobalFontChange,
-                        onPersonalizationExpandedToggle = onPersonalizationExpandedToggle,
-                        onServerSettingsToggle = onServerSettingsToggle,
-                        onServerHostChange = onServerHostChange,
-                        onServerPortChange = onServerPortChange,
-                        onSaveServerSettings = onSaveServerSettings,
-                        onSavePersonalization = onSavePersonalization,
-                        onAssetUpload = onProfileAssetUpload,
-                        onDeleteAccount = onDeleteAccount,
+                        onRefresh = profileActions.onRefresh,
+                        onAutoPunchChange = profileActions.onAutoPunchChange,
+                        onAvatarSelect = profileActions.onAvatarSelect,
+                        onBackgroundSelect = profileActions.onBackgroundSelect,
+                        onWallpaperSelect = profileActions.onWallpaperSelect,
+                        onCardOpacityChange = profileActions.onCardOpacityChange,
+                        onCardBlurChange = profileActions.onCardBlurChange,
+                        onWallpaperMaskChange = profileActions.onWallpaperMaskChange,
+                        onGlobalFontChange = profileActions.onGlobalFontChange,
+                        onPersonalizationExpandedToggle = profileActions.onPersonalizationExpandedToggle,
+                        onServerSettingsToggle = profileActions.onServerSettingsToggle,
+                        onServerHostChange = profileActions.onServerHostChange,
+                        onServerPortChange = profileActions.onServerPortChange,
+                        onSaveServerSettings = profileActions.onSaveServerSettings,
+                        onSavePersonalization = profileActions.onSavePersonalization,
+                        onAssetUpload = profileActions.onAssetUpload,
+                        onDeleteAccount = profileActions.onDeleteAccount,
                         onShowLoginPreview = onShowLoginPreview,
                         onLogout = onLogout
                     )

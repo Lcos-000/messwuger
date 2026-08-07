@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.campusassistant.android.data.model.GradeItem
 import com.campusassistant.android.data.repository.GradesRepository
+import com.campusassistant.android.ui.text.AppMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,7 +91,7 @@ class GradesViewModel(
         if (_uiState.value.loading || _uiState.value.submittingTask) return
         val state = _uiState.value
         if (state.academicYear.length != 4) {
-            _uiState.update { it.copy(errorMessage = "请输入 4 位学年") }
+            _uiState.update { it.copy(errorMessage = AppMessages.Grades.enterYear) }
             return
         }
         viewModelScope.launch {
@@ -102,7 +103,7 @@ class GradesViewModel(
                             loading = false,
                             grades = grades,
                             errorMessage = null,
-                            statusMessage = if (grades.isEmpty()) null else "已查询到 ${grades.size} 条成绩"
+                            statusMessage = if (grades.isEmpty()) null else AppMessages.Grades.queriedCount(grades.size)
                         )
                     }
                 }
@@ -110,7 +111,7 @@ class GradesViewModel(
                     _uiState.update {
                         it.copy(
                             loading = false,
-                            errorMessage = throwable.message ?: "查询成绩失败"
+                            errorMessage = throwable.message ?: AppMessages.Grades.queryFailed
                         )
                     }
                 }
@@ -121,7 +122,7 @@ class GradesViewModel(
         if (_uiState.value.loading || _uiState.value.submittingTask) return
         val state = _uiState.value
         if (state.academicYear.length != 4) {
-            _uiState.update { it.copy(errorMessage = "请输入 4 位学年") }
+            _uiState.update { it.copy(errorMessage = AppMessages.Grades.enterYear) }
             return
         }
         viewModelScope.launch {
@@ -131,7 +132,7 @@ class GradesViewModel(
                     _uiState.update {
                         it.copy(
                             submittingTask = false,
-                            statusMessage = "$message，请稍后点击查询成绩",
+                            statusMessage = AppMessages.Grades.syncPending(message),
                             errorMessage = null
                         )
                     }
@@ -140,7 +141,7 @@ class GradesViewModel(
                     _uiState.update {
                         it.copy(
                             submittingTask = false,
-                            errorMessage = throwable.message ?: "提交成绩同步任务失败"
+                            errorMessage = throwable.message ?: AppMessages.Grades.submitSyncFailed
                         )
                     }
                 }

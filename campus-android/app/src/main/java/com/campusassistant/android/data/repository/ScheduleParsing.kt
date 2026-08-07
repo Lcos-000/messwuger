@@ -1,9 +1,11 @@
 package com.campusassistant.android.data.repository
 
 import com.campusassistant.android.data.model.OtherScheduleCourse
+import com.campusassistant.android.data.model.ScheduleConfig
 import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.data.model.ScheduleResponse
 import com.campusassistant.android.data.model.TeacherSchedule
+import com.campusassistant.android.ui.text.AppMessages
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.time.LocalDate
@@ -169,20 +171,27 @@ private fun formatWeekNumbers(weeks: Set<Int>): String {
             prev = value
             continue
         }
-        parts += if (start == prev) "${start}周" else "${start}-${prev}周"
+        parts += if (start == prev) "$start${AppMessages.Schedule.weekSuffix}" else "$start-$prev${AppMessages.Schedule.weekSuffix}"
         start = value
         prev = value
     }
-    parts += if (start == prev) "${start}周" else "${start}-${prev}周"
-    return parts.joinToString("、")
+    parts += if (start == prev) "$start${AppMessages.Schedule.weekSuffix}" else "$start-$prev${AppMessages.Schedule.weekSuffix}"
+    return parts.joinToString(AppMessages.Schedule.weekRangeSeparator)
 }
 
-fun calculateCurrentWeek(semester: String?, today: LocalDate = LocalDate.now()): Int {
+fun calculateCurrentWeek(
+    semester: String?,
+    scheduleConfig: ScheduleConfig? = null,
+    today: LocalDate = LocalDate.now()
+): Int {
     val termStart = if (semester == "12") {
-        LocalDate.of(today.year, 3, 1)
+        scheduleConfig?.springStartDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.of(today.year, 3, 1)
     } else {
-        LocalDate.of(today.year, 9, 1)
+        scheduleConfig?.autumnStartDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.of(today.year, 9, 1)
     }
+    val maxWeek = scheduleConfig?.maxWeek ?: 20
     val diffDays = ChronoUnit.DAYS.between(termStart, today)
-    return ((diffDays / 7L) + 1L).toInt().coerceIn(1, 20)
+    return ((diffDays / 7L) + 1L).toInt().coerceIn(1, maxWeek)
 }

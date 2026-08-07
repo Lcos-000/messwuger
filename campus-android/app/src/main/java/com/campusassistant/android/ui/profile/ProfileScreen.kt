@@ -5,10 +5,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,9 +20,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -42,11 +49,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.campusassistant.android.data.model.UserPersonal
 import com.campusassistant.android.ui.common.campusGlassBorder
 import com.campusassistant.android.ui.common.campusGlassContainerColor
 import com.campusassistant.android.ui.common.campusGlassElevation
+import com.campusassistant.android.ui.common.verticalFadeEdges
 import com.campusassistant.android.ui.text.LocalAppText
 import okhttp3.MultipartBody
 
@@ -90,10 +99,12 @@ fun ProfileScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        val scrollState = rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .verticalFadeEdges(scrollState)
         ) {
             ProfileHero(
                 personal = profileState.personal,
@@ -287,6 +298,8 @@ private fun ProfileContentPanel(
     val text = LocalAppText.current.profile
     val cardShape = RoundedCornerShape(18.dp)
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showUserManual by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Surface(
@@ -332,6 +345,15 @@ private fun ProfileContentPanel(
                 )
                 SectionDivider()
                 ActionRow(
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                    iconBackground = Color(0xFFF0F7FF),
+                    iconColor = HeroStart,
+                    label = text.userManual,
+                    value = text.userManualHint,
+                    onClick = { showUserManual = true }
+                )
+                SectionDivider()
+                ActionRow(
                     icon = Icons.Default.ArrowForward,
                     iconBackground = Color(0xFFEFF6FF),
                     iconColor = HeroStart,
@@ -346,7 +368,7 @@ private fun ProfileContentPanel(
                     iconColor = Color(0xFFE5484D),
                     label = text.logout,
                     value = null,
-                    onClick = onLogout
+                    onClick = { showLogoutConfirm = true }
                 )
                 SectionDivider()
                 ActionRow(
@@ -386,5 +408,107 @@ private fun ProfileContentPanel(
                 }
             }
         )
+    }
+
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text(text.logoutConfirmTitle) },
+            text = { Text(text.logoutConfirmMessage) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirm = false
+                        onLogout()
+                    }
+                ) {
+                    Text(text.logoutConfirm, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutConfirm = false }
+                ) {
+                    Text(text.cancel)
+                }
+            }
+        )
+    }
+
+    if (showUserManual) {
+        UserManualDialog(
+            title = profileState.manualConfig?.title?.takeIf { it.isNotBlank() } ?: text.userManualTitle,
+            content = profileState.manualConfig?.content?.takeIf { it.isNotBlank() } ?: text.userManualContent,
+            onDismiss = { showUserManual = false }
+        )
+    }
+}
+
+@Composable
+private fun UserManualDialog(
+    title: String,
+    content: String,
+    onDismiss: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            tonalElevation = 6.dp,
+            shadowElevation = 12.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 22.dp, bottom = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        modifier = Modifier.weight(1f),
+                        color = Color(0xFF1A2B4A),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Color(0xFFE8EEF7))
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 22.dp)
+                ) {
+                    Text(
+                        text = content,
+                        color = Color(0xFF3B4A66),
+                        fontSize = 14.sp,
+                        lineHeight = 22.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text(text = LocalAppText.current.common.close)
+                }
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.campusassistant.android.ui.schedule
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -25,6 +26,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,12 +35,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.campusassistant.android.data.model.ScheduleCourse
+import java.time.LocalDate
+import java.time.LocalTime
 import com.campusassistant.android.ui.common.CampusEmptyState
 import com.campusassistant.android.ui.common.CampusLoadingState
 import com.campusassistant.android.ui.common.CampusOutlinedButton
 import com.campusassistant.android.ui.common.CampusPage
 import com.campusassistant.android.ui.common.CampusPageHeader
 import com.campusassistant.android.ui.common.CampusStatusMessages
+import com.campusassistant.android.ui.common.ModeDot
 import com.campusassistant.android.ui.common.campusGlassContainerColor
 import com.campusassistant.android.ui.text.LocalAppText
 
@@ -79,10 +84,19 @@ fun ScheduleScreen(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        when {
-            state.loading -> CampusLoadingState(text.loading)
-            state.isEmpty -> EmptySchedule(message = state.errorMessage ?: text.empty, onRefresh = onRefresh)
-            else -> ScheduleGrid(courses = state.visibleCourses, onCourseClick = onCourseClick)
+        val contentState = when {
+            state.loading -> 0
+            state.isEmpty -> 1
+            else -> 2
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Crossfade(targetState = contentState, label = "schedule-state") { idx ->
+                when (idx) {
+                    0 -> CampusLoadingState(text.loading)
+                    1 -> EmptySchedule(message = state.errorMessage ?: text.empty, onRefresh = onRefresh)
+                    else -> ScheduleGrid(courses = state.visibleCourses, onCourseClick = onCourseClick)
+                }
+            }
         }
     }
 
@@ -144,7 +158,7 @@ private fun ScheduleHeader(
         state.schedule?.let { schedule ->
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${schedule.academicYear ?: "-"} ${text.academicYear} 路 ${text.semester} ${schedule.semester ?: "-"} 路 ${state.visibleCourses.size} ${text.courseCountSuffix}",
+                text = "${schedule.academicYear ?: "-"} ${text.academicYear} · ${text.semester} ${schedule.semester ?: "-"} · ${state.visibleCourses.size} ${text.courseCountSuffix}",
                 color = Color(0xFF64748B),
                 style = MaterialTheme.typography.bodySmall
             )
@@ -158,15 +172,6 @@ private fun ScheduleHeader(
             )
         }
     }
-}
-
-@Composable
-private fun ModeDot() {
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .background(Color(0xFF4F86F7), RoundedCornerShape(50))
-    )
 }
 
 @Composable
@@ -185,6 +190,15 @@ private fun ScheduleGrid(
     val periodWidth = 64.dp
     val rowHeight = 58.dp
     val groupedCourses = courses.groupBy { CourseSlotKey(it.dayOfWeek, it.startPeriod, it.endPeriod) }
+    val currentDayOfWeek = remember { LocalDate.now().dayOfWeek.value }
+    val currentPeriod = remember {
+        val now = LocalTime.now()
+        val idx = PeriodTimes.indexOfFirst { timeRange ->
+            val parts = timeRange.split("-")
+            !now.isBefore(LocalTime.parse(parts[0])) && !now.isAfter(LocalTime.parse(parts[1]))
+        }
+        if (idx >= 0) idx + 1 else 0
+    }
 
     Row(
         modifier = Modifier
@@ -198,7 +212,9 @@ private fun ScheduleGrid(
         ) {
             Row {
                 HeaderCell(text = LocalAppText.current.schedule.periodHeader, width = periodWidth)
-                WeekDays.forEach { day -> HeaderCell(text = day, width = dayWidth) }
+                WeekDays.forEachIndexed { index, day ->
+                    HeaderCell(text = day, width = dayWidth, isToday = index + 1 == currentDayOfWeek)
+                }
             }
 
             Row {
@@ -208,7 +224,8 @@ private fun ScheduleGrid(
                             period = period,
                             time = PeriodTimes.getOrNull(period - 1).orEmpty(),
                             width = periodWidth,
-                            height = rowHeight
+                            height = rowHeight,
+                            isCurrent = period == currentPeriod
                         )
                     }
                 }
@@ -296,34 +313,41 @@ private fun CourseSlot(
 private fun Int.floorMod(modulus: Int): Int = ((this % modulus) + modulus) % modulus
 
 @Composable
-private fun HeaderCell(text: String, width: Dp) {
+private fun HeaderCell(text: String, width: Dp, isToday: Boolean = false) {
+    val glassColor = campusGlassContainerColor(Color(0xFFE9EEF6))
+    val bgColor = if (isToday) Color(0xFF18365E) else glassColor
+    val textColor = if (isToday) Color.White else Color(0xFF334155)
     Box(
         modifier = Modifier
             .width(width)
             .height(38.dp)
             .padding(3.dp)
-            .background(campusGlassContainerColor(Color(0xFFE9EEF6)), RoundedCornerShape(10.dp)),
+            .background(bgColor, RoundedCornerShape(10.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = text, color = Color(0xFF334155), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+        Text(text = text, color = textColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
-private fun PeriodCell(period: Int, time: String, width: Dp, height: Dp) {
+private fun PeriodCell(period: Int, time: String, width: Dp, height: Dp, isCurrent: Boolean = false) {
+    val glassColor = campusGlassContainerColor(Color(0xFFE9EEF6))
+    val bgColor = if (isCurrent) Color(0xFF18365E) else glassColor
+    val periodColor = if (isCurrent) Color.White else Color(0xFF334155)
+    val timeColor = if (isCurrent) Color.White.copy(alpha = 0.78f) else Color(0xFF94A3B8)
     Box(
         modifier = Modifier
             .width(width)
             .height(height)
             .padding(3.dp)
-            .background(campusGlassContainerColor(Color(0xFFE9EEF6)), RoundedCornerShape(10.dp)),
+            .background(bgColor, RoundedCornerShape(10.dp)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = period.toString(), color = Color(0xFF334155), fontWeight = FontWeight.SemiBold)
+            Text(text = period.toString(), color = periodColor, fontWeight = FontWeight.SemiBold)
             Text(
                 text = time,
-                color = Color(0xFF94A3B8),
+                color = timeColor,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
             )
@@ -353,7 +377,7 @@ private fun CourseCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = listOfNotNull(course.classroom, course.teacher).joinToString(" 路 ").ifBlank { course.weeks.orEmpty() },
+                text = listOfNotNull(course.classroom, course.teacher).joinToString(" · ").ifBlank { course.weeks.orEmpty() },
                 color = Color.White.copy(alpha = 0.88f),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,

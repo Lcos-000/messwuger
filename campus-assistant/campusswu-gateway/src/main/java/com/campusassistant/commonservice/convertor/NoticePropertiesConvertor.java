@@ -1,8 +1,8 @@
-package com.campusassistant.notice.convertor;
+package com.campusassistant.commonservice.convertor;
 
 import com.campusassistant.common.converter.BaseConvertor;
-import com.campusassistant.notice.pojo.vo.NoticeResponseVO;
-import com.campusassistant.notice.properties.NoticeProperties;
+import com.campusassistant.commonservice.pojo.vo.NoticeResponseVO;
+import com.campusassistant.config.NoticeProperties;
 import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")

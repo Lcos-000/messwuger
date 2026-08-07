@@ -1,4 +1,4 @@
-package com.campusassistant.notice.pojo.vo;
+package com.campusassistant.commonservice.pojo.vo;
 
 import lombok.Data;
 

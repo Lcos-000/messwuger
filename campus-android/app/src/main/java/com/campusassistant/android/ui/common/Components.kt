@@ -1,41 +1,69 @@
 package com.campusassistant.android.ui.common
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.campusassistant.android.ui.theme.CampusBlue
 import com.campusassistant.android.ui.theme.CampusCardShape
 import kotlin.math.roundToInt
 
@@ -44,6 +72,16 @@ val CampusButtonHeight = 56.dp
 val CampusCardPadding = 16.dp
 val CampusMutedText = Color(0xFF5F6F85)
 val CampusSuccessText = Color(0xFF047857)
+
+val CampusModeDotActive = Color(0xFF4F86F7)
+
+@Composable
+fun ModeDot(
+    modifier: Modifier = Modifier,
+    color: Color = CampusModeDotActive
+) {
+    Box(modifier = modifier.size(8.dp).background(color, CircleShape))
+}
 
 private val CampusCardPalette = listOf(
     Color(0xFFFFFFFF),
@@ -171,14 +209,15 @@ fun CampusButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    loading: Boolean = false
 ) {
     Button(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .height(CampusButtonHeight),
-        enabled = enabled,
+        enabled = enabled && !loading,
         shape = CampusCardShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
@@ -186,13 +225,21 @@ fun CampusButton(
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp)
     ) {
-        Text(
-            text = text,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-            lineHeight = 16.sp,
-            maxLines = 2
-        )
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            Text(
+                text = text,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp,
+                maxLines = 2
+            )
+        }
     }
 }
 
@@ -233,7 +280,11 @@ fun CampusTextField(
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    visualTransformation: VisualTransformation = VisualTransformation.None
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    placeholder: String? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -244,6 +295,10 @@ fun CampusTextField(
         singleLine = true,
         shape = CampusCardShape,
         visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        trailingIcon = trailingIcon,
+        leadingIcon = leadingIcon,
+        placeholder = placeholder?.let { { Text(it) } },
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.78f),
@@ -324,7 +379,12 @@ fun CampusEmptyState(
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), CampusCardShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text("-", color = CampusMutedText, style = MaterialTheme.typography.titleMedium)
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = CampusMutedText,
+                    modifier = Modifier.size(22.dp)
+                )
             }
             Text(text = text, color = CampusMutedText, style = MaterialTheme.typography.bodyLarge)
             if (actionText != null && onAction != null) {
@@ -340,24 +400,30 @@ fun CampusMessage(
     isError: Boolean,
     modifier: Modifier = Modifier
 ) {
-    if (message.isNullOrBlank()) return
+    val visible = !message.isNullOrBlank()
     val background = if (isError) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.08f)
     } else {
         CampusSuccessText.copy(alpha = 0.08f)
     }
     val foreground = if (isError) MaterialTheme.colorScheme.error else CampusSuccessText
-    Text(
-        text = message,
-        modifier = modifier
-            .fillMaxWidth()
-            .background(background, CampusCardShape)
-            .border(1.dp, foreground.copy(alpha = 0.12f), CampusCardShape)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        color = foreground,
-        style = MaterialTheme.typography.bodySmall,
-        lineHeight = 18.sp
-    )
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
+    ) {
+        Text(
+            text = message.orEmpty(),
+            modifier = modifier
+                .fillMaxWidth()
+                .background(background, CampusCardShape)
+                .border(1.dp, foreground.copy(alpha = 0.12f), CampusCardShape)
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            color = foreground,
+            style = MaterialTheme.typography.bodySmall,
+            lineHeight = 18.sp
+        )
+    }
 }
 
 @Composable
@@ -379,4 +445,124 @@ fun CampusStatusMessages(
             CampusMessage(message = errorMessage, isError = true)
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CampusSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    modifier: Modifier = Modifier,
+    steps: Int = 0,
+    enabled: Boolean = true
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val thumbScale by animateFloatAsState(
+        targetValue = if (isPressed) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = 0.4f, stiffness = 400f),
+        label = "thumbScale"
+    )
+
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = CampusBlue,
+        activeTrackColor = CampusBlue,
+        inactiveTrackColor = CampusBlue.copy(alpha = 0.14f),
+        disabledThumbColor = CampusBlue.copy(alpha = 0.4f),
+        disabledActiveTrackColor = CampusBlue.copy(alpha = 0.4f),
+        disabledInactiveTrackColor = CampusBlue.copy(alpha = 0.08f)
+    )
+
+    val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = valueRange,
+        steps = steps,
+        enabled = enabled,
+        modifier = modifier,
+        interactionSource = interactionSource,
+        colors = sliderColors,
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(20.dp * thumbScale)
+                    .shadow(
+                        elevation = if (isPressed) 8.dp else 4.dp,
+                        shape = CircleShape
+                    )
+                    .background(CampusBlue, CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
+            )
+        },
+        track = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape)
+                    .background(CampusBlue.copy(alpha = 0.14f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(CampusBlue)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun Modifier.verticalFadeEdges(
+    scrollState: ScrollState,
+    fadeHeight: Dp = 24.dp,
+    edgeColor: Color = MaterialTheme.colorScheme.background
+): Modifier {
+    val fadePx = with(LocalDensity.current) { fadeHeight.toPx() }
+    val topAlpha by remember(fadePx) {
+        derivedStateOf {
+            (scrollState.value / fadePx).coerceIn(0f, 1f)
+        }
+    }
+    val bottomAlpha by remember(fadePx) {
+        derivedStateOf {
+            ((scrollState.maxValue - scrollState.value) / fadePx).coerceIn(0f, 1f)
+        }
+    }
+
+    return this
+        .drawWithContent {
+            drawContent()
+
+            if (topAlpha > 0f) {
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            edgeColor.copy(alpha = topAlpha),
+                            edgeColor.copy(alpha = 0f)
+                        ),
+                        startY = 0f,
+                        endY = fadePx
+                    )
+                )
+            }
+
+            if (bottomAlpha > 0f) {
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            edgeColor.copy(alpha = 0f),
+                            edgeColor.copy(alpha = bottomAlpha)
+                        ),
+                        startY = size.height - fadePx,
+                        endY = size.height
+                    )
+                )
+            }
+        }
 }

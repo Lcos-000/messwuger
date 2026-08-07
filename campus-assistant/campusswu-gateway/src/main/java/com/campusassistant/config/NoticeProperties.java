@@ -1,4 +1,4 @@
-package com.campusassistant.notice.properties;
+package com.campusassistant.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

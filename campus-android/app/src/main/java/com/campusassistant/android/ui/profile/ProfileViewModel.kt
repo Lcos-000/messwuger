@@ -9,12 +9,15 @@ import com.campusassistant.android.core.network.ServerConfigHolder
 import com.campusassistant.android.data.model.ApiResult
 import com.campusassistant.android.data.model.CustomAssets
 import com.campusassistant.android.data.model.DefaultAssetOptions
+import com.campusassistant.android.data.model.ManualConfig
 import com.campusassistant.android.data.model.PersonalizationProfile
 import com.campusassistant.android.data.model.PersonalizationUpdateRequest
 import com.campusassistant.android.data.model.UserPersonal
 import com.campusassistant.android.data.model.UserStatus
+import com.campusassistant.android.data.repository.AuthRepository
 import com.campusassistant.android.data.repository.PersonalizationRepository
 import com.campusassistant.android.data.repository.UserRepository
+import com.campusassistant.android.ui.text.AppMessages
 import kotlin.math.roundToInt
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +72,7 @@ data class ProfileUiState(
     val personalizationDraft: PersonalizationDraft = PersonalizationDraft(),
     val personalizationSectionState: PersonalizationSectionState = PersonalizationSectionState(),
     val serverSettingsDraft: ServerSettingsDraft = ServerSettingsDraft(),
+    val manualConfig: ManualConfig? = null,
     val errorMessage: String? = null,
     val actionMessage: String? = null
 ) {
@@ -97,7 +101,8 @@ data class ProfileUiState(
 class ProfileViewModel(
     private val userRepository: UserRepository,
     private val personalizationRepository: PersonalizationRepository,
-    private val serverConfigStore: ServerConfigStore
+    private val serverConfigStore: ServerConfigStore,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -139,19 +144,22 @@ class ProfileViewModel(
             val personalizationDeferred = async { personalizationRepository.getProfile() }
             val defaultOptionsDeferred = async { personalizationRepository.getDefaultOptions() }
             val customAssetsDeferred = async { personalizationRepository.getCustomAssets() }
+            val manualDeferred = async { authRepository.getManual() }
 
             val personalResult = personalDeferred.await()
             val statusResult = statusDeferred.await()
             val personalizationResult = personalizationDeferred.await()
             val defaultOptionsResult = defaultOptionsDeferred.await()
             val customAssetsResult = customAssetsDeferred.await()
+            val manualResult = manualDeferred.await()
 
             applyLoadedProfile(
                 personalResult = personalResult,
                 statusResult = statusResult,
                 personalizationResult = personalizationResult,
                 defaultOptionsResult = defaultOptionsResult,
-                customAssetsResult = customAssetsResult
+                customAssetsResult = customAssetsResult,
+                manualResult = manualResult
             )
         }
     }
@@ -178,16 +186,16 @@ class ProfileViewModel(
                         _uiState.update { current ->
                             current.copy(
                                 updatingAutoPunch = false,
-                                actionMessage = "自动打卡状态已更新"
+                                actionMessage = AppMessages.Profile.autoPunchUpdated
                             )
                         }
                         loadProfile()
                     } else {
-                        rollbackAutoPunch(oldStatusResult, result.message ?: "自动打卡更新失败")
+                        rollbackAutoPunch(oldStatusResult, result.message ?: AppMessages.Profile.autoPunchUpdateFailed)
                     }
                 }
                 .onFailure { throwable ->
-                    rollbackAutoPunch(oldStatusResult, throwable.message ?: "自动打卡更新失败")
+                    rollbackAutoPunch(oldStatusResult, throwable.message ?: AppMessages.Profile.autoPunchUpdateFailed)
                 }
         }
     }
@@ -252,7 +260,7 @@ class ProfileViewModel(
         val config = ServerConfig(host = draft.host, port = draft.port)
         if (!config.isValid()) {
             _uiState.update {
-                it.copy(errorMessage = "服务器地址格式无效，请检查 IP/域名 和端口")
+                it.copy(errorMessage = AppMessages.Profile.serverConfigInvalid)
             }
             return
         }
@@ -264,7 +272,7 @@ class ProfileViewModel(
             _uiState.update {
                 it.copy(
                     savingServerConfig = false,
-                    actionMessage = "服务器设置已保存，后续请求将使用 ${config.host}:${config.port}"
+                    actionMessage = AppMessages.Profile.serverConfigSaved(config.host, config.port)
                 )
             }
         }
@@ -284,15 +292,15 @@ class ProfileViewModel(
                                 savingPersonalization = false,
                                 personalizationResult = result,
                                 personalizationDraft = result.data?.toDraft() ?: current.personalizationDraft,
-                                actionMessage = "个性化配置已保存"
+                                actionMessage = AppMessages.Profile.personalizationSaved
                             )
                         }
                     } else {
-                        finishPersonalizationSaveError(result.message ?: "保存个性化配置失败")
+                        finishPersonalizationSaveError(result.message ?: AppMessages.Profile.personalizationSaveFailed)
                     }
                 }
                 .onFailure { throwable ->
-                    finishPersonalizationSaveError(throwable.message ?: "保存个性化配置失败")
+                    finishPersonalizationSaveError(throwable.message ?: AppMessages.Profile.personalizationSaveFailed)
                 }
         }
     }
@@ -305,7 +313,7 @@ class ProfileViewModel(
                 .onSuccess { result ->
                     val url = result.data?.url.orEmpty()
                     if (!result.isSuccess || url.isBlank()) {
-                        finishUploadError(result.message ?: "上传图片失败")
+                        finishUploadError(result.message ?: AppMessages.Profile.uploadImageFailed)
                         return@onSuccess
                     }
 
@@ -314,7 +322,7 @@ class ProfileViewModel(
                     saveUploadedSelection(nextDraft, type)
                 }
                 .onFailure { throwable ->
-                    finishUploadError(throwable.message ?: "上传图片失败")
+                    finishUploadError(throwable.message ?: AppMessages.Profile.uploadImageFailed)
                 }
         }
     }
@@ -326,13 +334,13 @@ class ProfileViewModel(
             userRepository.deleteAccount()
                 .onSuccess { result ->
                     if (result.isSuccess) {
-                        _uiState.value = ProfileUiState(actionMessage = result.data ?: result.message ?: "账号已注销")
+                        _uiState.value = ProfileUiState(actionMessage = result.data ?: result.message ?: AppMessages.Profile.accountDeleted)
                     } else {
-                        finishDeleteAccountError(result.message ?: "注销账号失败")
+                        finishDeleteAccountError(result.message ?: AppMessages.Profile.deleteAccountFailed)
                     }
                 }
                 .onFailure { throwable ->
-                    finishDeleteAccountError(throwable.message ?: "注销账号失败")
+                    finishDeleteAccountError(throwable.message ?: AppMessages.Profile.deleteAccountFailed)
                 }
         }
     }
@@ -348,7 +356,8 @@ class ProfileViewModel(
         statusResult: Result<ApiResult<UserStatus>>,
         personalizationResult: Result<ApiResult<PersonalizationProfile>>,
         defaultOptionsResult: Result<ApiResult<DefaultAssetOptions>>,
-        customAssetsResult: Result<ApiResult<CustomAssets>>
+        customAssetsResult: Result<ApiResult<CustomAssets>>,
+        manualResult: Result<ApiResult<ManualConfig>>
     ) {
         _uiState.update { current ->
             val personalApiResult = personalResult.getOrNull()
@@ -356,8 +365,10 @@ class ProfileViewModel(
             val personalizationApiResult = personalizationResult.getOrNull()
             val defaultOptionsApiResult = defaultOptionsResult.getOrNull()
             val customAssetsApiResult = customAssetsResult.getOrNull()
+            val manualApiResult = manualResult.getOrNull()
             val personalization = personalizationApiResult?.takeIf { it.isSuccess }?.data
             val defaultOptions = defaultOptionsApiResult?.takeIf { it.isSuccess }?.data.withFallbackDefaults()
+            val manualConfig = manualApiResult?.takeIf { it.isSuccess }?.data
 
             current.copy(
                 loading = false,
@@ -366,6 +377,7 @@ class ProfileViewModel(
                 personalizationResult = personalizationApiResult ?: current.personalizationResult,
                 defaultOptionsResult = defaultOptionsApiResult?.copy(data = defaultOptions) ?: current.defaultOptionsResult,
                 customAssetsResult = customAssetsApiResult ?: current.customAssetsResult,
+                manualConfig = manualConfig ?: current.manualConfig,
                 personalizationDraft = personalization?.toDraft() ?: current.personalizationDraft,
                 errorMessage = collectProfileLoadErrors(
                     personalResult = personalResult,
@@ -409,7 +421,7 @@ class ProfileViewModel(
         ).mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
             .distinct()
 
-        return errorMessages.joinToString("；").ifBlank { null }
+        return errorMessages.joinToString(AppMessages.Profile.messageSeparator).ifBlank { null }
     }
 
     private suspend fun saveUploadedSelection(draft: PersonalizationDraft, type: String) {
@@ -421,16 +433,16 @@ class ProfileViewModel(
                             uploadingAssetType = null,
                             personalizationResult = result,
                             personalizationDraft = result.data?.toDraft() ?: draft,
-                            actionMessage = "${assetTypeLabel(type)}已上传并保存"
+                            actionMessage = AppMessages.Profile.assetUploaded(assetTypeLabel(type))
                         )
                     }
                     loadProfile()
                 } else {
-                    finishUploadError(result.message ?: "上传成功，但保存选择失败")
+                    finishUploadError(result.message ?: AppMessages.Profile.uploadSuccessSaveFailed)
                 }
             }
             .onFailure { throwable ->
-                finishUploadError(throwable.message ?: "上传成功，但保存选择失败")
+                finishUploadError(throwable.message ?: AppMessages.Profile.uploadSuccessSaveFailed)
             }
     }
 
@@ -489,12 +501,13 @@ class ProfileViewModel(
 class ProfileViewModelFactory(
     private val userRepository: UserRepository,
     private val personalizationRepository: PersonalizationRepository,
-    private val serverConfigStore: ServerConfigStore
+    private val serverConfigStore: ServerConfigStore,
+    private val authRepository: AuthRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProfileViewModel::class.java)) {
-            return ProfileViewModel(userRepository, personalizationRepository, serverConfigStore) as T
+            return ProfileViewModel(userRepository, personalizationRepository, serverConfigStore, authRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -518,10 +531,10 @@ private fun PersonalizationDraft.withAsset(type: String, url: String): Personali
 }
 
 private fun assetTypeLabel(type: String): String = when (type) {
-    "avatar" -> "头像"
-    "background" -> "顶部背景"
-    "wallpaper" -> "墙纸"
-    else -> "图片"
+    "avatar" -> AppMessages.Profile.AssetType.avatar
+    "background" -> AppMessages.Profile.AssetType.background
+    "wallpaper" -> AppMessages.Profile.AssetType.wallpaper
+    else -> AppMessages.Profile.AssetType.image
 }
 
 private val DefaultFallbackOptions = DefaultAssetOptions(
