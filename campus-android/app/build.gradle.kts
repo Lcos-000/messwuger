@@ -14,8 +14,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        buildConfigField("String", "BASE_URL", "\"http://223.109.239.11:57714/gateway/\"")
-        buildConfigField("String", "STATIC_RESOURCE_BASE_URL", "\"http://10.0.2.2:80/\"")
+        buildConfigField("String", "BASE_URL", "\"http://192.168.1.183:80/gateway/\"")
+        buildConfigField("String", "STATIC_RESOURCE_BASE_URL", "\"http://192.168.1.183:80/\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

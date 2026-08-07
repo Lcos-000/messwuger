@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,7 +139,7 @@ private fun GradeFilterPanel(
                         placeholder = { Text("2025") },
                         modifier = Modifier
                             .weight(1f)
-                            .height(50.dp),
+                            .height(56.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(14.dp)
@@ -288,8 +289,8 @@ private fun ActiveOptionChip(
             .background(if (selected) Color(0xFF18365E) else Color.White.copy(alpha = 0.72f), shape)
             .border(1.dp, if (selected) Color(0xFF18365E) else Color(0xFFD6DEE9), shape)
             .clickable(onClick = onClick)
-            .defaultMinSize(minHeight = 34.dp)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+            .defaultMinSize(minHeight = 36.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -297,7 +298,9 @@ private fun ActiveOptionChip(
             color = if (selected) Color.White else Color(0xFF334155),
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             style = MaterialTheme.typography.labelMedium,
-            maxLines = 1
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -70,6 +71,7 @@ fun ProfileScreen(
     onSavePersonalization: () -> Unit,
     onAssetUpload: (String, MultipartBody.Part) -> Unit,
     onDeleteAccount: () -> Unit,
+    onShowLoginPreview: () -> Unit,
     onLogout: () -> Unit
 ) {
     val draft = profileState.personalizationDraft
@@ -125,6 +127,7 @@ fun ProfileScreen(
                     onSavePersonalization = onSavePersonalization,
                     onUploadRequest = onUploadRequest,
                     onDeleteAccount = onDeleteAccount,
+                    onShowLoginPreview = onShowLoginPreview,
                     onLogout = onLogout
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -276,6 +279,7 @@ private fun ProfileContentPanel(
     onSavePersonalization: () -> Unit,
     onUploadRequest: (String) -> Unit,
     onDeleteAccount: () -> Unit,
+    onShowLoginPreview: () -> Unit,
     onLogout: () -> Unit
 ) {
     val text = LocalAppText.current.profile
@@ -285,10 +289,10 @@ private fun ProfileContentPanel(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = cardShape,
-            color = campusGlassContainerColor(CardBackground),
+            color = campusGlassContainerColor(),
             border = campusGlassBorder(),
             tonalElevation = campusGlassElevation(0.dp),
-            shadowElevation = campusGlassElevation(8.dp)
+            shadowElevation = 0.dp
         ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             InfoRows(personal = profileState.personal, tokenExists = tokenExists)
@@ -318,6 +322,15 @@ private fun ProfileContentPanel(
                 onSaveServerSettings = onSaveServerSettings,
                 onSave = onSavePersonalization,
                 onUploadRequest = onUploadRequest
+            )
+            SectionDivider()
+            ActionRow(
+                icon = Icons.Default.ArrowForward,
+                iconBackground = Color(0xFFEFF6FF),
+                iconColor = HeroStart,
+                label = text.goLoginPage,
+                value = text.goLoginPageHint,
+                onClick = onShowLoginPreview
             )
             SectionDivider()
             ActionRow(

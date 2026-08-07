@@ -7,7 +7,6 @@ import com.campusassistant.android.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -21,7 +20,9 @@ data class AppUiState(
     val authState: AuthState = AuthState.Checking,
     val loginLoading: Boolean = false,
     val loginError: String? = null,
-    val tokenExists: Boolean = false
+    val tokenExists: Boolean = false,
+    val loginPreviewVisible: Boolean = false,
+    val sessionVersion: Int = 0
 )
 
 class AppViewModel(
@@ -57,7 +58,9 @@ class AppViewModel(
                             authState = AuthState.LoggedIn,
                             loginLoading = false,
                             loginError = null,
-                            tokenExists = true
+                            tokenExists = true,
+                            loginPreviewVisible = false,
+                            sessionVersion = it.sessionVersion + 1
                         )
                     }
                 }
@@ -67,7 +70,9 @@ class AppViewModel(
                             authState = AuthState.LoggedOut,
                             loginLoading = false,
                             loginError = throwable.message ?: "登录失败",
-                            tokenExists = false
+                            tokenExists = false,
+                            loginPreviewVisible = false,
+                            sessionVersion = it.sessionVersion + 1
                         )
                     }
                 }
@@ -81,10 +86,22 @@ class AppViewModel(
                 it.copy(
                     authState = AuthState.LoggedOut,
                     loginLoading = false,
-                    tokenExists = false
+                    tokenExists = false,
+                    loginPreviewVisible = false,
+                    sessionVersion = it.sessionVersion + 1
                 )
             }
         }
+    }
+
+    fun showLoginPreview() {
+        if (_uiState.value.tokenExists) {
+            _uiState.update { it.copy(loginPreviewVisible = true, loginError = null) }
+        }
+    }
+
+    fun hideLoginPreview() {
+        _uiState.update { it.copy(loginPreviewVisible = false, loginError = null) }
     }
 }
 

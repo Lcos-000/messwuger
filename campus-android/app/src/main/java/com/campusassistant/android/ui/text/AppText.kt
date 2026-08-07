@@ -176,7 +176,7 @@ data class ProfileText(
     val lightBackground: String = "浅色背景",
     val lightWallpaper: String = "浅灰墙纸",
     val cardOpacity: String = "资料卡不透明度",
-    val cardBlur: String = "资料卡阴影",
+    val cardBlur: String = "资料卡颜色",
     val wallpaperMask: String = "墙纸蒙版强度",
     val globalFont: String = "全局字体",
     val serverSettings: String = "服务器设置",
@@ -199,7 +199,10 @@ data class ProfileText(
     val deleteConfirm: String = "确认注销",
     val cancel: String = "取消",
     val customAsset: String = "自定义资源",
-    val uploadAsset: String = "上传图片"
+    val uploadAsset: String = "上传图片",
+    val goLoginPage: String = "查看登录页",
+    val goLoginPageHint: String = "不退出当前账号，临时返回登录页",
+    val backToApp: String = "返回当前会话"
 )
 
 val LocalAppText = compositionLocalOf { AppText() }

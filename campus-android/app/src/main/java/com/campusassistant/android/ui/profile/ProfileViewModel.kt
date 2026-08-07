@@ -15,6 +15,7 @@ import com.campusassistant.android.data.model.UserPersonal
 import com.campusassistant.android.data.model.UserStatus
 import com.campusassistant.android.data.repository.PersonalizationRepository
 import com.campusassistant.android.data.repository.UserRepository
+import kotlin.math.roundToInt
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,7 @@ data class PersonalizationDraft(
     val background: String = "",
     val wallpaper: String = "",
     val cardOpacity: Float = 1f,
-    val cardBlur: Float = 14f,
+    val cardBlur: Float = 0f,
     val globalFontEnabled: Boolean = true,
     val wallpaperMask: Float = 1f
 ) {
@@ -226,7 +227,7 @@ class ProfileViewModel(
 
     fun updateCardOpacity(value: Float) = updateDraft { it.copy(cardOpacity = value.coerceIn(0.2f, 1f)) }
 
-    fun updateCardBlur(value: Float) = updateDraft { it.copy(cardBlur = value.coerceIn(0f, 30f)) }
+    fun updateCardBlur(value: Float) = updateDraft { it.copy(cardBlur = value.roundToInt().coerceIn(0, 30).toFloat()) }
 
     fun updateWallpaperMask(value: Float) = updateDraft { it.copy(wallpaperMask = value.coerceIn(0f, 1f)) }
 
@@ -464,7 +465,7 @@ private fun PersonalizationProfile.toDraft(): PersonalizationDraft = Personaliza
     background = background.orEmpty(),
     wallpaper = wallpaper.orEmpty(),
     cardOpacity = (cardOpacity ?: 1.0).toFloat().coerceIn(0.2f, 1f),
-    cardBlur = (cardBlur ?: 14.0).toFloat().coerceIn(0f, 30f),
+    cardBlur = (cardBlur ?: 0.0).toFloat().roundToInt().coerceIn(0, 30).toFloat(),
     globalFontEnabled = globalFontEnabled != 0,
     wallpaperMask = (wallpaperMask ?: 1.0).toFloat().coerceIn(0f, 1f)
 )
