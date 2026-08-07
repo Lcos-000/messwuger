@@ -153,8 +153,8 @@ private fun GradeFilterPanel(
                     CampusTextField(
                         value = state.academicYear,
                         onValueChange = onAcademicYearChange,
-                        label = null,
-                        placeholder = "2025",
+                        label = "",
+                        placeholder = null,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
