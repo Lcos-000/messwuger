@@ -12,5 +12,7 @@ spring:
         file-extension: yaml
   config:
     import:
-      - nacos:gateway-auth.yaml
+      - nacos:gateway-auth.yaml?group=GATEWAY_GROUP
       - nacos:common-log.yaml?group=DEFAULT_GROUP
+      - nacos:campusswu-notice.yaml?group=DEFAULT_GROUP
+      - nacos:publicclient-config.yaml?group=DEFAULT_GROUP
