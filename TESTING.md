@@ -1,61 +1,37 @@
 # 校园助手系统测试指南
 
-本文档用于验证当前项目的核心链路是否可用，重点覆盖后端服务、爬虫服务，以及与当前版本对齐的个性化配置、自定义图片资源、成绩查询、空教室查询、管理员资源和自动打卡能力。
+本文档用于验证当前仓库四部分内容是否处于可用状态：
+
+- 后端微服务
+- Go + Python 爬虫服务
+- Web 前端
+- Android 原生客户端
 
 ---
 
-## 测试范围
+## 一、测试范围
 
 当前文档覆盖以下内容：
 
 - 基础服务启动检查
-- 注册 / 登录 / 同步 / 查询课表
-- 成绩任务提交、回调、落库与查询
-- 空教室任务提交、回调与结果查询
-- 个性化主页接口
-- 自定义图片上传与回显接口
-- 自动打卡开关接口
-- 管理员登录与资源接口
-- 管理员日志初始化、历史加载与下载能力
-- SkyWalking 独立界面检查
-- 前端构建验证
-- 前端手工回归检查
+- 注册 / 登录 / 用户状态 / 课表 / 成绩 / 空教室 / 个性化接口验证
+- 公共公告、公共使用手册、公共学期开学配置接口验证
+- Web 前端构建与手工回归
+- Android 客户端安装、服务器设置、登录与主链路回归
 - 数据库落库检查
-
-> 当前仓库未配置前端单元测试或 E2E 自动化测试，因此前端主要通过 `npm run build` + 手工回归完成验证。
 
 ---
 
-## 前置准备
+## 二、前置准备
 
-确保以下依赖已启动：
+启动基础组件：
 
 ```powershell
 cd deploy/offline/package
 docker compose up -d mysql redis nacos sentinel
 ```
 
-### 清空数据库（可选）
-
-如需在重新测试前恢复干净数据，可清空业务表（保留表结构）：
-
-```powershell
-$SQL = @"
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE student_db;
-TRUNCATE TABLE personal_info;
-TRUNCATE TABLE course_db;
-TRUNCATE TABLE student_grade;
-TRUNCATE TABLE user_profile_style;
-TRUNCATE TABLE user_profile_custom_asset;
-SET FOREIGN_KEY_CHECKS = 1;
-"@
-$SQL | docker exec -i campus-mysql mysql -uroot -p1234 campus_db
-```
-
-> 如果 MySQL root 密码不是 `1234`，请替换命令中的 `-p1234`。
-
-如需验证链路追踪独立界面，再额外启动：
+如需链路追踪：
 
 ```powershell
 cd deploy
@@ -64,23 +40,23 @@ docker compose -p campusassistant -f docker-compose.skywalking.yml up -d
 
 ---
 
-## 编译检查
+## 三、编译检查
 
-### Java
+### 后端
 
 ```powershell
 cd campus-assistant
 mvn clean install -DskipTests
 ```
 
-### Go
+### 爬虫服务
 
 ```powershell
 cd ..\campus-spider-service
 go build -o server.exe .\cmd\server
 ```
 
-### Frontend
+### Web 前端
 
 ```powershell
 cd ..\campus-web
@@ -88,39 +64,45 @@ npm install
 npm run build
 ```
 
-**期望结果**：
+### Android 客户端
 
-- 三端均可编译成功
-- `campus-web` 的 `vite build` 成功输出 `dist`
+```powershell
+cd ..\campus-android
+$env:GRADLE_USER_HOME='E:\develop\AndroidDev\.gradle'
+$env:JAVA_HOME='E:\develop\Android Studio\jbr'
+$env:LOCALAPPDATA=(Resolve-Path '.\.codex-localappdata').Path
+$env:PATH="$env:JAVA_HOME\bin;$env:PATH"
+.\gradlew.bat --no-daemon --console=plain assembleDebug
+```
+
+期望结果：四部分均可构建成功。
 
 ---
 
-## 启动所有服务
+## 四、服务启动
 
-建议使用 5 个独立 PowerShell 窗口。
-
-### 窗口 1：Gateway
+### Gateway
 
 ```powershell
 cd campus-assistant
 mvn spring-boot:run -pl campusswu-gateway -am
 ```
 
-### 窗口 2：User-Service
+### User-Service
 
 ```powershell
 cd campus-assistant
 mvn spring-boot:run -pl user-service -am
 ```
 
-### 窗口 3：Course-Service
+### Course-Service
 
 ```powershell
 cd campus-assistant
 mvn spring-boot:run -pl course-service -am
 ```
 
-### 窗口 4：Go 爬虫服务
+### Go 爬虫服务
 
 ```powershell
 cd campus-spider-service
@@ -129,18 +111,7 @@ go build -o server.exe ./cmd/server
 .\server.exe
 ```
 
-如需手动覆盖回调地址、云打码 Token 或调整可靠性参数，可额外设置：
-
-```powershell
-$env:JAVA_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/student-data"
-$env:PUNCH_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/punch-result"
-$env:EMPTY_CLASSROOM_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/empty-classroom"
-$env:GRADES_CALLBACK_URL="http://127.0.0.1:8000/internal/api/v1/sync/grades"
-$env:RATE_LIMIT_PER_MINUTE="10"
-$env:MAX_RETRY_COUNT="5"
-```
-
-### 窗口 5：前端开发服务
+### Web 前端
 
 ```powershell
 cd campus-web
@@ -149,37 +120,21 @@ npm run dev
 
 ---
 
-## 端口确认
+## 五、接口联调
+
+### 注册
 
 ```powershell
-netstat -ano | findstr ":80 "
-netstat -ano | findstr ":8000 "
-netstat -ano | findstr ":9000 "
-netstat -ano | findstr ":8082 "
-netstat -ano | findstr ":8848 "
-netstat -ano | findstr ":18080 "
-netstat -ano | findstr ":5173 "
-```
-
-**期望结果**：上述端口均处于 `LISTENING`。
-
----
-
-## 接口联调流程
-
-### 1. 注册
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/auth/register" `
+Invoke-RestMethod -Uri "http://127.0.0.1/api/auth/register" `
   -Method POST `
   -Body '{"studentId":"YOUR_STUDENT_ID","password":"yourpassword"}' `
   -ContentType "application/json"
 ```
 
-### 2. 登录
+### 登录
 
 ```powershell
-$login = Invoke-RestMethod -Uri "http://127.0.0.1/gateway/auth/login" `
+$login = Invoke-RestMethod -Uri "http://127.0.0.1/api/auth/login" `
   -Method POST `
   -Body '{"studentId":"YOUR_STUDENT_ID","password":"yourpassword"}' `
   -ContentType "application/json"
@@ -188,277 +143,126 @@ $token = $login.data
 $headers = @{ Authorization = "Bearer $token" }
 ```
 
-### 3. 查询用户状态
+### 用户状态
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/status" `
-  -Method GET `
-  -Headers $headers
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/status" -Method GET -Headers $headers
 ```
 
-### 4. 查询课表
+### 公共公告
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/user/schedule/get" `
-  -Method GET `
-  -Headers $headers
+Invoke-RestMethod -Uri "http://127.0.0.1/api/public/notice" -Method GET
 ```
 
----
-
-## 成绩链路测试
-
-### 1. 提交成绩任务
+### 公共手册
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/grades/task" `
+Invoke-RestMethod -Uri "http://127.0.0.1/api/public/manual" -Method GET
+```
+
+### 学期开学配置
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/api/public/schedule-config" -Method GET
+```
+
+### 课表
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/schedule/get" -Method GET -Headers $headers
+```
+
+### 成绩查询
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/grades?academicYear=2025&semester=12" -Method GET -Headers $headers
+```
+
+### 成绩同步任务
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/grades/task" `
   -Method POST `
   -Headers $headers `
   -Body '{"academicYear":"2025","semester":"12"}' `
   -ContentType "application/json"
 ```
 
-### 2. 查询成绩结果
+### 空教室提交与查询
 
 ```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/grades/result" `
-  -Method POST `
-  -Headers $headers `
-  -Body '{"academicYear":"2025","semester":"12"}' `
-  -ContentType "application/json"
+$body = '{"academicYear":"2025","semester":"12","dayOfWeek":"1","periodsMask":"16","weeksMask":"2","campusId":"2","building":"08","roomType":""}'
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/empty-classroom/task" -Method POST -Headers $headers -Body $body -ContentType "application/json"
+Invoke-RestMethod -Uri "http://127.0.0.1/api/user/empty-classroom/result" -Method POST -Headers $headers -Body $body -ContentType "application/json"
 ```
 
-### 3. 数据库检查
+### 个性化配置
 
 ```powershell
-mysql -u root -p1234 -e "USE campus_db; SELECT student_id, academic_year, semester, course_name, score FROM student_grade WHERE student_id='YOUR_STUDENT_ID' ORDER BY update_time DESC LIMIT 10;"
-```
-
----
-
-## 空教室链路测试
-
-### 1. 提交空教室任务
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/empty-classroom/task" `
-  -Method POST `
-  -Headers $headers `
-  -Body '{"academicYear":"2025","semester":"12","dayOfWeek":"1","periodsMask":"16","weeksMask":"2","campusId":"2","building":"08","roomType":""}' `
-  -ContentType "application/json"
-```
-
-### 2. 查询空教室结果
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/empty-classroom/result" `
-  -Method POST `
-  -Headers $headers `
-  -Body '{"academicYear":"2025","semester":"12","dayOfWeek":"1","periodsMask":"16","weeksMask":"2","campusId":"2","building":"08","roomType":""}' `
-  -ContentType "application/json"
-```
-
-**期望结果**：
-
-- 提交接口返回 `SUBMITTED` / `QUERYING` / `RESULT_READY`
-- 结果接口在回调成功后返回 `classrooms` 数组
-- 若长时间为空，优先检查 Go 回调是否完整回传 `campusId`、`building`、`roomType`
-
----
-
-## Go 爬虫服务新特性测试
-
-以下测试用于验证 campus-spider-service 新增的幂等、优先级队列、死信队列、限流与僵尸恢复能力。
-
-### 1. 前置准备
-
-启动 Redis 后，在 PowerShell 中启动 Go 服务：
-
-```powershell
-cd campus-spider-service
-$env:PYTHON_PATH="python"
-go build -o server.exe ./cmd/server
-.\server.exe
-```
-
-如需覆盖默认云打码 Token，可额外设置：
-
-```powershell
-$env:YM_TOKEN="你的云打码token"
-```
-
-### 2. 幂等去重测试
-
-使用相同的 `X-Task-Id` 连续提交两次：
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" `
-  -Method POST `
-  -Headers @{
-    "X-Task-Id" = "test-idempotency-001"
-    "X-Priority" = "high"
-    "X-Student-Id" = "222025321262104"
-    "X-Password" = "AES加密后的密码"
-    "X-TYPE" = "FULL_CRAWL"
-  }
-```
-
-**期望结果**：
-- 第一次返回 `任务已提交`。
-- 24 小时内再次提交相同 `X-Task-Id`，返回 `任务已提交（重复请求）`。
-
-### 3. 优先级队列测试
-
-向三个优先级队列各提交一个任务，观察消费顺序：
-
-```powershell
-# low
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" -Method POST -Headers @{
-  "X-Task-Id"="test-low-001"; "X-Priority"="low"; "X-Student-Id"="222025321262104"; "X-Password"="..."; "X-TYPE"="FULL_CRAWL"
-}
-
-# medium
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" -Method POST -Headers @{
-  "X-Task-Id"="test-medium-001"; "X-Priority"="medium"; "X-Student-Id"="222025321262104"; "X-Password"="..."; "X-TYPE"="FULL_CRAWL"
-}
-
-# high
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" -Method POST -Headers @{
-  "X-Task-Id"="test-high-001"; "X-Priority"="high"; "X-Student-Id"="222025321262104"; "X-Password"="..."; "X-TYPE"="FULL_CRAWL"
-}
-```
-
-**期望结果**：在队列均有任务时，`high` 优先被消费；持续只向 `high` 入队时，`medium`/`low` 超过 30 秒未消费会触发防饥饿补偿。
-
-### 4. 死信队列与重试测试
-
-提交一个注定失败的任务（如错误密码）：
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" -Method POST -Headers @{
-  "X-Task-Id"="test-dlq-001"; "X-Priority"="high"; "X-Student-Id"="222025321262104"; "X-Password"="错误的密码"; "X-TYPE"="FULL_CRAWL"
-}
-```
-
-**验证方式**：
-
-```powershell
-# 查看死信队列长度（需要 redis-cli）
-redis-cli XLEN campus:spider:tasks:dlq
-
-# 查看任务在死信队列中的字段
-redis-cli XRANGE campus:spider:tasks:dlq - + COUNT 1
-```
-
-**期望结果**：
-- 任务失败后进入 `campus:spider:tasks:dlq`。
-- `RetryCount` 从 1 开始递增。
-- 按指数退避（10s、20s、40s... 上限 600s）后重新入队原优先级。
-- 超过 `MAX_RETRY_COUNT`（默认 5）后从死信队列移除并丢弃。
-
-### 5. 限流测试
-
-快速连续提交 20 个任务：
-
-```powershell
-for ($i = 0; $i -lt 20; $i++) {
-  Invoke-RestMethod -Uri "http://127.0.0.1:8082/api/v1/task/submit" -Method POST -Headers @{
-    "X-Task-Id"="test-rate-$i"; "X-Priority"="high"; "X-Student-Id"="222025321262104"; "X-Password"="..."; "X-TYPE"="FULL_CRAWL"
-  }
-}
-```
-
-**验证方式**：
-
-```powershell
-# 观察日志应出现类似输出
-# [Worker] 触发限流，等待下一窗口 45s
-```
-
-**期望结果**：
-- 所有任务成功入队。
-- Worker 实际调用 Python 的频率不超过每分钟 10 次。
-- 超出配额的任务在 Redis Stream 中 pending，等待下一窗口。
-
-### 6. 僵尸消息恢复测试
-
-模拟 Worker 崩溃：
-
-1. 提交一个任务。
-2. 在 Worker 消费该任务但尚未确认时，强制终止 `server.exe`。
-3. 等待 5 分钟后重新启动服务。
-
-**验证方式**：
-
-```powershell
-redis-cli XPENDING campus:spider:tasks:high campus-spider-workers - + 10
-```
-
-**期望结果**：
-- 任务在 5 分钟后被僵尸恢复协程认领并重新入队。
-- 重新启动的 Worker 会再次消费该任务。
-
----
-
-## 个性化主页接口测试
-
-### 1. 获取个性化配置
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/get-profile" `
-  -Method GET `
-  -Headers $headers
-```
-
-### 2. 更新个性化配置
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/personalization/update-profile" `
-  -Method PUT `
-  -Headers $headers `
-  -Body '{"cardOpacity":0.72,"cardBlur":8,"wallpaperMask":0.65,"globalFontEnabled":1}' `
-  -ContentType "application/json"
+Invoke-RestMethod -Uri "http://127.0.0.1/api/personalization/get-profile" -Method GET -Headers $headers
 ```
 
 ---
 
-## 自动打卡开关接口测试
+## 六、Android 回归清单
 
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/user/auto-punch" `
-  -Method PUT `
-  -Headers $headers `
-  -Body '{"autoPunchEnabled":1}' `
-  -ContentType "application/json"
-```
+在 Android Studio 或已安装 APK 的设备上验证：
+
+### 1. 登录页
+
+- 可展开服务器设置
+- 修改 IP/域名和端口后保存生效
+- 服务器设置区域在小屏手机上可完整滚动
+- 公告入口可见
+- 密码支持明文/隐藏切换
+
+### 2. 登录与状态恢复
+
+- 登录成功后进入主页
+- 杀掉应用重启后仍保持登录
+- Token 失效时能回到登录页
+
+### 3. 课表
+
+- 顶部可切换本周 / 全部周次
+- 课程卡片可弹详情
+- 同一课程不同老师已合并展示
+- 无法定位时间的课程进入“其他课程”而不是主课表
+- 同步数据按钮会触发后端刷新而不是仅前端重绘
+
+### 4. 成绩
+
+- 查询成绩可显示列表与表格视图
+- 排序切换有效
+- 条件区与结果区滚动行为正常
+- 空状态、加载状态、错误状态正常
+
+### 5. 空教室
+
+- 条件卡片可完整显示，不应遮挡输入
+- 周次、节次多选有效
+- 校区切换后楼栋自动重置为第一个有效项
+- 状态提示清晰
+
+### 6. 我的页面
+
+- 个人信息、状态信息正常显示
+- 自动打卡开关可更新并失败回滚
+- 个性化设置卡片可展开/收起
+- 服务器设置已独立于个性化设置卡片
+- 公告入口、使用手册入口可用
+
+### 7. 个性化资源
+
+- 默认资源与自定义资源可切换
+- 再次选择已上传的自定义资源时不会错误弹到上传流程
+- 头像按圆形展示
+- 墙纸、蒙版、卡片样式全局生效
 
 ---
 
-## 管理员接口测试
-
-### 1. 管理员登录
-
-```powershell
-$adminLogin = Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/login" `
-  -Method POST `
-  -Body '{"studentId":"YOUR_ADMIN_STUDENT_ID","password":"yourpassword"}' `
-  -ContentType "application/json"
-
-$adminToken = $adminLogin.data
-$adminHeaders = @{ Authorization = "Bearer $adminToken" }
-```
-
-### 2. 获取管理员资源
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1/gateway/admin/resources" `
-  -Method GET `
-  -Headers $adminHeaders
-```
-
----
-
-## 数据库验证
+## 七、数据库验证
 
 ```powershell
 mysql -u root -p1234 -e "
@@ -472,74 +276,10 @@ SELECT student_id, academic_year, semester, course_name, score FROM student_grad
 
 ---
 
-## 前端手工回归清单
+## 八、已知注意点
 
-浏览器打开 `http://localhost:5173`，登录后重点检查以下页面：
-
-### 1. Profile 页
-
-- 资料卡透明度、模糊度、墙纸蒙版、全局字体切换正常
-- 自定义头像 / 顶部背景 / 墙纸上传、裁剪、回显正常
-- 自动打卡开关切换正常
-
-### 2. Grades 页
-
-- 学年 / 学期切换正常
-- 成绩查询按钮可正常触发请求
-- 表格视图正常显示成绩列表
-- 排序切换正常
-- 墙纸背景与个人主页一致
-
-### 3. EmptyClassroom 页
-
-- 学年 / 学期 / 星期 / 周次 / 节次 / 校区 / 楼栋条件可正常选择
-- 楼栋默认值为当前校区第一个有效选项
-- 查询结果按钮可正常触发请求
-- 表格结果可正常展示
-- 本地缓存能回填上次条件
-
-### 4. Admin 页
-
-- 管理员登录成功后进入 `/admin`
-- 用户页与管理员页可在同一浏览器同时保持登录，不应互相顶掉 token
-- 日志列表和资源列表正常显示
-
----
-
-## 已知说明
-
-### 1. 前端测试方式
-
-当前前端没有现成的：
-
-- `vitest`
-- `jest`
-- `cypress`
-- `playwright`
-
-因此前端目前以以下方式验收：
-
-- `npm run build`
-- 浏览器手工回归
-- 接口手工联调
-
-### 2. 401 处理
-
-前端不仅处理 HTTP 401，也处理响应体 `code = 401`。
-
-### 3. OSS 历史对象
-
-当前上传成功后只会覆盖数据库记录，不会自动删除旧 OSS 对象；这不影响功能验证，但测试结束后如需控量仍需手动清理或补后台删除逻辑。
-
-### 4. 成绩 / 空教室联调注意点
-
-- Go 回调改动后需要重新编译 `server.exe`
-- 如果提交成功但结果一直为空，优先确认当前运行的不是旧二进制
-- 空教室查询如果使用了条件指纹缓存，提交参数与回调参数必须完全一致
-
-### 5. Go 爬虫服务新特性联调注意点
-
-- 提交任务时建议带上 `X-Task-Id`，便于 Java 侧做幂等控制和后续追踪。
-- `X-Priority` 支持 `high` / `medium` / `low`，非法值会默认按 `medium` 处理。
-- 若测试环境希望快速看到重试效果，可降低 `RETRY_BASE_DELAY_SECONDS` 和 `DEAD_LETTER_SCAN_INTERVAL_SECONDS`。
-- 限流配额为全局每分钟 10 次，压测时如需提高并发，请调大 `RATE_LIMIT_PER_MINUTE`。
+1. 前端当前主要依靠构建通过 + 手工回归验证，不依赖完整自动化 UI 测试。
+2. Android 客户端当前固定浅色主题，未专门适配深色模式。
+3. 若后端返回相对静态资源路径，Android 会按当前服务器设置自动拼接资源前缀；如果返回完整 OSS URL，则优先直接加载完整 URL。
+4. 如果 Nacos 中公共配置更新后客户端仍无变化，优先检查 YAML 缩进、配置 import、`@RefreshScope` 和接口实际返回值。
+5. 若 Git 历史中已包含 `node_modules/` 或 Android 本地文件，本轮需要额外执行一次取消追踪。

@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.campusassistant.enums.ResultCodeEnum.PARAM_ERROR;
@@ -32,6 +33,17 @@ import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 public class UserProfileCustomAssetServiceImpl implements UserProfileCustomAssetService {
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024L;
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
+    private static final Set<String> ALLOWED_SUFFIXES = Set.of(
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp"
+    );
 
     private final UserProfileCustomAssetMapper userProfileCustomAssetMapper;
     private final AliyunOssService aliyunOssService;
@@ -116,9 +128,15 @@ public class UserProfileCustomAssetServiceImpl implements UserProfileCustomAsset
             throw new BusinessException(PARAM_ERROR.getCode(), "图片不能超过 5MB");
         }
 
+        String originalFilename = file.getOriginalFilename();
+        String suffix = getFileSuffix(originalFilename);
+        if (!ALLOWED_SUFFIXES.contains(suffix)) {
+            throw new BusinessException(PARAM_ERROR.getCode(), "仅支持 jpg、jpeg、png、webp 格式图片");
+        }
+
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-            throw new BusinessException(PARAM_ERROR.getCode(), "仅支持图片文件上传");
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new BusinessException(PARAM_ERROR.getCode(), "仅支持 jpg、jpeg、png、webp 格式图片");
         }
     }
 
@@ -136,7 +154,7 @@ public class UserProfileCustomAssetServiceImpl implements UserProfileCustomAsset
 
     private String getFileSuffix(String originalFilename) {
         if (originalFilename == null || !originalFilename.contains(".")) {
-            return ".jpg";
+            return "";
         }
         return originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase(Locale.ROOT);
     }
