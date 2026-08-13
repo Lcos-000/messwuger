@@ -1,0 +1,24 @@
+language: zh-CN
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: false
+    drafts: false
+    base_branches:
+      - main
+  path_instructions:
+    - path: campus-assistant/**/*.java
+      instructions: |
+        这是 Spring Boot/Spring Cloud 微服务代码。重点关注：
+        - 数据库查询的 SQL 注入与 N+1 查询
+        - 敏感信息（密钥、token）是否被硬编码或泄露
+        - 事务边界和异常处理是否合理
+        - 权限校验是否完整（JWT/网关鉴权）
+  ignore_title_patterns:
+    - "^\\[skip ci\\]"
+    - "^chore\\(deps\\):"
+chat:
+  auto_reply: true
