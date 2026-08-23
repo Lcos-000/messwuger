@@ -1,5 +1,18 @@
 # 校园助手系统
 
+<p align="center">
+  <img alt="Java" src="https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white">
+  <img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F?logo=springboot&logoColor=white">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white">
+  <img alt="Vue" src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white">
+  <img alt="MySQL" src="https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white">
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-5.0-DC382D?logo=redis&logoColor=white">
+  <br>
+  <img alt="GitHub stars" src="https://img.shields.io/github/stars/Lcos-000/messwuger?style=social">
+  <img alt="GitHub forks" src="https://img.shields.io/github/forks/Lcos-000/messwuger?style=social">
+</p>
+
 本项目由 4 个主要部分组成：
 
 - `campus-assistant`：Java 微服务后端
