@@ -69,6 +69,7 @@ desktop.ini
 *.env.local
 *.env.production
 campus-spider-service/go_callback.json
+campus-spider-service/sessions/
 campus-assistant/user-service/src/main/resources/application-aliyun.yml
 
 # 默认允许提交 deploy/.env（非敏感默认配置），但忽略其他位置的 .env
@@ -97,3 +98,5 @@ deploy/redis/data/
 
 # AI 协作规范（本地私有，不入库）
 AGENTS.md
+
+.opencode/

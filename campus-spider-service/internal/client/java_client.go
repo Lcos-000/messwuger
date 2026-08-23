@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"campus-spider-service/internal/model"
@@ -34,7 +33,6 @@ func (c *JavaClient) Callback(ctx context.Context, callbackURL string, payload m
 	if err != nil {
 		return err
 	}
-	_ = os.WriteFile("go_callback.json", b, 0644)
 	log.Printf("[Callback] URL=%s Payload=%s", callbackURL, string(b))
 
 	// 组装请求体
