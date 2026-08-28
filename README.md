@@ -1,4 +1,4 @@
-# 校园助手系统
+<h1 align="center">校园助手系统</h1>
 
 <p align="center">
   <img alt="Java" src="https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white">
