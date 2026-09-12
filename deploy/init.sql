@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS course_db (
     schedule_json LONGTEXT COMMENT '课表JSON',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_student_id (student_id)
+    INDEX idx_student_id (student_id),
+    UNIQUE KEY uk_course_student_term (student_id, academic_year, semester)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课表数据表';
 
 CREATE TABLE IF NOT EXISTS student_grade (
