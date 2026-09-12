@@ -40,28 +40,30 @@ export const parseWeeksList = (weeks) => {
     return weeks.map(Number).filter(Number.isFinite)
   }
 
-  const normalized = String(weeks)
-    .replace(/周/g, '')
-    .replace(/[（(](单|双)[）)]/g, '')
-    .trim()
-
   const result = []
-  normalized.split(/[，,、]/).forEach(part => {
-    const value = part.trim()
+  String(weeks).split(/[，,、]/).forEach(part => {
+    const normalized = part.replace(/周/g, '').trim()
+    const parityMatch = normalized.match(/[（(]\s*(单|双)\s*[）)]\s*$/)
+    const parity = parityMatch?.[1] === '单' ? 1 : parityMatch?.[1] === '双' ? 0 : null
+    const value = parityMatch ? normalized.slice(0, parityMatch.index).trim() : normalized
     if (!value) return
 
-    if (value.includes('-')) {
-      const [start, end] = value.split('-').map(Number)
+    const rangeMatch = value.match(/^(\d+)\s*-\s*(\d+)$/)
+    if (rangeMatch) {
+      const start = Number(rangeMatch[1])
+      const end = Number(rangeMatch[2])
       if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-        for (let current = start; current <= end; current += 1) {
-          result.push(current)
+        for (let week = start; week <= end; week += 1) {
+          if (parity === null || week % 2 === parity) {
+            result.push(week)
+          }
         }
       }
       return
     }
 
     const single = Number(value)
-    if (Number.isFinite(single) && single > 0) {
+    if (Number.isFinite(single) && single > 0 && (parity === null || single % 2 === parity)) {
       result.push(single)
     }
   })
