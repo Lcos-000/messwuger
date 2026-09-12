@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import static com.campusassistant.constant.SystemConstants.*;
 import static com.campusassistant.constant.SystemConstants.ROLE_ADMIN;
 import static com.campusassistant.constant.SystemConstants.USER_ROLE;
+import static com.campusassistant.utils.TokenTool.normalizeToken;
 
 @Slf4j
 @Service
@@ -81,7 +82,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
 
     @Override
     public void logout(HttpServletRequest request) {
-        String token = request.getHeader(jwtProperties.getJwtTokenName());
+        String token = normalizeToken(request.getHeader(HEADER_AUTHORIZATION));
         String currentStudentId = UserContextUtil.requireStudentId();
         if (token != null && !token.isBlank()) {
             userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
