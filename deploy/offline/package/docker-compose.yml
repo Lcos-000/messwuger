@@ -135,6 +135,7 @@ services:
       SPRING_DATA_REDIS_HOST: campus-redis
       SPRING_DATA_REDIS_PORT: 6379
       SPIDER_SERVICE_URL: http://campus-spider:8082
+      SPIDER_SERVICE_TOKEN: ${SPIDER_API_TOKEN:?SPIDER_API_TOKEN must be set}
       JAVA_TOOL_OPTIONS: "-Xms256m -Xmx512m"
     volumes:
       - ./config/application-docker.yml:/app/application-docker.yml:ro
@@ -183,8 +184,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env.secret
-    ports:
-      - "8082:8082"
     deploy:
       resources:
         limits:
@@ -193,7 +192,7 @@ services:
           memory: 512M
     environment:
       REDIS_ADDR: campus-redis:6379
-      HTTP_ADDR: :8082
+      HTTP_ADDR: 0.0.0.0:8082
       JAVA_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/student-data
       PUNCH_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/punch-result
       GRADES_CALLBACK_URL: http://campus-user:8000/internal/api/v1/sync/grades

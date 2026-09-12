@@ -49,6 +49,7 @@ POST http://localhost:8082/api/v1/task/empty-classroom HTTP/1.1
 X-Student-Id: 222025321262104
 X-Password: {AES加密后的密码}
 Content-Type: application/json
+X-Spider-Token: {SPIDER_API_TOKEN}
 Content-Length: 248
 ```json
 {
