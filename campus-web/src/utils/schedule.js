@@ -1,4 +1,4 @@
-import { SCHEDULE_CONFIG } from '@/config'
+import { SCHEDULE_CONFIG } from '../config/scheduleConfig.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
