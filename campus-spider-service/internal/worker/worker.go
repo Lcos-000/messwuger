@@ -131,6 +131,8 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 			log.Printf("[Worker] 处理消息 panic consumer=%s err=%v", consumer, r)
 		}
 	}()
+	stopLeaseHeartbeat := p.startLeaseHeartbeat(ctx, priority, consumer, msg.ID)
+	defer stopLeaseHeartbeat()
 
 	task := store.MessageToTask(msg.Values)
 	log.Printf("[Worker] 收到任务 taskId=%s type=%s priority=%s studentId=%s", task.TaskID, task.Type, priority, task.StudentID)
@@ -185,6 +187,39 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 	// 成功，确认消息
 	log.Printf("[Worker] 任务处理成功 taskId=%s", task.TaskID)
 	_ = p.store.Ack(ctx, priority, msg.ID)
+}
+
+// startLeaseHeartbeat 在任务处理期间定期续期消息租约。
+// 消息进 PEL 后 idle 计时立即开始，限流等待或长时间爬取都可能超过僵尸阈值。
+func (p *Pool) startLeaseHeartbeat(ctx context.Context, priority, consumer, msgID string) func() {
+	interval := p.cfg.ZombieIdleTimeout / 3
+	if interval < time.Second {
+		interval = time.Second
+	}
+
+	heartbeatCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-heartbeatCtx.Done():
+				return
+			case <-ticker.C:
+				if err := p.store.RenewPending(heartbeatCtx, priority, consumer, msgID); err != nil {
+					log.Printf("[Worker] 消息租约续期失败 priority=%s msgID=%s err=%v", priority, msgID, err)
+				}
+			}
+		}
+	}()
+
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 // failTask 统一失败处理：入队死信队列，然后确认原消息。
