@@ -89,6 +89,18 @@ func (s *RedisStore) Ack(ctx context.Context, priority, msgID string) error {
 	return s.rdb.XAck(ctx, s.StreamFor(priority), s.group, msgID).Err()
 }
 
+// RenewPending 重置正在处理中的 Pending 消息 idle 时间，避免长任务被僵尸恢复器误认领。
+func (s *RedisStore) RenewPending(ctx context.Context, priority, consumer, msgID string) error {
+	_, err := s.rdb.XClaim(ctx, &redis.XClaimArgs{
+		Stream:   s.StreamFor(priority),
+		Group:    s.group,
+		Consumer: consumer,
+		MinIdle:  0,
+		Messages: []string{msgID},
+	}).Result()
+	return err
+}
+
 // Pending 获取指定优先级 Stream 的 Pending 概览
 func (s *RedisStore) Pending(ctx context.Context, priority string) (*redis.XPending, error) {
 	return s.rdb.XPending(ctx, s.StreamFor(priority), s.group).Result()
