@@ -172,8 +172,8 @@ private val PunchLabels = StatusLabels("未打卡", "已打卡", "打卡中", "�
 
 private fun statusText(value: Int?, labels: StatusLabels): String = when (value) {
     0 -> labels.idle
-    1 -> labels.done
-    2 -> labels.running
+    1 -> labels.running
+    2 -> labels.done
     3 -> labels.failed
     null -> "-"
     else -> "状态 $value"
