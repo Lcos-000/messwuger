@@ -192,8 +192,13 @@ func (p *Pool) failTask(ctx context.Context, priority, msgID string, task model.
 	log.Printf("[Worker] 任务失败，转入死信队列 taskId=%s reason=%s", task.TaskID, reason)
 	if err := p.dlq.Enqueue(ctx, task, reason); err != nil {
 		log.Printf("[Worker] 死信队列入队失败 taskId=%s err=%v", task.TaskID, err)
+		// DLQ 写入失败时不能确认原消息，保留在 PEL 中交由僵尸恢复机制重试。
+		return
 	}
-	_ = p.store.Ack(ctx, priority, msgID)
+	if err := p.store.Ack(ctx, priority, msgID); err != nil {
+		// 入队已成功但 ACK 失败时原消息仍会留在 PEL；记录错误，避免误以为已完成。
+		log.Printf("[Worker] 原任务 ACK 失败 taskId=%s priority=%s msgID=%s err=%v", task.TaskID, priority, msgID, err)
+	}
 }
 
 func (p *Pool) handleSpiderTask(ctx context.Context, task model.Task) error {
