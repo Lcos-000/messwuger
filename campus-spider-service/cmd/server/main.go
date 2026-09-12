@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"log"
 	"net/http"
@@ -38,6 +39,12 @@ type App struct {
 
 func main() {
 	cfg := config.Load()
+	if cfg.APIToken == "" {
+		log.Fatal("SPIDER_API_TOKEN 未配置，拒绝启动未鉴权的任务 API")
+	}
+	if cfg.YMToken == "" {
+		log.Fatal("YM_TOKEN 未配置，拒绝启动缺少验证码服务凭据的爬虫")
+	}
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
@@ -125,10 +132,10 @@ func main() {
 	// 构建路由 mux
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", app.healthHandler)
-	mux.HandleFunc("/api/v1/task/submit", app.submitHandler)
-	mux.HandleFunc("/api/v1/task/punch-card", app.punchCardHandler)
-	mux.HandleFunc("/api/v1/task/empty-classroom", app.emptyClassroomHandler)
-	mux.HandleFunc("/api/v1/task/grades", app.gradesHandler)
+	mux.Handle("/api/v1/task/submit", app.requireAPIToken(http.HandlerFunc(app.submitHandler)))
+	mux.Handle("/api/v1/task/punch-card", app.requireAPIToken(http.HandlerFunc(app.punchCardHandler)))
+	mux.Handle("/api/v1/task/empty-classroom", app.requireAPIToken(http.HandlerFunc(app.emptyClassroomHandler)))
+	mux.Handle("/api/v1/task/grades", app.requireAPIToken(http.HandlerFunc(app.gradesHandler)))
 
 	// 启动 HTTP 服务
 	app.httpSrv = &http.Server{
@@ -160,6 +167,21 @@ func main() {
 	_ = app.httpSrv.Shutdown(shutdownCtx)
 	_ = app.worker.Stop(shutdownCtx)
 	log.Println("服务已退出")
+}
+
+// requireAPIToken 保护仅供 user-service 调用的任务提交接口。
+func (a *App) requireAPIToken(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		provided := r.Header.Get("X-Spider-Token")
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(a.cfg.APIToken)) != 1 {
+			writeJSON(w, http.StatusUnauthorized, model.APIResponse{
+				Code:    http.StatusUnauthorized,
+				Message: "unauthorized",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // healthHandler 处理健康检查请求

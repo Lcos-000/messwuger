@@ -61,6 +61,7 @@ campus-spider-service/
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `HTTP_ADDR` | `:8082` | Go 服务监听地址 |
+| `SPIDER_API_TOKEN` | `''`（必填） | user-service 调用任务 API 的共享 Token |
 | `REDIS_ADDR` | `127.0.0.1:6379` | Redis 地址 |
 | `REDIS_PASSWORD` | `''` | Redis 密码 |
 | `REDIS_DB` | `0` | Redis 数据库 |
@@ -78,7 +79,7 @@ campus-spider-service/
 | `PUNCH_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/punch-result` | 打卡回调地址 |
 | `EMPTY_CLASSROOM_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/empty-classroom` | 空教室查询回调地址 |
 | `GRADES_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/grades` | 成绩查询回调地址 |
-| `YM_TOKEN` | `BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM` | 云打码平台 token，生产环境建议通过环境变量覆盖 |
+| `YM_TOKEN` | `''`（必填） | 云打码平台 token，请通过环境变量注入并定期轮换 |
 | `YM_TYPE` | `10110` | 云打码类型 ID |
 | `PRIORITY_WEIGHTS` | `high:3,medium:2,low:1` | 三优先级队列加权轮询权重 |
 | `QUEUE_STARVE_TIMEOUT_SECONDS` | `30` | 低优先级队列防饥饿超时（秒） |
