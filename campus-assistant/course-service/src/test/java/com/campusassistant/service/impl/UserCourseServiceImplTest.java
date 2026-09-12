@@ -53,7 +53,7 @@ class UserCourseServiceImplTest {
 
         verify(courseMapper).upsertSchedule(entity);
         verify(courseMapper, never()).selectOne(org.mockito.ArgumentMatchers.any());
-        verify(courseMapper, never()).insert(org.mockito.ArgumentMatchers.any());
-        verify(courseMapper, never()).updateById(org.mockito.ArgumentMatchers.any());
+        verify(courseMapper, never()).insert(org.mockito.ArgumentMatchers.<CourseEntity>any());
+        verify(courseMapper, never()).updateById(org.mockito.ArgumentMatchers.<CourseEntity>any());
     }
 }
