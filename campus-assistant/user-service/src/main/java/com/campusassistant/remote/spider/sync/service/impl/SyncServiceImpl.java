@@ -99,6 +99,12 @@ public class SyncServiceImpl  implements SyncService {
             Result<String> stringResult = courseServiceClient.syncScheduleData(remoteCourseDTO);
             log.info("调用 Course 服务同步课表数据，结果: {}", stringResult);
 
+            if (stringResult == null
+                    || stringResult.getCode() == null
+                    || !stringResult.getCode().equals(ResultCodeEnum.SUCCESS.getCode())) {
+                throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(), "同步课表到Course服务失败");
+            }
+
             // 重点：清空 user-service 中旧的 Redis 缓存，保证下次查出最新数据
             String redisKey = courseMixCacheKey.getKey(remoteCourseDTO.getStudentId());
             stringRedisTemplate.delete(redisKey);
