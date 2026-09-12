@@ -170,6 +170,10 @@ private data class StatusLabels(val idle: String, val done: String, val running:
 private val SyncLabels = StatusLabels("未同步", "已同步", "同步中", "同步失败")
 private val PunchLabels = StatusLabels("未打卡", "已打卡", "打卡中", "打卡失败")
 
+internal fun syncStatusText(value: Int?): String = statusText(value, SyncLabels)
+
+internal fun punchStatusText(value: Int?): String = statusText(value, PunchLabels)
+
 private fun statusText(value: Int?, labels: StatusLabels): String = when (value) {
     0 -> labels.idle
     1 -> labels.running
