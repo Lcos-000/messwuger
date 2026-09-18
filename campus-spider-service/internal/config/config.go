@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	HTTPAddr                  string
+	APIToken                  string
 	RedisAddr                 string
 	RedisPassword             string
 	RedisDB                   int
@@ -34,18 +35,18 @@ type Config struct {
 	GradesCallbackURL         string
 
 	// 优先级队列配置
-	PriorityWeights map[string]int // high/medium/low 权重
-	QueueStarveTimeout time.Duration // 防饥饿超时
+	PriorityWeights    map[string]int // high/medium/low 权重
+	QueueStarveTimeout time.Duration  // 防饥饿超时
 
 	// 幂等去重
 	IdempotencyTTL time.Duration // 任务幂等 key 过期时间
 
 	// 死信队列
-	DeadLetterStream      string
+	DeadLetterStream       string
 	DeadLetterScanInterval time.Duration
-	MaxRetryCount         int
-	RetryBaseDelay        time.Duration
-	RetryMaxDelay         time.Duration
+	MaxRetryCount          int
+	RetryBaseDelay         time.Duration
+	RetryMaxDelay          time.Duration
 
 	// 僵尸消息恢复
 	ZombieScanInterval time.Duration
@@ -59,6 +60,7 @@ type Config struct {
 func Load() Config {
 	return Config{
 		HTTPAddr:                  env("HTTP_ADDR", "localhost:8082"),
+		APIToken:                  env("SPIDER_API_TOKEN", ""),
 		RedisAddr:                 env("REDIS_ADDR", "127.0.0.1:6379"),
 		RedisPassword:             env("REDIS_PASSWORD", ""),
 		RedisDB:                   envInt("REDIS_DB", 0),
@@ -68,7 +70,7 @@ func Load() Config {
 		JavaCallbackURL:           env("JAVA_CALLBACK_URL", "http://localhost:8000/internal/api/v1/sync/student-data"),
 		JavaInternalToken:         env("JAVA_INTERNAL_TOKEN", ""),
 		AesSecretKey:              env("AES_SECRET_KEY", "@aes-secret-key#"),
-		YMToken:                   env("YM_TOKEN", "BVGx1jNKFdim4QalbgIR9m-mcwfxe_fS3Ro14yAPZrM"),
+		YMToken:                   env("YM_TOKEN", ""),
 		YMType:                    env("YM_TYPE", "10110"),
 		PythonPath:                env("PYTHON_PATH", "python"),
 		SpiderScript:              env("SPIDER_SCRIPT", "./scripts/spider_cli.py"),
@@ -84,7 +86,7 @@ func Load() Config {
 		GradesCallbackURL:         env("GRADES_CALLBACK_URL", "http://localhost:8000/internal/api/v1/sync/grades"),
 
 		// 优先级队列：默认权重 high=3 medium=2 low=1
-		PriorityWeights: parsePriorityWeights(env("PRIORITY_WEIGHTS", "high:3,medium:2,low:1")),
+		PriorityWeights:    parsePriorityWeights(env("PRIORITY_WEIGHTS", "high:3,medium:2,low:1")),
 		QueueStarveTimeout: envDurationSeconds("QUEUE_STARVE_TIMEOUT_SECONDS", 30),
 
 		// 幂等：默认 24 小时

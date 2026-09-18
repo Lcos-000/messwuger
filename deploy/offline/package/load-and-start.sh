@@ -17,6 +17,11 @@ if [ ! -f ".env.secret" ]; then
   exit 1
 fi
 
+# 让 Compose 插值使用同一份部署密钥，例如 SPIDER_API_TOKEN。
+set -a
+. ./.env.secret
+set +a
+
 if [ ! -f "images/business.tar" ]; then
   echo "错误：缺少 images/business.tar 业务镜像包。"
   exit 1

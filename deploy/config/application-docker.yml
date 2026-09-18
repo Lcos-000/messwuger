@@ -3,6 +3,7 @@
 spider:
   service:
     url: ${SPIDER_SERVICE_URL:http://campus-spider:8082}
+    token: ${SPIDER_SERVICE_TOKEN:}
 
 spring:
   cloud:
