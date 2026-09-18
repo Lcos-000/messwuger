@@ -21,6 +21,7 @@ import com.campusassistant.service.UserCourseService;
 import com.campusassistant.utils.UserContextUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,32 +39,20 @@ public class UserCourseServiceImpl implements UserCourseService {
     private final GradeVoConvertor gradeVoConvertor;
 
     @Override
+    @Transactional
     public void saveOrUpdateSchedule(CourseDTO courseDTO) {
-        // 先查询数据库里是否已经存在该生、该学期的课表
-        LambdaQueryWrapper<CourseEntity> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(CourseEntity::getStudentId, courseDTO.getStudentId());
-//                .eq(CourseEntity::getAcademicYear, courseDTO.getAcademicYear())
-//                .eq(CourseEntity::getSemester, courseDTO.getSemester());
-
-        CourseEntity existEntity = courseMapper.selectOne(queryWrapper);
-        if (existEntity != null) {
-            //  如果存在，直接覆盖更新 scheduleJson
-            existEntity.setScheduleJson(courseDTO.getScheduleJson());
-            courseMapper.updateById(existEntity);
-        } else {
-            // 3. 如果不存在，新增一条记录
-            CourseEntity newEntity = courseDtoConverter.toSource(courseDTO);
-            courseMapper.insert(newEntity);
-        }
+        // 由学号、学年、学期联合唯一键保证每学期一条记录，并由数据库原子 upsert
+        // 避免 check-then-act 在并发同步时产生重复课表。
+        courseMapper.upsertSchedule(courseDtoConverter.toSource(courseDTO));
     }
 
     @Override
     public CourseVO getSchedule() {
         String studentId = UserContextUtil.requireStudentId();
         LambdaQueryWrapper<CourseEntity> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(CourseEntity::getStudentId, studentId);
-//                .eq(CourseEntity::getAcademicYear, academicYear)
-//                .eq(CourseEntity::getSemester, semester);
+        queryWrapper.eq(CourseEntity::getStudentId, studentId)
+                .orderByDesc(CourseEntity::getId)
+                .last("LIMIT 1");
         CourseEntity entity = courseMapper.selectOne(queryWrapper);
         if (entity == null) {
             return null; // 或者返回一个空的 CourseVO()，视你前端需求而定
