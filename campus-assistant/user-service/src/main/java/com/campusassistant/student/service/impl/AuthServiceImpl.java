@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import static com.campusassistant.constant.SystemConstants.*;
 import static com.campusassistant.enums.ResultCodeEnum.*;
 import static com.campusassistant.student.code.SyncStatusEnum.SYNCING_SUCCESS;
+import static com.campusassistant.utils.TokenTool.normalizeToken;
 
 @Slf4j
 @Service
@@ -131,9 +132,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(HttpServletRequest request) {
-        String token = request.getHeader(jwtProperties.getJwtTokenName());
+        String token = normalizeToken(request.getHeader(HEADER_AUTHORIZATION));
         String currentStudentId = UserContextUtil.requireStudentId();
-        if (token != null) {
+        if (token != null && !token.isBlank()) {
             userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
         }
     }

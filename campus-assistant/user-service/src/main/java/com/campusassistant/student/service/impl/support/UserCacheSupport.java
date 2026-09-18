@@ -21,7 +21,10 @@ public class UserCacheSupport {
     private final TokenCacheKey tokenCacheKey;
 
     public void evictLoginSessionAndUserCaches(String studentId, String token){
-        stringRedisTemplate.delete(tokenCacheKey.getKey(normalizeToken(token)));
+        String normalizedToken = normalizeToken(token);
+        if (normalizedToken != null) {
+            stringRedisTemplate.delete(tokenCacheKey.getKey(normalizedToken));
+        }
         stringRedisTemplate.delete(userPwdCacheKey.getKey(studentId));
         stringRedisTemplate.delete(userStatusCacheKey.getKey(studentId));
         stringRedisTemplate.delete(userPersonalCacheKey.getKey(studentId));

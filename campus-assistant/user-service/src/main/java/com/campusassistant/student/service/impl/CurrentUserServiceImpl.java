@@ -47,6 +47,8 @@ import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
 import static com.campusassistant.remote.spider.emptyclassroom.code.EmptyClassroomQueryResultStatusConstant.*;
+import static com.campusassistant.constant.SystemConstants.HEADER_AUTHORIZATION;
+import static com.campusassistant.utils.TokenTool.normalizeToken;
 
 @Slf4j
 @Service
@@ -74,7 +76,7 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
     @Override
     public void self_unsubscribe(HttpServletRequest request) {
-        String token = request.getHeader(jwtProperties.getJwtTokenName());
+        String token = normalizeToken(request.getHeader(HEADER_AUTHORIZATION));
         String currentStudentId = UserContextUtil.requireStudentId();
         UserEntity userEntity = userReadSupport.findEntityByStudentId(currentStudentId);
         if (userEntity == null) {
