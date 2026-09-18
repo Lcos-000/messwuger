@@ -5,7 +5,6 @@ import com.campusassistant.android.data.model.ScheduleConfig
 import com.campusassistant.android.data.model.ScheduleCourse
 import com.campusassistant.android.data.model.ScheduleResponse
 import com.campusassistant.android.data.model.TeacherSchedule
-import com.campusassistant.android.ui.text.AppMessages
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.time.LocalDate
@@ -79,7 +78,7 @@ internal fun parseSchedule(schedule: ScheduleResponse?): ParsedSchedule {
             val teacherSchedules = group.map {
                 TeacherSchedule(
                     teacher = it.teacher,
-                    weeks = formatWeekNumbers(it.weekNumbers)
+                    weeks = it.weeks
                 )
             }.distinct()
             ScheduleCourse(
@@ -89,7 +88,10 @@ internal fun parseSchedule(schedule: ScheduleResponse?): ParsedSchedule {
                 campus = first.campus,
                 dayOfWeek = first.dayOfWeek,
                 periods = first.periods,
-                weeks = formatWeekNumbers(mergedWeeks),
+                weeks = group.mapNotNull { it.weeks?.takeIf(String::isNotBlank) }
+                    .distinct()
+                    .joinToString(" / ")
+                    .ifBlank { null },
                 courseType = first.courseType,
                 startPeriod = first.startPeriod,
                 endPeriod = first.endPeriod,
@@ -148,35 +150,32 @@ private fun parsePeriodRange(periods: String?): IntRange? {
 private fun parseWeekNumbers(weeks: String?): Set<Int> {
     if (weeks.isNullOrBlank()) return emptySet()
     val set = sortedSetOf<Int>()
-    Regex("(\\d+)\\s*-\\s*(\\d+)").findAll(weeks).forEach { match ->
-        val start = match.groupValues[1].toInt()
-        val end = match.groupValues[2].toInt()
-        for (week in start..end) set += week
-    }
-    Regex("(?<!-)(?<!\\d)(\\d+)(?!\\s*-)").findAll(weeks).forEach { match ->
-        set += match.groupValues[1].toInt()
+    val parityRegex = Regex("[（(]\\s*(单|双)\\s*[）)]\\s*$")
+    val rangeRegex = Regex("^(\\d+)\\s*-\\s*(\\d+)$")
+
+    weeks.split(',', '，', '、').forEach { part ->
+        val normalized = part.replace("周", "").trim()
+        val parityMatch = parityRegex.find(normalized)
+        val parity = parityMatch?.groupValues?.get(1)
+        val value = parityMatch?.let { normalized.removeRange(it.range).trim() } ?: normalized
+        val rangeMatch = rangeRegex.matchEntire(value)
+        if (rangeMatch != null) {
+            val start = rangeMatch.groupValues[1].toInt()
+            val end = rangeMatch.groupValues[2].toInt()
+            for (week in start..end) {
+                if (parity == null || (parity == "单" && week % 2 == 1) || (parity == "双" && week % 2 == 0)) {
+                    set += week
+                }
+            }
+        } else {
+            val single = value.toIntOrNull()
+            if (single != null && single > 0
+                && (parity == null || (parity == "单" && single % 2 == 1) || (parity == "双" && single % 2 == 0))) {
+                set += single
+            }
+        }
     }
     return set.filter { it in 1..30 }.toSet()
-}
-
-private fun formatWeekNumbers(weeks: Set<Int>): String {
-    if (weeks.isEmpty()) return ""
-    val sorted = weeks.sorted()
-    val parts = mutableListOf<String>()
-    var start = sorted.first()
-    var prev = start
-    for (index in 1 until sorted.size) {
-        val value = sorted[index]
-        if (value == prev + 1) {
-            prev = value
-            continue
-        }
-        parts += if (start == prev) "$start${AppMessages.Schedule.weekSuffix}" else "$start-$prev${AppMessages.Schedule.weekSuffix}"
-        start = value
-        prev = value
-    }
-    parts += if (start == prev) "$start${AppMessages.Schedule.weekSuffix}" else "$start-$prev${AppMessages.Schedule.weekSuffix}"
-    return parts.joinToString(AppMessages.Schedule.weekRangeSeparator)
 }
 
 fun calculateCurrentWeek(
