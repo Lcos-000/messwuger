@@ -7,11 +7,9 @@ import urllib.parse
 from urllib.parse import urlparse
 
 import requests
-import urllib3
 
 from config import YM_TOKEN, YM_TYPE
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 IDM_BASE = "https://idm.swu.edu.cn"
 
@@ -109,7 +107,7 @@ def get_token(username: str, password: str) -> str:
         "%3Fnext%3Dhttps%253A%252F%252Fof.swu.edu.cn%252F%2523%252FcasLogin%253Ffrom%253D%25252FappCenter"
         "&federalEnable=true"
     )
-    r = session.get(oauth_url, timeout=15, verify=False, allow_redirects=True)
+    r = session.get(oauth_url, timeout=15, allow_redirects=True)
 
     parsed = urllib.parse.urlparse(r.url)
     qs = urllib.parse.parse_qs(parsed.query)
@@ -135,7 +133,7 @@ def get_token(username: str, password: str) -> str:
         "&federalEnable=true"
     )
 
-    r = session.get(cas_entry, timeout=15, verify=False, allow_redirects=True)
+    r = session.get(cas_entry, timeout=15, allow_redirects=True)
     if "idm.swu.edu.cn/am/UI/Login" not in r.url:
         raise RuntimeError("未能到达 IDM 登录页")
 
@@ -147,7 +145,7 @@ def get_token(username: str, password: str) -> str:
 
     # Step 3: 下载并识别验证码
     captcha_url = f"{IDM_BASE}/am/validate.code?id=0.123456"
-    rc = session.get(captcha_url, timeout=15, verify=False)
+    rc = session.get(captcha_url, timeout=15)
     captcha = _solve_captcha(rc.content)
 
     # Step 4: DES 加密用户名密码
@@ -177,7 +175,7 @@ def get_token(username: str, password: str) -> str:
     # Step 5: 提交登录
     r2 = session.post(
         f"{IDM_BASE}/am/UI/Login",
-        data=login_data, timeout=15, verify=False, allow_redirects=True
+        data=login_data, timeout=15, allow_redirects=True
     )
 
     parsed2 = urllib.parse.urlparse(r2.url)
@@ -196,7 +194,7 @@ def get_token(username: str, password: str) -> str:
         f"?code={CD}@@hxbeat&state={state}"
     )
 
-    r3 = session.get(callback_url, timeout=15, verify=False, allow_redirects=True)
+    r3 = session.get(callback_url, timeout=15, allow_redirects=True)
 
     # ST 可能在 URL fragment 中 (#/casLogin?from=...&ticket=...)
     parsed3 = urllib.parse.urlparse(r3.url)
@@ -217,7 +215,7 @@ def get_token(username: str, password: str) -> str:
     token_resp = session.get(
         f"https://of.swu.edu.cn/gateway/fighter-middle/api/integrate/uaap/cas/exchange-token"
         f"?token={ST}&remember=true",
-        timeout=15, verify=False
+        timeout=15
     ).json()
 
     if token_resp.get("code") != 200 or not token_resp.get("data"):

@@ -7,15 +7,10 @@ import (
 	"errors"
 )
 
-// AesDecrypt 使用 AES/CBC/PKCS5Padding 解密
-// key 必须为 16、24 或 32 字节长度；IV 取 key 的前 16 字节
+// AesDecrypt 使用 AES/CBC/PKCS5Padding 解密。
+// 新格式将随机 IV 前置在密文中；旧格式仍兼容使用 key 前 16 字节作为 IV。
 func AesDecrypt(encryptedBase64, key string) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedBase64)
-	if err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return "", err
 	}
@@ -24,7 +19,30 @@ func AesDecrypt(encryptedBase64, key string) (string, error) {
 		return "", errors.New("ciphertext too short")
 	}
 
+	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
+		return "", errors.New("AES key must be 16, 24, or 32 bytes")
+	}
+
+	var blockKey []byte
 	iv := []byte(key)[:aes.BlockSize]
+	if len(ciphertext) >= 2 && ciphertext[0] == 'I' && ciphertext[1] == 'V' {
+		if len(ciphertext) < 2+aes.BlockSize*2 {
+			return "", errors.New("new-format ciphertext too short")
+		}
+		iv = append([]byte(nil), ciphertext[2:2+aes.BlockSize]...)
+		ciphertext = ciphertext[2+aes.BlockSize:]
+		blockKey = []byte(key)
+	} else {
+		// Legacy Java clients always used AES-128 with the first 16 key bytes.
+		blockKey = []byte(key)[:aes.BlockSize]
+	}
+	if len(ciphertext) == 0 || len(ciphertext)%aes.BlockSize != 0 {
+		return "", errors.New("ciphertext is not a multiple of the AES block size")
+	}
+	block, err := aes.NewCipher(blockKey)
+	if err != nil {
+		return "", err
+	}
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(ciphertext, ciphertext)
 
@@ -43,6 +61,11 @@ func pkcs5Unpadding(data []byte, blockSize int) ([]byte, error) {
 	unpadding := int(data[length-1])
 	if unpadding > blockSize || unpadding == 0 {
 		return nil, errors.New("invalid padding")
+	}
+	for _, value := range data[length-unpadding:] {
+		if int(value) != unpadding {
+			return nil, errors.New("invalid padding")
+		}
 	}
 	return data[:(length - unpadding)], nil
 }

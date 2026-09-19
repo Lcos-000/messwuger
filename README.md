@@ -141,7 +141,7 @@ Web 端如需继续透传，也建议使用相同网关来源。
 
 | 顺序 | 服务 | 命令 |
 |------|------|------|
-| 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy/offline/package && docker compose up -d mysql redis nacos sentinel` |
+| 1 | MySQL / 数据库迁移 / Redis / Nacos / Sentinel | `cd deploy/offline/package && docker compose up -d mysql db-migrate redis nacos sentinel` |
 | 2 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
 | 3 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
 | 4 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |

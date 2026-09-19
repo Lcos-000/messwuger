@@ -91,9 +91,20 @@ public class TokenGlobalFilter implements GlobalFilter {
                 return gatewayResponseWriter.writeUnauthorized(exchange);
             }
 
-            String userId = String.valueOf(claims.get(USER_ID));
-            String studentId = String.valueOf(claims.get(STUDENT_ID));
-            String userRole = String.valueOf(claims.get(USER_ROLE));
+            Object userIdClaim = claims.get(USER_ID);
+            Object studentIdClaim = claims.get(STUDENT_ID);
+            Object userRoleClaim = claims.get(USER_ROLE);
+            if (userIdClaim == null || studentIdClaim == null || userRoleClaim == null
+                    || !StringUtils.hasText(String.valueOf(userIdClaim))
+                    || !StringUtils.hasText(String.valueOf(studentIdClaim))
+                    || (!ROLE_USER.equals(String.valueOf(userRoleClaim))
+                    && !ROLE_ADMIN.equals(String.valueOf(userRoleClaim)))) {
+                log.warn("请求被拦截[traceId:{}]: token claims 不完整或角色非法, path={}", traceId, path);
+                return gatewayResponseWriter.writeUnauthorized(exchange);
+            }
+            String userId = String.valueOf(userIdClaim);
+            String studentId = String.valueOf(studentIdClaim);
+            String userRole = String.valueOf(userRoleClaim);
             ServerHttpRequest finalRequest = request.mutate()
                     .header(SystemConstants.TRACE_ID_HEADER, traceId)
                     .header(SystemConstants.GATEWAY_TOKEN_HEADER, gatewaySecretProperties.getGatewaySecret())

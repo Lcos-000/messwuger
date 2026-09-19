@@ -9,4 +9,8 @@ public class GradeCacheKey {
     public String getKey(String studentId, String academicYear, String semester) {
         return GRADE_KEY_PREFIX + studentId + ":" + academicYear + ":" + semester;
     }
+
+    public String getPattern(String studentId) {
+        return GRADE_KEY_PREFIX + studentId + ":*";
+    }
 }

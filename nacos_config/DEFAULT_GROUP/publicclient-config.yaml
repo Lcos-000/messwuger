@@ -1,0 +1,8 @@
+campus:
+  manual:
+    title: "使用手册"
+    content: ""
+  schedule:
+    spring-start-date: ""
+    autumn-start-date: ""
+    max-week: 20

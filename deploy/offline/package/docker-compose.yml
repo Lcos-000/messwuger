@@ -27,10 +27,11 @@ services:
       MYSQL_DATABASE: campus_db
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - campus_mysql_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./migrations:/migrations:ro
     networks:
       - campus-net
     healthcheck:
@@ -39,12 +40,28 @@ services:
       timeout: 5s
       retries: 5
 
+  db-migrate:
+    image: mysql:8.0
+    container_name: campus-db-migrate
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro
+    entrypoint: ["sh", "-c"]
+    command: ["mysql -h mysql -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" campus_db < /migrations/001_course_term_unique.sql"]
+    networks:
+      - campus-net
+    restart: "no"
+
   redis:
     image: redis:7.2
     container_name: campus-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - campus-net
     healthcheck:
@@ -66,9 +83,9 @@ services:
       JVM_XMN: 256m
       TZ: Asia/Shanghai
     ports:
-      - "8848:8848"
-      - "9848:9848"
-      - "9849:9849"
+      - "127.0.0.1:8848:8848"
+      - "127.0.0.1:9848:9848"
+      - "127.0.0.1:9849:9849"
     volumes:
       - campus_nacos_data:/home/nacos/data
       - campus_nacos_logs:/home/nacos/logs
@@ -85,7 +102,7 @@ services:
     container_name: campus-sentinel
     restart: unless-stopped
     ports:
-      - "8858:8858"
+      - "127.0.0.1:8858:8858"
     environment:
       TZ: Asia/Shanghai
     networks:
@@ -97,6 +114,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - .env.secret
     ports:
       - "8080:8080"
     environment:
@@ -126,6 +144,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - .env.secret
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_CLOUD_NACOS_SERVER_ADDR: campus-nacos:8848
@@ -146,6 +165,8 @@ services:
         condition: service_completed_successfully
       mysql:
         condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -157,6 +178,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+      - .env.secret
     environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_CLOUD_NACOS_SERVER_ADDR: campus-nacos:8848
@@ -175,6 +197,8 @@ services:
         condition: service_completed_successfully
       mysql:
         condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
     networks:
       - campus-net
 

@@ -28,7 +28,7 @@
 
 ```powershell
 cd deploy/offline/package
-docker compose up -d mysql redis nacos sentinel
+docker compose up -d mysql db-migrate redis nacos sentinel
 ```
 
 如需链路追踪：

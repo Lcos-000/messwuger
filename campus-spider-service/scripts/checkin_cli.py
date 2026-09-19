@@ -13,9 +13,13 @@ from checkin_core import checkin
 def main():
     parser = argparse.ArgumentParser(description="SWU daily check-in runner")
     parser.add_argument("--student-id", required=True, help="SWU student ID")
-    parser.add_argument("--password", required=True, help="SWU password (plaintext)")
+    parser.add_argument("--password", default="", help="仅用于手工调用；服务调用从 stdin 读取")
     parser.add_argument("--force", action="store_true", help="强制触发打卡，忽略已签到状态")
     args = parser.parse_args()
+    if not args.password:
+        args.password = sys.stdin.readline().rstrip("\r\n")
+    if not args.password:
+        parser.error("password is required")
 
     try:
         token = get_token(args.student_id, args.password)

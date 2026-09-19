@@ -98,6 +98,10 @@ public class SyncServiceImpl  implements SyncService {
             // 远程调用写入 course-service
             Result<String> stringResult = courseServiceClient.syncScheduleData(remoteCourseDTO);
             log.info("调用 Course 服务同步课表数据，结果: {}", stringResult);
+            if (stringResult == null
+                    || !ResultCodeEnum.SUCCESS.getCode().equals(stringResult.getCode())) {
+                throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(), "同步课表到Course服务失败");
+            }
 
             if (stringResult == null
                     || stringResult.getCode() == null
@@ -211,15 +215,15 @@ public class SyncServiceImpl  implements SyncService {
         String resultKey = emptyClassroomCacheKey.getResultKey(fingerprint);
         String statusKey = emptyClassroomCacheKey.getStatusKey(fingerprint);
 
+        // 必须在写缓存前确认回调属于现有用户，避免无效回调污染共享缓存。
+        emptyClassCallbackCheckSupport.checkEmptyClassroomCallbackUser(callbackDTO);
+
         try {
             // 空教室数据结果转json字符串，写入Redis
             String json = objectMapper.writeValueAsString(callbackDTO);
             stringRedisTemplate.opsForValue().set(resultKey, json, 30, TimeUnit.MINUTES);
             // 直接删除缓存状态key，表示成功
             stringRedisTemplate.delete(statusKey);
-            // 校验回调数据是否有对应用户
-            emptyClassCallbackCheckSupport.checkEmptyClassroomCallbackUser(callbackDTO);
-
             log.info("空教室回调处理完成，fingerprint: {}", fingerprint);
         } catch (Exception e) {
             log.error("空教室回调写入Redis失败，fingerprint: {}", fingerprint, e);

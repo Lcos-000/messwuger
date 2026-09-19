@@ -83,8 +83,9 @@ done
 # 准备离线包目录
 echo ""
 echo "=== 准备离线包目录 ==="
-mkdir -p "$IMAGE_DIR" "$PACKAGE_DIR/config"
-rm -rf "$PACKAGE_DIR"/nacos_config "$PACKAGE_DIR"/scripts "$PACKAGE_DIR"/config/*
+mkdir -p "$IMAGE_DIR" "$PACKAGE_DIR/config" "$PACKAGE_DIR/migrations"
+rm -rf "$PACKAGE_DIR"/nacos_config "$PACKAGE_DIR"/scripts "$PACKAGE_DIR"/migrations "$PACKAGE_DIR"/config/*
+mkdir -p "$PACKAGE_DIR/migrations"
 
 # 导出业务镜像
 echo ""
@@ -106,6 +107,7 @@ echo "=== 复制部署文件 ==="
 cp "$ROOT_DIR/deploy/.env" "$PACKAGE_DIR/.env"
 cp "$ROOT_DIR/deploy/.env.secret" "$PACKAGE_DIR/.env.secret"
 cp "$ROOT_DIR/deploy/init.sql" "$PACKAGE_DIR/init.sql"
+cp "$ROOT_DIR/deploy/migrations/001_course_term_unique.sql" "$PACKAGE_DIR/migrations/001_course_term_unique.sql"
 cp "$ROOT_DIR/deploy/config/application-docker.yml" "$PACKAGE_DIR/config/application-docker.yml"
 cp -r "$ROOT_DIR/deploy/scripts" "$PACKAGE_DIR/scripts"
 cp -r "$ROOT_DIR/nacos_config" "$PACKAGE_DIR/nacos_config"

@@ -1,6 +1,9 @@
 server:
   port: 80
 
+security:
+  gateway-secret: ${GATEWAY_SECRET:}
+
 spring:
   jackson:
     serialization:

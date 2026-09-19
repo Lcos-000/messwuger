@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import static com.campusassistant.utils.TokenTool.normalizeToken;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -22,12 +23,14 @@ public class UserCacheSupport {
 
     public void evictLoginSessionAndUserCaches(String studentId, String token){
         String normalizedToken = normalizeToken(token);
-        if (normalizedToken != null) {
+        if (StringUtils.hasText(normalizedToken)) {
             stringRedisTemplate.delete(tokenCacheKey.getKey(normalizedToken));
         }
-        stringRedisTemplate.delete(userPwdCacheKey.getKey(studentId));
-        stringRedisTemplate.delete(userStatusCacheKey.getKey(studentId));
-        stringRedisTemplate.delete(userPersonalCacheKey.getKey(studentId));
+        if (StringUtils.hasText(studentId)) {
+            stringRedisTemplate.delete(userPwdCacheKey.getKey(studentId));
+            stringRedisTemplate.delete(userStatusCacheKey.getKey(studentId));
+            stringRedisTemplate.delete(userPersonalCacheKey.getKey(studentId));
+        }
     }
 
 

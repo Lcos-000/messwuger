@@ -79,6 +79,12 @@ public class SpiderServiceImpl implements SpiderService {
     }
 
     @Override
+    public boolean deleteSession(String studentId) {
+        Result<?> result = spiderServiceClient.deleteSession(studentId);
+        return result != null && Objects.equals(result.getCode(), ResultCodeEnum.SUCCESS.getCode());
+    }
+
+    @Override
     public Result<?> submitGradesTask(String studentId, String encryptedPassword, GradesTaskSubmitDTO dto) {
         log.info("开始提交成绩查询任务，学号: {}, 学年: {}, 学期: {}",
                 studentId, dto.getAcademicYear(), dto.getSemester());

@@ -3,7 +3,6 @@ package com.campusassistant.student.service.impl;
 import com.campusassistant.enums.ResultCodeEnum;
 import com.campusassistant.exception.BusinessException;
 import com.campusassistant.pojo.Result;
-import com.campusassistant.properties.JwtProperties;
 import com.campusassistant.remote.course.pojo.RemoteGradeVO;
 import com.campusassistant.remote.course.service.UserGradeService;
 import com.campusassistant.remote.spider.emptyclassroom.code.EmptyClassroomQueryStatusEnum;
@@ -15,6 +14,12 @@ import com.campusassistant.student.pojo.dto.GradesQueryDTO;
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import com.campusassistant.remote.spider.sync.pojo.entity.PersonalInfoEntity;
 import com.campusassistant.remote.spider.sync.pojo.vo.PersonalInfoVO;
+import com.campusassistant.remote.spider.sync.mapper.SyncMapper;
+import com.campusassistant.personalization.mapper.UserProfileCustomAssetMapper;
+import com.campusassistant.personalization.mapper.UserProfileStyleMapper;
+import com.campusassistant.personalization.pojo.entity.UserProfileCustomAssetEntity;
+import com.campusassistant.personalization.pojo.entity.UserProfileStyleEntity;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campusassistant.remote.spider.common.service.SpiderService;
 import com.campusassistant.student.pojo.vo.EmptyClassroomQueryResultVO;
 import com.campusassistant.student.service.impl.support.UserCacheSupport;
@@ -30,7 +35,11 @@ import com.campusassistant.student.pojo.UserEntity;
 import com.campusassistant.student.pojo.vo.UserStatusVO;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.CurrentUserService;
+import com.campusassistant.student.mapper.UserDeletionTaskMapper;
+import com.campusassistant.student.pojo.entity.UserDeletionTaskEntity;
 import com.campusassistant.utils.rediskey.EmptyClassroomCacheKey;
+import com.campusassistant.utils.rediskey.CourseMixCacheKey;
+import com.campusassistant.utils.rediskey.GradeCacheKey;
 import com.campusassistant.utils.rediskey.user.UserPersonalCacheKey;
 import com.campusassistant.utils.rediskey.user.UserPwdCacheKey;
 import com.campusassistant.utils.rediskey.user.UserStatusCacheKey;
@@ -40,9 +49,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.campusassistant.student.pojo.vo.EmptyClassroomTaskSubmitVO;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
@@ -65,16 +76,22 @@ public class CurrentUserServiceImpl implements CurrentUserService {
     private final UserPersonalCacheKey userPersonalCacheKey;
     private final PersonalInfoVoConvertor personalInfoVoConvertor;
     private final UserCacheSupport userCacheSupport;
-    private final JwtProperties jwtProperties;
     private final UserGradeService userGradeService;
+    private final SyncMapper syncMapper;
+    private final UserProfileStyleMapper userProfileStyleMapper;
+    private final UserProfileCustomAssetMapper userProfileCustomAssetMapper;
+    private final UserDeletionTaskMapper userDeletionTaskMapper;
     private final EmptyClassroomSubmitDtoConvertor emptyClassroomSubmitDtoConvertor;
     private final EmptyClassroomFingerprintSupport emptyClassroomFingerprintSupport;
     private final EmptyClassroomCacheKey emptyClassroomCacheKey;
+    private final CourseMixCacheKey courseMixCacheKey;
+    private final GradeCacheKey gradeCacheKey;
     private final EmptyClassroomQueryResultFromQueryConvertor emptyClassroomQueryResultFromQueryConvertor;
     private final EmptyClassroomQueryResultFromCallbackConvertor emptyClassroomQueryResultFromCallbackConvertor;
     private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void self_unsubscribe(HttpServletRequest request) {
         String token = normalizeToken(request.getHeader(HEADER_AUTHORIZATION));
         String currentStudentId = UserContextUtil.requireStudentId();
@@ -84,6 +101,28 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         }
         Long userId = userEntity.getId();
         log.info("用户正在执行注销操作，用户id：[{}]，用户学号：[{}]",userId,currentStudentId);
+
+        syncMapper.delete(new LambdaQueryWrapper<PersonalInfoEntity>()
+                .eq(PersonalInfoEntity::getStudentId, currentStudentId));
+        userProfileStyleMapper.delete(new LambdaQueryWrapper<UserProfileStyleEntity>()
+                .eq(UserProfileStyleEntity::getStudentId, currentStudentId));
+        UserProfileCustomAssetEntity customAsset = userProfileCustomAssetMapper.selectOne(
+                new LambdaQueryWrapper<UserProfileCustomAssetEntity>()
+                        .eq(UserProfileCustomAssetEntity::getStudentId, currentStudentId));
+        UserDeletionTaskEntity deletionTask = new UserDeletionTaskEntity();
+        deletionTask.setStudentId(currentStudentId);
+        deletionTask.setStatus("PENDING");
+        deletionTask.setRetryCount(0);
+        deletionTask.setNextRetryAt(java.time.LocalDateTime.now());
+        if (customAsset != null) {
+            deletionTask.setCustomAvatar(customAsset.getCustomAvatar());
+            deletionTask.setCustomBackground(customAsset.getCustomBackground());
+            deletionTask.setCustomWallpaper(customAsset.getCustomWallpaper());
+        }
+        userDeletionTaskMapper.insert(deletionTask);
+        userProfileCustomAssetMapper.delete(new LambdaQueryWrapper<UserProfileCustomAssetEntity>()
+                .eq(UserProfileCustomAssetEntity::getStudentId, currentStudentId));
+
         int rows = userWriteSupport.deleteUserById(userId);
         if (rows == 0) {
             throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(),"操作失败");
@@ -91,6 +130,11 @@ public class CurrentUserServiceImpl implements CurrentUserService {
 
         if (!currentStudentId.isEmpty()) {
             userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
+            stringRedisTemplate.delete(courseMixCacheKey.getKey(currentStudentId));
+            Set<String> gradeKeys = stringRedisTemplate.keys(gradeCacheKey.getPattern(currentStudentId));
+            if (gradeKeys != null && !gradeKeys.isEmpty()) {
+                stringRedisTemplate.delete(gradeKeys);
+            }
         } else {
             log.warn("用户注销时发现用户名为空，跳过缓存删除, userId: {}", userId);
         }

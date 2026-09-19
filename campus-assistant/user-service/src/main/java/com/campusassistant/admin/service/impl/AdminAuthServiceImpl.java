@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.constant.SystemConstants.*;
+import static com.campusassistant.utils.TokenTool.normalizeToken;
 import static com.campusassistant.constant.SystemConstants.ROLE_ADMIN;
 import static com.campusassistant.constant.SystemConstants.USER_ROLE;
 import static com.campusassistant.utils.TokenTool.normalizeToken;

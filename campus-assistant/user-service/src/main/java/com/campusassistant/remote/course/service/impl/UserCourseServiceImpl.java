@@ -1,6 +1,8 @@
 package com.campusassistant.remote.course.service.impl;
 
 import com.campusassistant.pojo.Result;
+import com.campusassistant.enums.ResultCodeEnum;
+import com.campusassistant.exception.BusinessException;
 import com.campusassistant.remote.course.client.CourseServiceClient;
 import com.campusassistant.remote.course.pojo.schedule.RemoteCourseVO;
 import com.campusassistant.remote.course.service.UserCourseService;
@@ -28,6 +30,9 @@ public class UserCourseServiceImpl implements UserCourseService {
                 RemoteCourseVO.class,      // 返回类型
                 () -> {            // Lambda表达式：告诉它怎么查库并转换
                     Result<RemoteCourseVO> result = courseServiceClient.getSchedule(studentId);
+                    if (result == null || !ResultCodeEnum.SUCCESS.getCode().equals(result.getCode())) {
+                        throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(), "课表服务暂不可用");
+                    }
                     return result.getData();
                 }
         );

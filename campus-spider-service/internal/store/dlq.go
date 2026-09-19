@@ -21,6 +21,44 @@ type DLQ struct {
 	maxDelay  time.Duration
 }
 
+var enqueueAndAckScript = redis.NewScript(`
+local field_count = tonumber(ARGV[3])
+local xadd_args = {'*'}
+for i = 1, field_count * 2 do
+    xadd_args[#xadd_args + 1] = ARGV[3 + i]
+end
+
+local added = redis.pcall('XADD', KEYS[1], unpack(xadd_args))
+if type(added) == 'table' and added.err then
+    return {0, added.err}
+end
+
+local acked = redis.pcall('XACK', KEYS[2], ARGV[1], ARGV[2])
+if type(acked) == 'table' and acked.err then
+    return {0, acked.err}
+end
+return {1, added, acked}
+`)
+
+var requeueAndDeleteScript = redis.NewScript(`
+local field_count = tonumber(ARGV[1])
+local xadd_args = {'*'}
+for i = 1, field_count * 2 do
+    xadd_args[#xadd_args + 1] = ARGV[1 + i]
+end
+
+local added = redis.pcall('XADD', KEYS[1], unpack(xadd_args))
+if type(added) == 'table' and added.err then
+    return {0, added.err}
+end
+
+local deleted = redis.pcall('XDEL', KEYS[2], ARGV[2 + field_count * 2])
+if type(deleted) == 'table' and deleted.err then
+    return {0, deleted.err}
+end
+return {1, added, deleted}
+`)
+
 func NewDLQ(rdb *redis.Client, stream string, group string, maxRetry int, baseDelay, maxDelay time.Duration) *DLQ {
 	// group 参数保留以兼容配置，当前实现不使用 Consumer Group
 	_ = group
@@ -40,6 +78,10 @@ func (d *DLQ) EnsureGroup(ctx context.Context) error {
 
 // Enqueue 将失败任务写入死信队列，并递增重试次数、记录失败原因和失败时间。
 func (d *DLQ) Enqueue(ctx context.Context, task model.Task, reason string) error {
+	return d.enqueue(ctx, task, reason)
+}
+
+func (d *DLQ) enqueue(ctx context.Context, task model.Task, reason string) error {
 	task.Status = "dead_letter"
 	task.FailedReason = reason
 	task.LastFailedAt = time.Now().Unix()
@@ -49,6 +91,23 @@ func (d *DLQ) Enqueue(ctx context.Context, task model.Task, reason string) error
 		Values: task.ToMap(),
 	}).Result()
 	return err
+}
+
+// EnqueueAndAck atomically moves a failed task to the DLQ and acknowledges its
+// source message. This prevents a successful DLQ write followed by an ACK
+// failure from executing the same side effect twice.
+func (d *DLQ) EnqueueAndAck(ctx context.Context, store *RedisStore, priority, messageID string, task model.Task, reason string) error {
+	task.Status = "dead_letter"
+	task.FailedReason = reason
+	task.LastFailedAt = time.Now().Unix()
+	task.RetryCount++
+	values := task.ToMap()
+	args := []interface{}{store.Group(), messageID, len(values) * 2}
+	for key, value := range values {
+		args = append(args, key, fmt.Sprint(value))
+	}
+	return runAtomicMoveScript(ctx, enqueueAndAckScript, d.rdb,
+		[]string{d.stream, store.StreamFor(priority)}, args...)
 }
 
 // StartReprocessor 启动死信队列重处理协程，按 interval 周期扫描。
@@ -102,16 +161,37 @@ func (d *DLQ) handleMessage(ctx context.Context, store *RedisStore, msg redis.XM
 		return
 	}
 
-	// 重新入队原优先级 Stream
+	// 只有重新入队成功后才删除死信消息，避免 Redis 命令级错误导致任务丢失。
 	priority := model.NormalizePriority(task.Priority)
-	if err := store.Enqueue(ctx, priority, task); err != nil {
+	values := task.ToMap()
+	args := []interface{}{len(values) * 2}
+	for key, value := range values {
+		args = append(args, key, fmt.Sprint(value))
+	}
+	args = append(args, msg.ID)
+	if err := runAtomicMoveScript(ctx, requeueAndDeleteScript, d.rdb,
+		[]string{store.StreamFor(priority), d.stream}, args...); err != nil {
 		log.Printf("[DLQ] taskId=%s 重新入队失败: %v", task.TaskID, err)
 		return
 	}
 
-	// 入队成功后删除死信队列中的旧消息
 	log.Printf("[DLQ] taskId=%s 已重新入队 %s (retryCount=%d)", task.TaskID, priority, task.RetryCount)
-	_ = d.rdb.XDel(ctx, d.stream, msg.ID).Err()
+}
+
+func runAtomicMoveScript(ctx context.Context, script *redis.Script, rdb redis.Scripter,
+	keys []string, args ...interface{}) error {
+	result, err := script.Run(ctx, rdb, keys, args...).Result()
+	if err != nil {
+		return err
+	}
+	values, ok := result.([]interface{})
+	if !ok || len(values) == 0 || fmt.Sprint(values[0]) != "1" {
+		if len(values) > 1 {
+			return fmt.Errorf("redis atomic move failed: %v", values[1])
+		}
+		return fmt.Errorf("redis atomic move failed")
+	}
+	return nil
 }
 
 // MessageToTask 将 Redis Stream 消息字段转换为 Task。
