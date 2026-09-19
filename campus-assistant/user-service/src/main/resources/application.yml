@@ -4,6 +4,20 @@
 server:
   port: 8000
 
+internal:
+  callback-token: ${JAVA_INTERNAL_TOKEN:}
+
+gateway:
+  shared-secret: ${GATEWAY_SECRET:}
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:}
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucket-name: ${ALIYUN_OSS_BUCKET_NAME:}
+    url-prefix: ${ALIYUN_OSS_URL_PREFIX:}
+
 spring:
   jackson:
     serialization:

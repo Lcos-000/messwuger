@@ -6,7 +6,7 @@ NS_API="http://campus-nacos:8848/nacos/v1/console/namespaces"
 NS_NAME="dev"
 
 # 需要从 .env.secret 替换到 Nacos 配置文件中的占位符变量
-SECRET_VARS="ALIYUN_OSS_ENDPOINT ALIYUN_OSS_ACCESS_KEY_ID ALIYUN_OSS_ACCESS_KEY_SECRET ALIYUN_OSS_BUCKET_NAME ALIYUN_OSS_URL_PREFIX"
+SECRET_VARS=""
 
 echo "Waiting for Nacos namespaces API..."
 tenant=""
@@ -54,6 +54,22 @@ import_dir() {
   for f in "$dir"/*.yaml; do
     [ -e "$f" ] || continue
     dataId=$(basename "$f")
+    if [ "$dataId" = "aliyun-oss.yaml" ]; then
+      echo "Removing deprecated secret-bearing Nacos config: $dataId"
+      delete_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+        -X DELETE "$BASE?dataId=$dataId&group=$group&tenant=$tenant") || {
+        echo "Failed to remove deprecated Nacos config: $dataId" >&2
+        return 1
+      }
+      case "$delete_status" in
+        200|204|404) ;;
+        *)
+          echo "Failed to remove deprecated Nacos config: $dataId (HTTP $delete_status)" >&2
+          return 1
+          ;;
+      esac
+      continue
+    fi
     raw_content=$(cat "$f")
     content=$(substitute_secrets "$raw_content")
     echo "Importing $dataId to group=$group namespace=$NS_NAME"

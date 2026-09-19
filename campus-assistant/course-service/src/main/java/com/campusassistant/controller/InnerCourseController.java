@@ -32,6 +32,12 @@ public class InnerCourseController {
         return Result.success("课表同步入库成功");
     }
 
+    @DeleteMapping("/student/{studentId}/data")
+    public Result<String> deleteStudentData(@PathVariable String studentId) {
+        userCourseService.deleteByStudentId(studentId);
+        return Result.success("用户课程数据删除成功");
+    }
+
     @Operation(summary = "根据学号获取课表（内部调用）")
     @GetMapping("/course/get")
     public Result<CourseVO> getScheduleByStudentId(@RequestHeader("X-Student-Id") String studentId) {

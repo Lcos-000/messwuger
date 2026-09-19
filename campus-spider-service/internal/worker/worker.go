@@ -139,8 +139,8 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 
 	// 字段校验
 	if task.TaskID == "" || task.StudentID == "" || task.Password == "" {
-		log.Printf("[Worker] 任务字段缺失，跳过 taskId=%s", task.TaskID)
-		_ = p.store.Ack(ctx, priority, msg.ID)
+		log.Printf("[Worker] 任务字段缺失，转入死信队列 taskId=%s", task.TaskID)
+		p.failTask(ctx, priority, msg.ID, task, "任务字段缺失")
 		return
 	}
 
@@ -174,8 +174,8 @@ func (p *Pool) handleMessage(ctx context.Context, priority, consumer string, msg
 	case "GRADES":
 		execErr = p.handleGradesTask(ctx, execTask)
 	default:
-		log.Printf("[Worker] 未知任务类型 taskId=%s type=%s", execTask.TaskID, execTask.Type)
-		_ = p.store.Ack(ctx, priority, msg.ID)
+		log.Printf("[Worker] 未知任务类型，转入死信队列 taskId=%s type=%s", execTask.TaskID, execTask.Type)
+		p.failTask(ctx, priority, msg.ID, task, "未知任务类型: "+execTask.Type)
 		return
 	}
 
@@ -225,14 +225,10 @@ func (p *Pool) startLeaseHeartbeat(ctx context.Context, priority, consumer, msgI
 // failTask 统一失败处理：入队死信队列，然后确认原消息。
 func (p *Pool) failTask(ctx context.Context, priority, msgID string, task model.Task, reason string) {
 	log.Printf("[Worker] 任务失败，转入死信队列 taskId=%s reason=%s", task.TaskID, reason)
-	if err := p.dlq.Enqueue(ctx, task, reason); err != nil {
+	if err := p.dlq.EnqueueAndAck(ctx, p.store, priority, msgID, task, reason); err != nil {
 		log.Printf("[Worker] 死信队列入队失败 taskId=%s err=%v", task.TaskID, err)
-		// DLQ 写入失败时不能确认原消息，保留在 PEL 中交由僵尸恢复机制重试。
+		// 事务失败时不能确认原消息，保留在 PEL 中交由僵尸恢复机制重试。
 		return
-	}
-	if err := p.store.Ack(ctx, priority, msgID); err != nil {
-		// 入队已成功但 ACK 失败时原消息仍会留在 PEL；记录错误，避免误以为已完成。
-		log.Printf("[Worker] 原任务 ACK 失败 taskId=%s priority=%s msgID=%s err=%v", task.TaskID, priority, msgID, err)
 	}
 }
 
@@ -249,10 +245,7 @@ func (p *Pool) handleSpiderTask(ctx context.Context, task model.Task) error {
 	}
 	callbackPayload := spiderData.ToCallbackPayload()
 
-	callbackURL := task.CallbackURL
-	if callbackURL == "" {
-		callbackURL = p.cfg.JavaCallbackURL
-	}
+	callbackURL := p.cfg.JavaCallbackURL
 
 	log.Printf("[Worker] 开始回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryCallback(ctx, callbackURL, callbackPayload); err != nil {
@@ -264,17 +257,14 @@ func (p *Pool) handleSpiderTask(ctx context.Context, task model.Task) error {
 
 func (p *Pool) handlePunchCardTask(ctx context.Context, task model.Task) error {
 	log.Printf("[Worker] 开始打卡 taskId=%s studentId=%s", task.TaskID, task.StudentID)
+	callbackURL := p.cfg.PunchCallbackURL
 	out, err := p.runner.RunCheckin(ctx, task, p.cfg.CheckinScript, p.cfg.CheckinTimeout)
 	if err != nil {
-		_ = p.retryPunchCallback(ctx, task.StudentID, false)
+		_ = p.retryPunchCallback(ctx, callbackURL, task.StudentID, false)
 		return fmt.Errorf("打卡失败: %w", err)
 	}
 
-	callbackURL := task.CallbackURL
-	if callbackURL == "" {
-		callbackURL = p.cfg.PunchCallbackURL
-	}
-	if err := p.retryPunchCallback(ctx, task.StudentID, true); err != nil {
+	if err := p.retryPunchCallback(ctx, callbackURL, task.StudentID, true); err != nil {
 		return fmt.Errorf("打卡回调失败: %w", err)
 	}
 	log.Printf("[Worker] 打卡成功 taskId=%s message=%s", task.TaskID, out.Message)
@@ -293,10 +283,7 @@ func (p *Pool) handleEmptyClassroomTask(ctx context.Context, task model.Task) er
 		return fmt.Errorf("空教室结果解析失败: %w", err)
 	}
 
-	callbackURL := task.CallbackURL
-	if callbackURL == "" {
-		callbackURL = p.cfg.EmptyClassroomCallbackURL
-	}
+	callbackURL := p.cfg.EmptyClassroomCallbackURL
 
 	log.Printf("[Worker] 开始空教室回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryEmptyClassroomCallback(ctx, callbackURL, payload); err != nil {
@@ -318,10 +305,7 @@ func (p *Pool) handleGradesTask(ctx context.Context, task model.Task) error {
 		return fmt.Errorf("成绩结果解析失败: %w", err)
 	}
 
-	callbackURL := task.CallbackURL
-	if callbackURL == "" {
-		callbackURL = p.cfg.GradesCallbackURL
-	}
+	callbackURL := p.cfg.GradesCallbackURL
 
 	log.Printf("[Worker] 开始成绩回调 taskId=%s url=%s", task.TaskID, callbackURL)
 	if err := p.retryGradesCallback(ctx, callbackURL, payload); err != nil {
@@ -344,12 +328,14 @@ func convertAnyToStruct(src any, dst any) error {
 }
 
 // retryPunchCallback 重试打卡回调
-func (p *Pool) retryPunchCallback(ctx context.Context, studentID string, success bool) error {
+func (p *Pool) retryPunchCallback(ctx context.Context, callbackURL, studentID string, success bool) error {
 	var lastErr error
 	for i := 0; i < 3; i++ {
-		if err := p.javaClient.PunchCallback(ctx, p.cfg.PunchCallbackURL, studentID, success); err != nil {
+		if err := p.javaClient.PunchCallback(ctx, callbackURL, studentID, success); err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			if err := waitRetry(ctx, time.Duration(i+1)*2*time.Second); err != nil {
+				return err
+			}
 			continue
 		}
 		return nil
@@ -363,7 +349,9 @@ func (p *Pool) retryCallback(ctx context.Context, url string, payload model.Call
 	for i := 0; i < 3; i++ {
 		if err := p.javaClient.Callback(ctx, url, payload); err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			if err := waitRetry(ctx, time.Duration(i+1)*2*time.Second); err != nil {
+				return err
+			}
 			continue
 		}
 		return nil
@@ -377,7 +365,9 @@ func (p *Pool) retryEmptyClassroomCallback(ctx context.Context, url string, payl
 	for i := 0; i < 3; i++ {
 		if err := p.javaClient.EmptyClassroomCallback(ctx, url, payload); err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			if err := waitRetry(ctx, time.Duration(i+1)*2*time.Second); err != nil {
+				return err
+			}
 			continue
 		}
 		return nil
@@ -391,12 +381,25 @@ func (p *Pool) retryGradesCallback(ctx context.Context, url string, payload mode
 	for i := 0; i < 3; i++ {
 		if err := p.javaClient.GradesCallback(ctx, url, payload); err != nil {
 			lastErr = err
-			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+			if err := waitRetry(ctx, time.Duration(i+1)*2*time.Second); err != nil {
+				return err
+			}
 			continue
 		}
 		return nil
 	}
 	return lastErr
+}
+
+func waitRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // acquireRateLimit 阻塞获取一个限流配额；ctx 取消时直接返回，消息保持 pending 由僵尸恢复机制重试。

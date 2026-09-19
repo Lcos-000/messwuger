@@ -5,18 +5,16 @@ import base64
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from io import BytesIO
 from urllib.parse import urlparse
 
 import requests
-import urllib3
 
 from config import YM_TOKEN, YM_TYPE
+from des_encrypt import des_encrypt
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 def eprint(*args, **kwargs):
@@ -40,32 +38,18 @@ class SWUJwClient:
         self.idm_base = "https://idm.swu.edu.cn"
 
         self.session_dir = session_dir
-        os.makedirs(self.session_dir, exist_ok=True)
+        os.makedirs(self.session_dir, mode=0o700, exist_ok=True)
+        try:
+            os.chmod(self.session_dir, 0o700)
+        except OSError:
+            pass
 
         self.session_file = session_file
         self.allow_manual_captcha = allow_manual_captcha
 
     def _des_encrypt(self, data: str, key: str) -> str:
         des_js_path = os.path.join(os.path.dirname(__file__), "des.js")
-        if not os.path.exists(des_js_path):
-            raise RuntimeError("des.js 不存在，请确认已放入 scripts 目录")
-
-        js_path_js = des_js_path.replace("\\", "/").replace("'", "\\'")
-        safe_data = data.replace("'", "\\'")
-        safe_key = key.replace("'", "\\'")
-        js_code = f"""
-var fs = require('fs');
-var code = fs.readFileSync('{js_path_js}', 'utf8');
-eval(code);
-console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
-"""
-        result = subprocess.run(
-            ["node", "-e", js_code],
-            capture_output=True, text=True, timeout=15
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"Node.js DES 加密失败: {result.stderr}")
-        return result.stdout.strip()
+        return des_encrypt(data, key, des_js_path)
 
     def solve_captcha(self, captcha_bytes: bytes) -> str:
         if not YM_TOKEN:
@@ -148,6 +132,8 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             os.remove(self.session_file)
 
     def login(self, username: str, password: str) -> bool:
+        if not username or any(separator in username for separator in ("/", "\\")):
+            raise ValueError("invalid student id")
         session_file = self.session_file or os.path.join(self.session_dir, f"session_{username}.json")
         self.session_file = session_file
 
@@ -167,7 +153,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
 
         current_url = cas_entry
         for _ in range(5):
-            r = self.session.get(current_url, timeout=15, verify=False, allow_redirects=False)
+            r = self.session.get(current_url, timeout=15, allow_redirects=False)
             if r.status_code in (301, 302, 303, 307, 308):
                 current_url = self._follow_one_redirect(r, current_url)
                 continue
@@ -176,7 +162,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
         if "idm.swu.edu.cn/am/UI/Login" not in current_url:
             raise RuntimeError("未能到达 IDM 登录页")
 
-        r = self.session.get(current_url, timeout=15, verify=False)
+        r = self.session.get(current_url, timeout=15)
         text = r.text
 
         m = re.search(r'id="random"[^>]*value="([^"]+)"', text)
@@ -185,7 +171,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             raise RuntimeError("未能获取 random 加密密钥")
 
         captcha_url = f"{self.idm_base}/am/validate.code?id=0.123456"
-        rc = self.session.get(captcha_url, timeout=15, verify=False)
+        rc = self.session.get(captcha_url, timeout=15)
         captcha = self.solve_captcha(rc.content)
 
         enc_user = self._des_encrypt(username, random_val)
@@ -213,7 +199,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
 
         r2 = self.session.post(
             f"{self.idm_base}/am/UI/Login",
-            data=login_data, timeout=15, verify=False, allow_redirects=False
+            data=login_data, timeout=15, allow_redirects=False
         )
 
         current_url = r2.headers.get("Location", "") if r2.status_code in (301, 302) else ""
@@ -226,7 +212,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             if not current_url.startswith("http"):
                 break
 
-            r = self.session.get(current_url, timeout=15, verify=False, allow_redirects=False)
+            r = self.session.get(current_url, timeout=15, allow_redirects=False)
 
             if r.status_code in (301, 302, 303, 307, 308):
                 current_url = self._follow_one_redirect(r, current_url)
@@ -266,7 +252,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
 
     def get_kb(self, xnm: str, xqm: str) -> dict:
         index_url = f"{self.jw_base}/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N253508&layout=default"
-        self.session.get(index_url, timeout=15, verify=False)
+        self.session.get(index_url, timeout=15)
 
         api_url = f"{self.jw_base}/kbcx/xskbcx_cxXsgrkb.html?gnmkdm=N253508"
         headers = {
@@ -282,7 +268,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "kclbdm": "",
             "kclxdm": "",
         }
-        r = self.session.post(api_url, data=data, headers=headers, timeout=15, verify=False)
+        r = self.session.post(api_url, data=data, headers=headers, timeout=15)
         if r.status_code != 200:
             raise RuntimeError(f"课表API请求失败: {r.status_code}, body={r.text[:500]}")
         kb_data = r.json()
@@ -354,7 +340,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
         - lh: 楼号，例如 32
         """
         index_url = f"{self.jw_base}/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default"
-        self.session.get(index_url, timeout=15, verify=False)
+        self.session.get(index_url, timeout=15)
 
         api_url = f"{self.jw_base}/cdjy/cdjy_cxKxcdlb.html?doType=query&gnmkdm=N2155"
         headers = {
@@ -385,7 +371,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "queryModel.sortOrder": "asc",
             "time": "1",
         }
-        r = self.session.post(api_url, data=data, headers=headers, timeout=15, verify=False)
+        r = self.session.post(api_url, data=data, headers=headers, timeout=15)
         if r.status_code != 200:
             raise RuntimeError(f"空教室API请求失败: {r.status_code}, body={r.text[:500]}")
         result = r.json()
@@ -428,7 +414,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
         查询成绩。该接口根据常见教务系统路径推断，需结合实际环境测试调整。
         """
         index_url = f"{self.jw_base}/cjcx/cjcx_cxDgXscj.html?gnmkdm=N305005&layout=default"
-        self.session.get(index_url, timeout=15, verify=False)
+        self.session.get(index_url, timeout=15)
 
         api_url = f"{self.jw_base}/cjcx/cjcx_cxDgXscj.html?doType=query&gnmkdm=N305005"
         headers = {
@@ -444,7 +430,7 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             "queryModel.sortName": "",
             "queryModel.sortOrder": "asc",
         }
-        r = self.session.post(api_url, data=data, headers=headers, timeout=15, verify=False)
+        r = self.session.post(api_url, data=data, headers=headers, timeout=15)
         if r.status_code != 200:
             raise RuntimeError(f"成绩API请求失败: {r.status_code}, body={r.text[:500]}")
         result = r.json()
@@ -525,8 +511,16 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
             for path_cookie in domain_cookie.values():
                 for name, cookie in path_cookie.items():
                     cookies[f"{name}@{cookie.domain}"] = cookie.value
-        with open(self.session_file, "w", encoding="utf-8") as f:
-            json.dump(cookies, f, ensure_ascii=False, indent=2)
+        previous_umask = os.umask(0o077)
+        try:
+            with open(self.session_file, "w", encoding="utf-8") as f:
+                json.dump(cookies, f, ensure_ascii=False, indent=2)
+        finally:
+            os.umask(previous_umask)
+        try:
+            os.chmod(self.session_file, 0o600)
+        except OSError:
+            pass
 
     def load_session(self):
         if not self.session_file or not os.path.exists(self.session_file):
@@ -542,6 +536,6 @@ console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
     def is_session_valid(self) -> bool:
         check = self.session.get(
             "https://jw.swu.edu.cn/jwglxt/xtgl/index_initMenu.html",
-            timeout=15, verify=False, allow_redirects=False
+            timeout=15, allow_redirects=False
         )
         return check.status_code == 200 and "login_slogin" not in check.url

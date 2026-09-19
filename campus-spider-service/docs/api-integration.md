@@ -23,7 +23,9 @@
 
 ### 2.2 密码加密
 
-Go 端使用 **AES/CBC/PKCS5Padding** 解密，IV 取 key 的前 16 字节：
+Go 端使用 **AES/CBC/PKCS5Padding** 解密。新格式为 `IV` 标识（2 字节）+
+安全随机 IV（16 字节）+ ciphertext；同时兼容历史格式（使用 key 前 16 字节作为
+AES-128 的 key 和 IV）。
 
 
 ### 2.3 提交接口响应
@@ -50,6 +52,7 @@ X-Student-Id: 222025321262104
 X-Password: {AES加密后的密码}
 Content-Type: application/json
 X-Spider-Token: {SPIDER_API_TOKEN}
+Authorization: Bearer {JAVA_INTERNAL_TOKEN}
 Content-Length: 248
 ```json
 {
@@ -334,6 +337,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.security.SecureRandom;
 
 public class EmptyClassroomExample {
 
@@ -353,20 +357,24 @@ public class EmptyClassroomExample {
     public static String aesEncrypt(String plainText, String key) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         SecretKeySpec keySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
-        IvParameterSpec ivSpec = new IvParameterSpec(key.getBytes(StandardCharsets.UTF_8), 0, 16);
+        byte[] ivBytes = new byte[16];
+        new SecureRandom().nextBytes(ivBytes);
+        IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
         cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
-        byte[] data = plainText.getBytes(StandardCharsets.UTF_8);
-        int padLen = 16 - (data.length % 16);
-        byte[] padded = new byte[data.length + padLen];
-        System.arraycopy(data, 0, padded, 0, data.length);
-        for (int i = data.length; i < padded.length; i++) {
-            padded[i] = (byte) padLen;
-        }
-        return Base64.getEncoder().encodeToString(cipher.doFinal(padded));
+        byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+        byte[] result = new byte[18 + encrypted.length];
+        result[0] = 'I';
+        result[1] = 'V';
+        System.arraycopy(ivBytes, 0, result, 2, 16);
+        System.arraycopy(encrypted, 0, result, 18, encrypted.length);
+        return Base64.getEncoder().encodeToString(result);
     }
 
     public static void main(String[] args) throws Exception {
-        String aesKey = System.getenv().getOrDefault("AES_SECRET_KEY", "@aes-secret-key#");
+        String aesKey = System.getenv("AES_SECRET_KEY");
+        if (aesKey == null || aesKey.isBlank()) {
+            throw new IllegalStateException("AES_SECRET_KEY is required");
+        }
         String studentId = "222025321262104";
         String password = "your_password";
 
@@ -385,6 +393,8 @@ public class EmptyClassroomExample {
         //     .uri(URI.create("http://localhost:8082/api/v1/task/empty-classroom"))
         //     .header("X-Student-Id", studentId)
         //     .header("X-Password", aesEncrypt(password, aesKey))
+        //     .header("X-Spider-Token", System.getenv("SPIDER_API_TOKEN"))
+        //     .header("Authorization", "Bearer " + System.getenv("JAVA_INTERNAL_TOKEN"))
         //     .header("Content-Type", "application/json")
         //     .POST(HttpRequest.BodyPublishers.ofString(new ObjectMapper().writeValueAsString(body)))
         //     .build();
@@ -396,9 +406,9 @@ public class EmptyClassroomExample {
 
 ## 七、注意事项
 
-1. **回调是异步的**，提交接口只返回 `taskId`，真实结果通过 `callbackUrl` 推送。
-2. **回调需要校验 Token**，Go 会带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`。
+1. **回调是异步的**，提交接口只返回 `taskId`，真实结果通过服务端配置的回调地址推送。
+2. **回调需要校验 Token**，Go 会带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`，Java 调用 Go 任务接口也必须带同一 Token。
 3. **空教室查询必填** `dayOfWeek`、`periodsMask`、`weeksMask`。
 4. **`dayOfWeek` 不是掩码**，直接传逗号分隔字符串，如 `"3,6"`。
 5. **`periodsMask` 和 `weeksMask` 是掩码**，按 `2^(n-1)` 编码。
-6. Java 回调接口返回 HTTP 2xx 即可，Go 不解析响应体。
+6. Java 回调接口必须返回 HTTP 2xx 且 JSON `code=200`；Go 会同时校验 HTTP 状态和业务状态码。

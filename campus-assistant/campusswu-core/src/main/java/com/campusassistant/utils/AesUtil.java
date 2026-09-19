@@ -1,6 +1,6 @@
 package com.campusassistant.utils;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -8,6 +8,9 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 
 @Component
@@ -20,26 +23,41 @@ public class AesUtil {
     private static final String ALGORITHM_NAME = "AES";
     // 指定算法，初始化加密模式
     private static final String CIPHER_TRANSFORMATION = "AES/CBC/PKCS5Padding";
-    // 密钥偏移量
-    private static final int KEY_OFFSET = 0;
-    // 密钥长度 (AES-128 对应 16字节)
-    private static final int KEY_LENGTH = 16;
+    private static final int IV_LENGTH = 16;
+    private static final byte[] FORMAT_PREFIX = new byte[]{'I', 'V'};
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    @PostConstruct
+    void validateSecretKey() {
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("AES_SECRET_KEY 未配置");
+        }
+        try {
+            keySpec(secretKey.getBytes(StandardCharsets.UTF_8));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("AES_SECRET_KEY 配置无效", e);
+        }
+    }
 
     /**
      * AES加密（CBC模式，PKCS5填充）
      */
     public String encrypt(String plainText) throws Exception {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        SecretKeySpec keySpec = new SecretKeySpec(keyBytes, KEY_OFFSET, KEY_LENGTH, ALGORITHM_NAME);
-        IvParameterSpec iv = new IvParameterSpec(
-                secretKey.getBytes(StandardCharsets.UTF_8), KEY_OFFSET, KEY_LENGTH
-        );
+        SecretKeySpec keySpec = keySpec(keyBytes);
+        byte[] ivBytes = new byte[IV_LENGTH];
+        secureRandom.nextBytes(ivBytes);
+        IvParameterSpec iv = new IvParameterSpec(ivBytes);
 
         Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv);
         byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
 
-        return Base64.getEncoder().encodeToString(encrypted);
+        byte[] result = new byte[FORMAT_PREFIX.length + IV_LENGTH + encrypted.length];
+        System.arraycopy(FORMAT_PREFIX, 0, result, 0, FORMAT_PREFIX.length);
+        System.arraycopy(ivBytes, 0, result, FORMAT_PREFIX.length, IV_LENGTH);
+        System.arraycopy(encrypted, 0, result, FORMAT_PREFIX.length + IV_LENGTH, encrypted.length);
+        return Base64.getEncoder().encodeToString(result);
     }
 
     /**
@@ -47,16 +65,40 @@ public class AesUtil {
      */
     public String decrypt(String encryptedText) throws Exception {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        SecretKeySpec keySpec = new SecretKeySpec(keyBytes, KEY_OFFSET, KEY_LENGTH, ALGORITHM_NAME);
-        IvParameterSpec iv = new IvParameterSpec(
-                secretKey.getBytes(StandardCharsets.UTF_8), KEY_OFFSET, KEY_LENGTH
-        );
+        byte[] encoded = Base64.getDecoder().decode(encryptedText);
 
+        // Validate the configured key before selecting either wire format.
+        keySpec(keyBytes);
+        if (encoded.length >= FORMAT_PREFIX.length + IV_LENGTH * 2
+                && encoded[0] == FORMAT_PREFIX[0] && encoded[1] == FORMAT_PREFIX[1]) {
+            byte[] ivBytes = Arrays.copyOfRange(
+                    encoded, FORMAT_PREFIX.length, FORMAT_PREFIX.length + IV_LENGTH);
+            byte[] encrypted = Arrays.copyOfRange(
+                    encoded, FORMAT_PREFIX.length + IV_LENGTH, encoded.length);
+            try {
+                return decryptBytes(encrypted, keySpec(keyBytes), ivBytes);
+            } catch (GeneralSecurityException ignored) {
+                // A legacy ciphertext can coincidentally begin with "IV". Retry it
+                // using the historical AES-128/key-derived-IV format.
+            }
+        }
+
+        // Backward compatibility for tasks encrypted before random IVs were introduced.
+        byte[] legacyKey = Arrays.copyOf(keyBytes, IV_LENGTH);
+        return decryptBytes(encoded, new SecretKeySpec(legacyKey, ALGORITHM_NAME), legacyKey);
+    }
+
+    private String decryptBytes(byte[] encrypted, SecretKeySpec keySpec, byte[] ivBytes)
+            throws GeneralSecurityException {
         Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
-        cipher.init(Cipher.DECRYPT_MODE, keySpec, iv);
-        byte[] encrypted = Base64.getDecoder().decode(encryptedText);
-        byte[] decrypted = cipher.doFinal(encrypted);
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, new IvParameterSpec(ivBytes));
+        return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+    }
 
-        return new String(decrypted, StandardCharsets.UTF_8);
+    private SecretKeySpec keySpec(byte[] keyBytes) throws GeneralSecurityException {
+        if (keyBytes.length != 16 && keyBytes.length != 24 && keyBytes.length != 32) {
+            throw new GeneralSecurityException("AES_SECRET_KEY 必须为 16、24 或 32 字节");
+        }
+        return new SecretKeySpec(keyBytes, ALGORITHM_NAME);
     }
 }

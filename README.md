@@ -142,11 +142,12 @@ Web 端如需继续透传，也建议使用相同网关来源。
 | 顺序 | 服务 | 命令 |
 |------|------|------|
 | 1 | MySQL / Redis / Nacos / Sentinel | `cd deploy/offline/package && docker compose up -d mysql redis nacos sentinel` |
-| 2 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
-| 3 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
-| 4 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |
-| 5 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
-| 6 | Web 开发服务 | `cd campus-web && npm run dev` |
+| 2 | 数据库迁移 | `docker compose run --rm db-migrate`（必须成功后再继续） |
+| 3 | Gateway | `cd campus-assistant && mvn spring-boot:run -pl campusswu-gateway -am` |
+| 4 | User-Service | `cd campus-assistant && mvn spring-boot:run -pl user-service -am` |
+| 5 | Course-Service | `cd campus-assistant && mvn spring-boot:run -pl course-service -am` |
+| 6 | Go 爬虫服务 | `cd campus-spider-service && $env:PYTHON_PATH="python"; .\server.exe` |
+| 7 | Web 开发服务 | `cd campus-web && npm run dev` |
 
 ### Android 调试
 

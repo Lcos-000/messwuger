@@ -9,6 +9,12 @@ import sys
 from swu_kb import SWUJwClient
 
 
+def session_path(session_dir, student_id):
+    if not student_id or any(separator in student_id for separator in ("/", "\\")):
+        raise ValueError("invalid student id")
+    return os.path.join(session_dir, f"session_{student_id}.json")
+
+
 # 主函数，处理命令行参数并调用 SWUJwClient 类
 def main():
     parser = argparse.ArgumentParser()
@@ -16,7 +22,7 @@ def main():
                         choices=["crawl", "validate", "empty-classroom", "grades"],
                         default="crawl")
     parser.add_argument("--student-id", required=True)
-    parser.add_argument("--password", required=True)
+    parser.add_argument("--password", default="", help="仅用于手工调用；服务调用从 stdin 读取")
     parser.add_argument("--xnm", default=os.getenv("XNM", "2025"))
     parser.add_argument("--xqm", default=os.getenv("XQM", "12"))
     parser.add_argument("--session-dir", default="./data/sessions")
@@ -33,6 +39,10 @@ def main():
     parser.add_argument("--cdlb-id", default="", help="教室类别 ID")
 
     args = parser.parse_args()
+    if not args.password:
+        args.password = sys.stdin.readline().rstrip("\r\n")
+    if not args.password:
+        parser.error("password is required")
 
     proxies = None
     if args.proxy.strip():
@@ -41,7 +51,7 @@ def main():
             "https": args.proxy.strip(),
         }
 
-    session_file = os.path.join(args.session_dir, f"session_{args.student_id}.json")
+    session_file = session_path(args.session_dir, args.student_id)
     client = SWUJwClient(
         session_file=session_file,
         session_dir=args.session_dir,

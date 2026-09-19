@@ -99,6 +99,11 @@ public class UserCourseFallbackFactory implements FallbackFactory<CourseServiceC
             }
 
             @Override
+            public Result<String> deleteStudentData(String studentId) {
+                return Result.error(code, message);
+            }
+
+            @Override
             public Result<List<RemoteGradeVO>> getGrades(String studentId, String academicYear, String semester) {
                 return Result.error(code, message);
             }

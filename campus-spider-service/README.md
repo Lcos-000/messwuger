@@ -60,15 +60,15 @@ campus-spider-service/
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `HTTP_ADDR` | `:8082` | Go 服务监听地址 |
+| `HTTP_ADDR` | `localhost:8082` | Go 服务监听地址；容器部署由 Compose 覆盖为 `:8082` |
 | `SPIDER_API_TOKEN` | `''`（必填） | user-service 调用任务 API 的共享 Token |
 | `REDIS_ADDR` | `127.0.0.1:6379` | Redis 地址 |
 | `REDIS_PASSWORD` | `''` | Redis 密码 |
 | `REDIS_DB` | `0` | Redis 数据库 |
 | `WORKER_CONCURRENCY` | `4` | Worker 并发数 |
 | `JAVA_CALLBACK_URL` | `http://localhost:8000/internal/api/v1/sync/student-data` | Java 回调地址 |
-| `JAVA_INTERNAL_TOKEN` | `''` | 回调 Java 时的 Bearer Token |
-| `AES_SECRET_KEY` | `@aes-secret-key#` | Java 加密/Go 解密密码的 AES 密钥，生产环境请覆盖 |
+| `JAVA_INTERNAL_TOKEN` | 必填 | Java 与 Go 之间的 Bearer Token |
+| `AES_SECRET_KEY` | 必填 | Java 加密/Go 解密密码的 AES 密钥（16/24/32 字节） |
 | `PYTHON_PATH` | `python` | Python 可执行文件路径 |
 | `SPIDER_SCRIPT` | `./scripts/spider_cli.py` | Python CLI 脚本路径 |
 | `SESSION_DIR` | `./data/sessions` | Session 文件存储目录 |
@@ -568,8 +568,8 @@ queued → running → success / failed (→ dead_letter → retry) / discarded
 ## 注意事项
 
 1. **Session 复用**：同个学号的 Session 文件会保存在 `SESSION_DIR/session_{学号}.json`，有效期内不会重复登录。
-2. **验证码**：默认使用云打码平台（`jfbym.com`），`YM_TOKEN` 建议通过环境变量覆盖默认值。
+2. **验证码**：使用云打码平台（`jfbym.com`）时必须通过环境变量配置 `YM_TOKEN`。
 3. **代理池**：如需使用代理，设置环境变量 `PROXY_POOL=http://proxy1,http://proxy2`，Go 会轮询选取并透传给 Python。
-4. **回调安全**：Go 回调 Java 时会在 Header 中携带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`，Java 端需校验此 Token。
+4. **回调安全**：Go 回调 Java、Java 调用 Go 任务接口时都会携带 `Authorization: Bearer {JAVA_INTERNAL_TOKEN}`，两端都会校验此 Token。
 5. **多实例**：如需水平扩展，直接启动多个 `server.exe` 实例，共用同一个 Redis Stream，任务会自动负载均衡；全局限流器会保证所有实例合计不超过每分钟配额。
 6. **幂等键**：任务入队成功后，24 小时内相同 `X-Task-Id` 会被视为重复提交；若入队失败，幂等锁会释放，允许 Java 立即重试。

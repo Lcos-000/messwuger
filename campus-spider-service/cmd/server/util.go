@@ -11,7 +11,8 @@ func decodeJSON(r *http.Request, v any) error {
 		return nil
 	}
 	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(v)
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
+	return decoder.Decode(v)
 }
 
 func jsonEncode(w io.Writer, v any) error {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"campus-spider-service/internal/model"
@@ -24,7 +25,8 @@ type Runner struct {
 
 // NewRunner 创建爬虫运行器
 func NewRunner(pythonPath, scriptPath, sessionDir string, timeout time.Duration, proxyPool *ProxyPool, ymToken, ymType string) *Runner {
-	_ = os.MkdirAll(sessionDir, 0755)
+	_ = os.MkdirAll(sessionDir, 0700)
+	_ = os.Chmod(sessionDir, 0700)
 	return &Runner{
 		PythonPath: pythonPath,
 		ScriptPath: scriptPath,
@@ -55,7 +57,6 @@ func (r *Runner) RunCrawl(parent context.Context, task model.Task) (model.Spider
 		r.ScriptPath,
 		"--mode", "crawl",
 		"--student-id", task.StudentID,
-		"--password", task.Password,
 		"--xnm", task.AcademicYear,
 		"--xqm", task.Semester,
 		"--session-dir", r.SessionDir,
@@ -68,6 +69,7 @@ func (r *Runner) RunCrawl(parent context.Context, task model.Task) (model.Spider
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
 	cmd.Env = r.buildEnv()
+	cmd.Stdin = strings.NewReader(task.Password + "\n")
 
 	// 执行 python 脚本
 	out, err := cmd.CombinedOutput()
@@ -98,7 +100,6 @@ func (r *Runner) ValidateCredentials(parent context.Context, studentID, password
 		r.ScriptPath,
 		"--mode", "validate",
 		"--student-id", studentID,
-		"--password", password,
 		"--session-dir", r.SessionDir,
 	}
 	// 从代理池中获取代理
@@ -109,6 +110,7 @@ func (r *Runner) ValidateCredentials(parent context.Context, studentID, password
 	// 执行 python 脚本
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
 	cmd.Env = r.buildEnv()
+	cmd.Stdin = strings.NewReader(password + "\n")
 	out, err := cmd.CombinedOutput()
 
 	// 先解析 python 输出；validate 模式下账号错误会返回 exit code 1，但 stdout 仍是有效 JSON
@@ -132,11 +134,11 @@ func (r *Runner) RunCheckin(parent context.Context, task model.Task, checkinScri
 	args := []string{
 		checkinScript,
 		"--student-id", task.StudentID,
-		"--password", task.Password,
 	}
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
 	cmd.Env = r.buildEnv()
+	cmd.Stdin = strings.NewReader(task.Password + "\n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return model.SpiderOutput{}, fmt.Errorf("checkin python 执行失败: %w, output=%s", err, string(out))
@@ -164,7 +166,6 @@ func (r *Runner) RunEmptyClassroom(parent context.Context, task model.Task) (mod
 		r.ScriptPath,
 		"--mode", "empty-classroom",
 		"--student-id", task.StudentID,
-		"--password", task.Password,
 		"--xnm", task.AcademicYear,
 		"--xqm", task.Semester,
 		"--xqj", task.DayOfWeek,
@@ -182,6 +183,7 @@ func (r *Runner) RunEmptyClassroom(parent context.Context, task model.Task) (mod
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
 	cmd.Env = r.buildEnv()
+	cmd.Stdin = strings.NewReader(task.Password + "\n")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -213,7 +215,6 @@ func (r *Runner) RunGrades(parent context.Context, task model.Task) (model.Spide
 		r.ScriptPath,
 		"--mode", "grades",
 		"--student-id", task.StudentID,
-		"--password", task.Password,
 		"--xnm", task.AcademicYear,
 		"--xqm", task.Semester,
 		"--session-dir", r.SessionDir,
@@ -225,6 +226,7 @@ func (r *Runner) RunGrades(parent context.Context, task model.Task) (model.Spide
 
 	cmd := exec.CommandContext(ctx, r.PythonPath, args...)
 	cmd.Env = r.buildEnv()
+	cmd.Stdin = strings.NewReader(task.Password + "\n")
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

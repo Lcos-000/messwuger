@@ -14,6 +14,8 @@ public interface UserCourseService {
     // 保存或更新课表数据 (供内部调用)
     void saveOrUpdateSchedule(CourseDTO courseDTO);
 
+    void deleteByStudentId(String studentId);
+
     // 查询指定学期的课表
     CourseVO getSchedule();
 

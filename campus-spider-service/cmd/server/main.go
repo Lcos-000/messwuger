@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +47,15 @@ func main() {
 	}
 	if cfg.YMToken == "" {
 		log.Fatal("YM_TOKEN 未配置，拒绝启动缺少验证码服务凭据的爬虫")
+	}
+	if strings.TrimSpace(cfg.JavaInternalToken) == "" {
+		log.Fatal("JAVA_INTERNAL_TOKEN 未配置，拒绝启动未鉴权的 Spider Service")
+	}
+	if strings.TrimSpace(cfg.AesSecretKey) == "" {
+		log.Fatal("AES_SECRET_KEY 未配置，拒绝启动")
+	}
+	if keyLength := len([]byte(cfg.AesSecretKey)); keyLength != 16 && keyLength != 24 && keyLength != 32 {
+		log.Fatalf("AES_SECRET_KEY 长度非法：%d 字节，必须为 16、24 或 32 字节", keyLength)
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -132,10 +144,14 @@ func main() {
 	// 构建路由 mux
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", app.healthHandler)
-	mux.Handle("/api/v1/task/submit", app.requireAPIToken(http.HandlerFunc(app.submitHandler)))
-	mux.Handle("/api/v1/task/punch-card", app.requireAPIToken(http.HandlerFunc(app.punchCardHandler)))
-	mux.Handle("/api/v1/task/empty-classroom", app.requireAPIToken(http.HandlerFunc(app.emptyClassroomHandler)))
-	mux.Handle("/api/v1/task/grades", app.requireAPIToken(http.HandlerFunc(app.gradesHandler)))
+	internalAuth := func(handler http.HandlerFunc) http.Handler {
+		return app.requireAPIToken(app.withInternalAuth(handler))
+	}
+	mux.Handle("/internal/session", internalAuth(app.deleteSessionHandler))
+	mux.Handle("/api/v1/task/submit", internalAuth(app.submitHandler))
+	mux.Handle("/api/v1/task/punch-card", internalAuth(app.punchCardHandler))
+	mux.Handle("/api/v1/task/empty-classroom", internalAuth(app.emptyClassroomHandler))
+	mux.Handle("/api/v1/task/grades", internalAuth(app.gradesHandler))
 
 	// 启动 HTTP 服务
 	app.httpSrv = &http.Server{
@@ -181,6 +197,58 @@ func (a *App) requireAPIToken(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (a *App) withInternalAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const prefix = "Bearer "
+		authorization := r.Header.Get("Authorization")
+		supplied := strings.TrimSpace(strings.TrimPrefix(authorization, prefix))
+		expected := strings.TrimSpace(a.cfg.JavaInternalToken)
+		if !strings.HasPrefix(authorization, prefix) || expected == "" ||
+			subtle.ConstantTimeCompare([]byte(supplied), []byte(expected)) != 1 {
+			writeJSON(w, http.StatusUnauthorized, model.APIResponse{
+				Code:    http.StatusUnauthorized,
+				Message: "internal authentication required",
+			})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (a *App) deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeJSON(w, http.StatusMethodNotAllowed, model.APIResponse{
+			Code:    http.StatusMethodNotAllowed,
+			Message: "method not allowed",
+		})
+		return
+	}
+
+	studentID := r.Header.Get("X-Student-Id")
+	if studentID == "" || strings.ContainsAny(studentID, `/\\`) {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{
+			Code:    http.StatusBadRequest,
+			Message: "invalid student id",
+		})
+		return
+	}
+
+	sessionPath := filepath.Join(a.cfg.SessionDir, "session_"+studentID+".json")
+	if err := os.Remove(sessionPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("删除 Spider 会话失败 studentId=%s err=%v", studentID, err)
+		writeJSON(w, http.StatusInternalServerError, model.APIResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "failed to delete session",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		Code:    http.StatusOK,
+		Message: "session deleted",
 	})
 }
 
@@ -277,7 +345,10 @@ func (a *App) startTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.StartTaskRequest
-	_ = decodeJSON(r, &req)
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{Code: http.StatusBadRequest, Message: "请求体格式错误"})
+		return
+	}
 
 	if req.AcademicYear == "" {
 		req.AcademicYear = a.cfg.DefaultAcademicYear
@@ -285,9 +356,7 @@ func (a *App) startTaskHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Semester == "" {
 		req.Semester = a.cfg.DefaultSemester
 	}
-	if req.CallbackURL == "" {
-		req.CallbackURL = a.cfg.JavaCallbackURL
-	}
+	req.CallbackURL = a.cfg.JavaCallbackURL
 
 	task := model.Task{
 		TaskID:       taskIDFromHeader(r),
@@ -348,7 +417,10 @@ func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.StartTaskRequest
-	_ = decodeJSON(r, &req)
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{Code: http.StatusBadRequest, Message: "请求体格式错误"})
+		return
+	}
 
 	if req.AcademicYear == "" {
 		req.AcademicYear = a.cfg.DefaultAcademicYear
@@ -356,9 +428,7 @@ func (a *App) emptyClassroomHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Semester == "" {
 		req.Semester = a.cfg.DefaultSemester
 	}
-	if req.CallbackURL == "" {
-		req.CallbackURL = a.cfg.EmptyClassroomCallbackURL
-	}
+	req.CallbackURL = a.cfg.EmptyClassroomCallbackURL
 
 	if req.DayOfWeek == "" || req.PeriodsMask == "" || req.WeeksMask == "" {
 		writeJSON(w, http.StatusBadRequest, model.APIResponse{
@@ -405,7 +475,10 @@ func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req model.StartTaskRequest
-	_ = decodeJSON(r, &req)
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, model.APIResponse{Code: http.StatusBadRequest, Message: "请求体格式错误"})
+		return
+	}
 
 	if req.AcademicYear == "" {
 		req.AcademicYear = a.cfg.DefaultAcademicYear
@@ -413,9 +486,7 @@ func (a *App) gradesHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Semester == "" {
 		req.Semester = a.cfg.DefaultSemester
 	}
-	if req.CallbackURL == "" {
-		req.CallbackURL = a.cfg.GradesCallbackURL
-	}
+	req.CallbackURL = a.cfg.GradesCallbackURL
 
 	task := model.Task{
 		TaskID:       taskIDFromHeader(r),

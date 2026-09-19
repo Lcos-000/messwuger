@@ -1,6 +1,6 @@
 # 自定义 JWT 配置
 jwt:
-  jwt-secret-key: "thisisanexamplesecret_campus"
+  jwt-secret-key: "${JWT_SECRET_KEY}"
   jwt-ttl: 43200000 #token有效时间
   jwt-token-name: "student_login"
   user-redis-hours: 12 #redis存储时间

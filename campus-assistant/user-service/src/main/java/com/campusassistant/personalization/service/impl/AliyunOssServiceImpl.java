@@ -47,6 +47,35 @@ public class AliyunOssServiceImpl implements AliyunOssService {
         }
     }
 
+    @Override
+    public void deleteByUrl(String objectUrl) {
+        if (objectUrl == null || objectUrl.isBlank()) {
+            return;
+        }
+        String prefix = aliyunOssProperties.getUrlPrefix();
+        if (prefix == null || prefix.isBlank() || !objectUrl.startsWith(prefix)) {
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    "OSS 对象 URL 不属于当前配置的存储空间");
+        }
+        String objectKey = objectUrl.substring(prefix.length()).replaceFirst("^/", "");
+        OSS ossClient = null;
+        try {
+            ossClient = new OSSClientBuilder().build(
+                    aliyunOssProperties.getEndpoint(),
+                    aliyunOssProperties.getAccessKeyId(),
+                    aliyunOssProperties.getAccessKeySecret()
+            );
+            ossClient.deleteObject(aliyunOssProperties.getBucketName(), objectKey);
+        } catch (Exception e) {
+            log.error("删除 OSS 对象失败，objectKey={}", objectKey, e);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
+        } finally {
+            if (ossClient != null) {
+                ossClient.shutdown();
+            }
+        }
+    }
+
     private String buildUrl(String objectKey) {
         String prefix = aliyunOssProperties.getUrlPrefix();
         if (prefix.endsWith("/")) {

@@ -12,6 +12,8 @@ public interface SpiderService {
 
     void asyncStartPunchCard(String studentId, String encryptedPassword);
 
+    boolean deleteSession(String studentId);
+
     Result<?> submitGradesTask(String studentId, String encryptedPassword, GradesTaskSubmitDTO dto);
 
     Result<?> submitEmptyClassroomTask(String studentId, String encryptedPassword, EmptyClassroomTaskSubmitDTO dto);

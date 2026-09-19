@@ -32,6 +32,9 @@ public interface CourseServiceClient {
     @PostMapping("/inner/grade/sync")
     Result<String> syncGradeData(@RequestBody RemoteGradeBatchDTO remoteGradeBatchDTO);
 
+    @DeleteMapping("/inner/student/{studentId}/data")
+    Result<String> deleteStudentData(@PathVariable("studentId") String studentId);
+
     // 查询成绩数据
     @GetMapping("/inner/grade/get")
     Result<List<RemoteGradeVO>> getGrades(@RequestHeader("X-Student-Id") String studentId,
@@ -40,4 +43,3 @@ public interface CourseServiceClient {
 
 
 }
-

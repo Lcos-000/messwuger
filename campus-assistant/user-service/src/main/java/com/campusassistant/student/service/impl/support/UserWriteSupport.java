@@ -59,13 +59,17 @@ public class UserWriteSupport {
             int rows = userMapper.update(updateUser, updateWrapper);
 
             if (rows == 0) {
-                log.warn("更新同步状态失败，未找到学号为 {} 的用户", studentId);
+                throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(), "未找到用户");
             } else {
                 log.info("用户 {} 的同步状态已更新为: {}", studentId, status);
             }
         } catch (Exception e) {
-            // 捕获异常防止主流程崩溃，但记录日志
             log.error("数据库更新同步状态异常, studentId: {}, status: {}", studentId, status, e);
+            if (e instanceof BusinessException businessException) {
+                throw businessException;
+            }
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    ResultCodeEnum.SYSTEM_ERROR.getMessage(), e);
         }
     }
 
@@ -90,9 +94,17 @@ public class UserWriteSupport {
             updateUser.setPunchStatus(status);
 
             int rows = userMapper.update(updateUser, updateWrapper);
+            if (rows == 0) {
+                throw new BusinessException(ResultCodeEnum.NOT_FOUND.getCode(), "未找到用户");
+            }
             log.info("用户 {} 的打卡状态已更新为: {}", studentId, status);
         } catch (Exception e) {
             log.error("更新打卡状态异常, studentId: {}, status: {}", studentId, status, e);
+            if (e instanceof BusinessException businessException) {
+                throw businessException;
+            }
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    ResultCodeEnum.SYSTEM_ERROR.getMessage(), e);
         }
     }
 

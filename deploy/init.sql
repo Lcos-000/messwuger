@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS personal_info (
 CREATE TABLE IF NOT EXISTS course_db (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id VARCHAR(32) NOT NULL COMMENT '学号',
-    academic_year VARCHAR(16) DEFAULT NULL COMMENT '学年',
-    semester VARCHAR(8) DEFAULT NULL COMMENT '学期',
+    academic_year VARCHAR(16) NOT NULL COMMENT '学年',
+    semester VARCHAR(8) NOT NULL COMMENT '学期',
     schedule_json LONGTEXT COMMENT '课表JSON',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -87,3 +87,20 @@ CREATE TABLE IF NOT EXISTS user_profile_custom_asset (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_student_id (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户自定义图片资源表';
+
+CREATE TABLE IF NOT EXISTS user_deletion_task (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(32) NOT NULL COMMENT '待清理用户学号',
+    custom_avatar VARCHAR(255) DEFAULT NULL,
+    custom_background VARCHAR(255) DEFAULT NULL,
+    custom_wallpaper VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    next_retry_at DATETIME NOT NULL,
+    lease_token VARCHAR(64) DEFAULT NULL,
+    lease_until DATETIME DEFAULT NULL,
+    last_error VARCHAR(500) DEFAULT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_deletion_status (status, next_retry_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户注销后的跨服务清理任务';

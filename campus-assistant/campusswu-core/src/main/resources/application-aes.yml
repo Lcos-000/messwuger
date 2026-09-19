@@ -1,2 +1,2 @@
 aes:
-  secret-key: "@aes-secret-key#"  # 必须16个字符或32个字符
+  secret-key: "${AES_SECRET_KEY}"  # 必须为16、24或32字节

@@ -69,7 +69,7 @@ func Load() Config {
 		WorkerConcurrency:         envInt("WORKER_CONCURRENCY", 4),
 		JavaCallbackURL:           env("JAVA_CALLBACK_URL", "http://localhost:8000/internal/api/v1/sync/student-data"),
 		JavaInternalToken:         env("JAVA_INTERNAL_TOKEN", ""),
-		AesSecretKey:              env("AES_SECRET_KEY", "@aes-secret-key#"),
+		AesSecretKey:              env("AES_SECRET_KEY", ""),
 		YMToken:                   env("YM_TOKEN", ""),
 		YMType:                    env("YM_TYPE", "10110"),
 		PythonPath:                env("PYTHON_PATH", "python"),

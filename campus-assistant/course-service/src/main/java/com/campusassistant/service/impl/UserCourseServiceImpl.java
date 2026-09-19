@@ -47,6 +47,15 @@ public class UserCourseServiceImpl implements UserCourseService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteByStudentId(String studentId) {
+        courseMapper.delete(new LambdaQueryWrapper<CourseEntity>()
+                .eq(CourseEntity::getStudentId, studentId));
+        gradeMapper.delete(new LambdaQueryWrapper<GradeEntity>()
+                .eq(GradeEntity::getStudentId, studentId));
+    }
+
+    @Override
     public CourseVO getSchedule() {
         String studentId = UserContextUtil.requireStudentId();
         LambdaQueryWrapper<CourseEntity> queryWrapper = new LambdaQueryWrapper<>();
@@ -91,6 +100,7 @@ public class UserCourseServiceImpl implements UserCourseService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void saveOrUpdateGrades(GradeDTO gradeDTO) {
         String studentId = gradeDTO.getStudentId();
         String academicYear = gradeDTO.getAcademicYear();

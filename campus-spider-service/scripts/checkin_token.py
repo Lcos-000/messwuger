@@ -2,16 +2,14 @@ import base64
 import json
 import os
 import re
-import subprocess
 import urllib.parse
 from urllib.parse import urlparse
 
 import requests
-import urllib3
 
 from config import YM_TOKEN, YM_TYPE
+from des_encrypt import des_encrypt
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 IDM_BASE = "https://idm.swu.edu.cn"
 
@@ -19,25 +17,7 @@ IDM_BASE = "https://idm.swu.edu.cn"
 def _des_encrypt(data: str, key: str) -> str:
     """使用 Node.js + des.js 进行 DES 加密"""
     des_js_path = os.path.join(os.path.dirname(__file__), "des.js")
-    if not os.path.exists(des_js_path):
-        raise RuntimeError("des.js 不存在")
-
-    js_path_js = des_js_path.replace("\\", "/").replace("'", "\\'")
-    safe_data = data.replace("'", "\\'")
-    safe_key = key.replace("'", "\\'")
-    js_code = f"""
-var fs = require('fs');
-var code = fs.readFileSync('{js_path_js}', 'utf8');
-eval(code);
-console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
-"""
-    result = subprocess.run(
-        ["node", "-e", js_code],
-        capture_output=True, text=True, timeout=15
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Node.js DES 加密失败: {result.stderr}")
-    return result.stdout.strip()
+    return des_encrypt(data, key, des_js_path)
 
 
 def _solve_captcha(captcha_bytes: bytes) -> str:
@@ -109,7 +89,7 @@ def get_token(username: str, password: str) -> str:
         "%3Fnext%3Dhttps%253A%252F%252Fof.swu.edu.cn%252F%2523%252FcasLogin%253Ffrom%253D%25252FappCenter"
         "&federalEnable=true"
     )
-    r = session.get(oauth_url, timeout=15, verify=False, allow_redirects=True)
+    r = session.get(oauth_url, timeout=15, allow_redirects=True)
 
     parsed = urllib.parse.urlparse(r.url)
     qs = urllib.parse.parse_qs(parsed.query)
@@ -135,7 +115,7 @@ def get_token(username: str, password: str) -> str:
         "&federalEnable=true"
     )
 
-    r = session.get(cas_entry, timeout=15, verify=False, allow_redirects=True)
+    r = session.get(cas_entry, timeout=15, allow_redirects=True)
     if "idm.swu.edu.cn/am/UI/Login" not in r.url:
         raise RuntimeError("未能到达 IDM 登录页")
 
@@ -147,7 +127,7 @@ def get_token(username: str, password: str) -> str:
 
     # Step 3: 下载并识别验证码
     captcha_url = f"{IDM_BASE}/am/validate.code?id=0.123456"
-    rc = session.get(captcha_url, timeout=15, verify=False)
+    rc = session.get(captcha_url, timeout=15)
     captcha = _solve_captcha(rc.content)
 
     # Step 4: DES 加密用户名密码
@@ -177,7 +157,7 @@ def get_token(username: str, password: str) -> str:
     # Step 5: 提交登录
     r2 = session.post(
         f"{IDM_BASE}/am/UI/Login",
-        data=login_data, timeout=15, verify=False, allow_redirects=True
+        data=login_data, timeout=15, allow_redirects=True
     )
 
     parsed2 = urllib.parse.urlparse(r2.url)
@@ -196,7 +176,7 @@ def get_token(username: str, password: str) -> str:
         f"?code={CD}@@hxbeat&state={state}"
     )
 
-    r3 = session.get(callback_url, timeout=15, verify=False, allow_redirects=True)
+    r3 = session.get(callback_url, timeout=15, allow_redirects=True)
 
     # ST 可能在 URL fragment 中 (#/casLogin?from=...&ticket=...)
     parsed3 = urllib.parse.urlparse(r3.url)
@@ -217,7 +197,7 @@ def get_token(username: str, password: str) -> str:
     token_resp = session.get(
         f"https://of.swu.edu.cn/gateway/fighter-middle/api/integrate/uaap/cas/exchange-token"
         f"?token={ST}&remember=true",
-        timeout=15, verify=False
+        timeout=15
     ).json()
 
     if token_resp.get("code") != 200 or not token_resp.get("data"):

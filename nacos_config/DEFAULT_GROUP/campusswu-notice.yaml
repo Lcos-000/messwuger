@@ -1,0 +1,8 @@
+campus:
+  notice:
+    enabled: false
+    version: 1
+    title: "校园助手公告"
+    content: ""
+    level: info
+    updated-at: ""

@@ -82,6 +82,11 @@ public class SpiderFallbackFactory implements FallbackFactory<SpiderServiceClien
         return new SpiderServiceClient() {
 
             @Override
+            public Result<?> deleteSession(String studentId) {
+                return Result.error(code, message);
+            }
+
+            @Override
             public Result<?> verifyAccount(String studentId, String encryptedPassword, String type) {
                 return Result.error(code, message);
             }

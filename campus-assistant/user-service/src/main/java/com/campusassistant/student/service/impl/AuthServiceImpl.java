@@ -14,6 +14,7 @@ import com.campusassistant.utils.JwtUtil;
 import com.campusassistant.student.pojo.dto.LoginDTO;
 import com.campusassistant.student.pojo.dto.UserDTO;
 import com.campusassistant.student.pojo.UserEntity;
+import com.campusassistant.student.mapper.UserDeletionTaskMapper;
 import com.campusassistant.student.service.AuthService;
 import com.campusassistant.student.service.impl.support.UserReadSupport;
 import com.campusassistant.student.service.impl.support.UserWriteSupport;
@@ -53,11 +54,16 @@ public class AuthServiceImpl implements AuthService {
     private final ProfileWriteSupport profileWriteSupport;
     private final UserDtoConvertor userDtoConvertor;
     private final UserCacheSupport userCacheSupport;
+    private final UserDeletionTaskMapper userDeletionTaskMapper;
 
     @Override
     public void register(UserDTO userDTO) {
         String studentId = userDTO.getStudentId();
         String plainPassword = userDTO.getPassword();
+
+        if (userDeletionTaskMapper.existsPendingByStudentId(studentId)) {
+            throw new BusinessException(UserEnteringEnum.USER_DELETION_IN_PROGRESS);
+        }
 
         UserEntity existingUser = userReadSupport.findEntityByStudentId(studentId);
         if (existingUser != null) {

@@ -4,6 +4,3 @@ gatewaylist:
     - /gateway/auth/register 
   adminlist:
     - /gateway/admin/**
-
-security:
-    gatewaySecret: hadgonesthroughgateway

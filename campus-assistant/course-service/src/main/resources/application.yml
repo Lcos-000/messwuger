@@ -1,6 +1,9 @@
 server:
   port: 9000
 
+internal:
+  callback-token: ${JAVA_INTERNAL_TOKEN:}
+
 spring:
   jackson:
     serialization:

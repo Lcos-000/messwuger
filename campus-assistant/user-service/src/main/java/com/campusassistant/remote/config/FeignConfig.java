@@ -6,6 +6,7 @@ import feign.Retryer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 @Configuration
 public class FeignConfig {
@@ -20,7 +21,17 @@ public class FeignConfig {
     public Logger.Level feignLoggerLevel() {
         // FULL: 记录请求和响应的头信息、正文和元数据
         // BASIC: 仅记录请求方法、URL、响应状态代码及执行时间（推荐日常调试）
-        return Logger.Level.FULL;
+        return Logger.Level.BASIC;
+    }
+
+    @Bean
+    public RequestInterceptor internalTokenInterceptor(
+            @Value("${internal.callback-token:}") String internalToken) {
+        return template -> {
+            if (StringUtils.hasText(internalToken)) {
+                template.header("Authorization", "Bearer " + internalToken);
+            }
+        };
     }
 
     @Bean

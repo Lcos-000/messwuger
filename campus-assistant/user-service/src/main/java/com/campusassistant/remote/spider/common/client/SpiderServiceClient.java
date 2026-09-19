@@ -7,6 +7,7 @@ import com.campusassistant.remote.spider.emptyclassroom.pojo.dto.EmptyClassroomT
 import com.campusassistant.remote.spider.grades.pojo.dto.GradesTaskSubmitDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
@@ -19,6 +20,9 @@ import static com.campusassistant.remote.common.Constant.*;
         fallbackFactory = SpiderFallbackFactory.class
 )
 public interface SpiderServiceClient {
+
+    @DeleteMapping("/internal/session")
+    Result<?> deleteSession(@RequestHeader(X_Student_Id) String studentId);
 
     // 注册时调用：仅校验教务账号密码是否正确
     // Go端逻辑：模拟登录教务处，登录成功直接返回200，失败返回错误信息。不爬课表。
