@@ -52,6 +52,7 @@ X-Student-Id: 222025321262104
 X-Password: {AES加密后的密码}
 Content-Type: application/json
 X-Spider-Token: {SPIDER_API_TOKEN}
+Authorization: Bearer {JAVA_INTERNAL_TOKEN}
 Content-Length: 248
 ```json
 {
