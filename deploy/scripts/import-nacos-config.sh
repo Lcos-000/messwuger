@@ -56,7 +56,18 @@ import_dir() {
     dataId=$(basename "$f")
     if [ "$dataId" = "aliyun-oss.yaml" ]; then
       echo "Removing deprecated secret-bearing Nacos config: $dataId"
-      curl -fsSL -X DELETE "$BASE?dataId=$dataId&group=$group&tenant=$tenant" >/dev/null || true
+      delete_status=$(curl -sS -o /dev/null -w '%{http_code}' \
+        -X DELETE "$BASE?dataId=$dataId&group=$group&tenant=$tenant") || {
+        echo "Failed to remove deprecated Nacos config: $dataId" >&2
+        return 1
+      }
+      case "$delete_status" in
+        200|204|404) ;;
+        *)
+          echo "Failed to remove deprecated Nacos config: $dataId (HTTP $delete_status)" >&2
+          return 1
+          ;;
+      esac
       continue
     fi
     raw_content=$(cat "$f")

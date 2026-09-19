@@ -16,6 +16,7 @@ public interface UserDeletionTaskMapper extends BaseMapper<UserDeletionTaskEntit
 
     String STATUS_PENDING = "PENDING";
     String STATUS_PROCESSING = "PROCESSING";
+    String STATUS_FAILED = "FAILED";
 
     default boolean existsPendingByStudentId(String studentId) {
         return selectCount(new LambdaQueryWrapper<UserDeletionTaskEntity>()
@@ -98,6 +99,21 @@ public interface UserDeletionTaskMapper extends BaseMapper<UserDeletionTaskEntit
                 .set(UserDeletionTaskEntity::getStatus, STATUS_PENDING)
                 .set(UserDeletionTaskEntity::getRetryCount, retryCount)
                 .set(UserDeletionTaskEntity::getNextRetryAt, nextRetryAt)
+                .set(UserDeletionTaskEntity::getLeaseToken, null)
+                .set(UserDeletionTaskEntity::getLeaseUntil, null)
+                .set(UserDeletionTaskEntity::getLastError, lastError));
+    }
+
+    default int markFailed(Long taskId,
+                           String leaseToken,
+                           int retryCount,
+                           String lastError) {
+        return update(null, new LambdaUpdateWrapper<UserDeletionTaskEntity>()
+                .eq(UserDeletionTaskEntity::getId, taskId)
+                .eq(UserDeletionTaskEntity::getStatus, STATUS_PROCESSING)
+                .eq(UserDeletionTaskEntity::getLeaseToken, leaseToken)
+                .set(UserDeletionTaskEntity::getStatus, STATUS_FAILED)
+                .set(UserDeletionTaskEntity::getRetryCount, retryCount)
                 .set(UserDeletionTaskEntity::getLeaseToken, null)
                 .set(UserDeletionTaskEntity::getLeaseUntil, null)
                 .set(UserDeletionTaskEntity::getLastError, lastError));

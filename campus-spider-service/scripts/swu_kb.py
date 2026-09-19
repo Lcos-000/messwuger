@@ -5,7 +5,6 @@ import base64
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from io import BytesIO
@@ -14,6 +13,7 @@ from urllib.parse import urlparse
 import requests
 
 from config import YM_TOKEN, YM_TYPE
+from des_encrypt import des_encrypt
 
 
 
@@ -49,25 +49,7 @@ class SWUJwClient:
 
     def _des_encrypt(self, data: str, key: str) -> str:
         des_js_path = os.path.join(os.path.dirname(__file__), "des.js")
-        if not os.path.exists(des_js_path):
-            raise RuntimeError("des.js 不存在，请确认已放入 scripts 目录")
-
-        js_path_js = des_js_path.replace("\\", "/").replace("'", "\\'")
-        safe_data = data.replace("'", "\\'")
-        safe_key = key.replace("'", "\\'")
-        js_code = f"""
-var fs = require('fs');
-var code = fs.readFileSync('{js_path_js}', 'utf8');
-eval(code);
-console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
-"""
-        result = subprocess.run(
-            ["node", "-e", js_code],
-            capture_output=True, text=True, timeout=15
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"Node.js DES 加密失败: {result.stderr}")
-        return result.stdout.strip()
+        return des_encrypt(data, key, des_js_path)
 
     def solve_captcha(self, captcha_bytes: bytes) -> str:
         if not YM_TOKEN:

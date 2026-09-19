@@ -23,7 +23,9 @@
 
 ### 2.2 密码加密
 
-Go 端使用 **AES/CBC/PKCS5Padding** 解密，IV 取 key 的前 16 字节：
+Go 端使用 **AES/CBC/PKCS5Padding** 解密。新格式为 `IV` 标识（2 字节）+
+安全随机 IV（16 字节）+ ciphertext；同时兼容历史格式（使用 key 前 16 字节作为
+AES-128 的 key 和 IV）。
 
 
 ### 2.3 提交接口响应
@@ -390,6 +392,8 @@ public class EmptyClassroomExample {
         //     .uri(URI.create("http://localhost:8082/api/v1/task/empty-classroom"))
         //     .header("X-Student-Id", studentId)
         //     .header("X-Password", aesEncrypt(password, aesKey))
+        //     .header("X-Spider-Token", System.getenv("SPIDER_API_TOKEN"))
+        //     .header("Authorization", "Bearer " + System.getenv("JAVA_INTERNAL_TOKEN"))
         //     .header("Content-Type", "application/json")
         //     .POST(HttpRequest.BodyPublishers.ofString(new ObjectMapper().writeValueAsString(body)))
         //     .build();

@@ -48,12 +48,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.campusassistant.student.pojo.vo.EmptyClassroomTaskSubmitVO;
 
 import java.util.List;
-import java.util.Set;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import static com.campusassistant.enums.ResultCodeEnum.UNAUTHORIZED;
@@ -131,14 +133,33 @@ public class CurrentUserServiceImpl implements CurrentUserService {
         if (!currentStudentId.isEmpty()) {
             userCacheSupport.evictLoginSessionAndUserCaches(currentStudentId, token);
             stringRedisTemplate.delete(courseMixCacheKey.getKey(currentStudentId));
-            Set<String> gradeKeys = stringRedisTemplate.keys(gradeCacheKey.getPattern(currentStudentId));
-            if (gradeKeys != null && !gradeKeys.isEmpty()) {
-                stringRedisTemplate.delete(gradeKeys);
-            }
+            deleteGradeCaches(currentStudentId);
         } else {
             log.warn("用户注销时发现用户名为空，跳过缓存删除, userId: {}", userId);
         }
         log.info("用户已注销；[{}]",userEntity);
+    }
+
+    private void deleteGradeCaches(String studentId) {
+        List<String> batch = new ArrayList<>();
+        try (Cursor<String> cursor = stringRedisTemplate.scan(
+                ScanOptions.scanOptions()
+                        .match(gradeCacheKey.getPattern(studentId))
+                        .count(500)
+                        .build())) {
+            while (cursor.hasNext()) {
+                batch.add(cursor.next());
+                if (batch.size() >= 500) {
+                    stringRedisTemplate.delete(batch);
+                    batch.clear();
+                }
+            }
+            if (!batch.isEmpty()) {
+                stringRedisTemplate.delete(batch);
+            }
+        } catch (Exception e) {
+            log.warn("注销时清理成绩缓存失败，studentId={}", studentId, e);
+        }
     }
 
     @Override

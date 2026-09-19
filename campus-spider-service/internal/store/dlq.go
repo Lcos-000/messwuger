@@ -28,6 +28,14 @@ for i = 1, field_count * 2 do
     xadd_args[#xadd_args + 1] = ARGV[3 + i]
 end
 
+local pending = redis.pcall('XPENDING', KEYS[2], ARGV[1], ARGV[2], ARGV[2], 1)
+if type(pending) == 'table' and pending.err then
+    return {0, pending.err}
+end
+if type(pending) ~= 'table' or #pending == 0 then
+    return {0, 'source message is no longer pending'}
+end
+
 local added = redis.pcall('XADD', KEYS[1], unpack(xadd_args))
 if type(added) == 'table' and added.err then
     return {0, added.err}
@@ -35,7 +43,15 @@ end
 
 local acked = redis.pcall('XACK', KEYS[2], ARGV[1], ARGV[2])
 if type(acked) == 'table' and acked.err then
+    redis.pcall('XDEL', KEYS[1], added)
     return {0, acked.err}
+end
+if acked ~= 1 then
+    local deleted = redis.pcall('XDEL', KEYS[1], added)
+    if type(deleted) == 'table' and deleted.err then
+        return {0, deleted.err}
+    end
+    return {0, 'source message is no longer pending'}
 end
 return {1, added, acked}
 `)

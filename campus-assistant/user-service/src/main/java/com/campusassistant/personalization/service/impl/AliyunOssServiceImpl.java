@@ -54,8 +54,8 @@ public class AliyunOssServiceImpl implements AliyunOssService {
         }
         String prefix = aliyunOssProperties.getUrlPrefix();
         if (prefix == null || prefix.isBlank() || !objectUrl.startsWith(prefix)) {
-            log.warn("跳过删除非当前 OSS 前缀的对象: {}", objectUrl);
-            return;
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    "OSS 对象 URL 不属于当前配置的存储空间");
         }
         String objectKey = objectUrl.substring(prefix.length()).replaceFirst("^/", "");
         OSS ossClient = null;

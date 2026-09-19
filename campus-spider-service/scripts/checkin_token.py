@@ -2,13 +2,13 @@ import base64
 import json
 import os
 import re
-import subprocess
 import urllib.parse
 from urllib.parse import urlparse
 
 import requests
 
 from config import YM_TOKEN, YM_TYPE
+from des_encrypt import des_encrypt
 
 
 IDM_BASE = "https://idm.swu.edu.cn"
@@ -17,25 +17,7 @@ IDM_BASE = "https://idm.swu.edu.cn"
 def _des_encrypt(data: str, key: str) -> str:
     """使用 Node.js + des.js 进行 DES 加密"""
     des_js_path = os.path.join(os.path.dirname(__file__), "des.js")
-    if not os.path.exists(des_js_path):
-        raise RuntimeError("des.js 不存在")
-
-    js_path_js = des_js_path.replace("\\", "/").replace("'", "\\'")
-    safe_data = data.replace("'", "\\'")
-    safe_key = key.replace("'", "\\'")
-    js_code = f"""
-var fs = require('fs');
-var code = fs.readFileSync('{js_path_js}', 'utf8');
-eval(code);
-console.log(strEnc('{safe_data}', '{safe_key}', "", ""));
-"""
-    result = subprocess.run(
-        ["node", "-e", js_code],
-        capture_output=True, text=True, timeout=15
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Node.js DES 加密失败: {result.stderr}")
-    return result.stdout.strip()
+    return des_encrypt(data, key, des_js_path)
 
 
 def _solve_captcha(captcha_bytes: bytes) -> str:

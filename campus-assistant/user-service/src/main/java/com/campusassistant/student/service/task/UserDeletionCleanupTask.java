@@ -26,6 +26,7 @@ public class UserDeletionCleanupTask {
     private static final String CLEANUP_LOCK_KEY = "lock:scheduled:user-deletion-cleanup";
     private static final int BATCH_SIZE = 20;
     private static final long LEASE_MINUTES = 10;
+    private static final int MAX_RETRY_COUNT = 5;
 
     private final UserDeletionTaskMapper taskMapper;
     private final CourseServiceClient courseServiceClient;
@@ -77,14 +78,25 @@ public class UserDeletionCleanupTask {
             }
         } catch (Exception e) {
             int retryCount = task.getRetryCount() == null ? 1 : task.getRetryCount() + 1;
-            long delaySeconds = Math.min(3600L, 1L << Math.min(retryCount, 11));
             String error = truncate(e.getMessage());
-            if (taskMapper.markRetry(task.getId(), leaseToken, retryCount,
-                    LocalDateTime.now().plusSeconds(delaySeconds), error) == 1) {
-                log.error("用户注销后的资源清理失败，studentId={}，将在 {} 秒后重试",
-                        task.getStudentId(), delaySeconds, e);
+            if (retryCount >= MAX_RETRY_COUNT) {
+                if (taskMapper.markFailed(task.getId(), leaseToken, retryCount, error) == 1) {
+                    log.error("用户注销后的资源清理达到最大重试次数，已标记 FAILED，需人工处理，studentId={}",
+                            task.getStudentId(), e);
+                } else {
+                    log.warn("用户注销清理任务租约已失效，跳过 FAILED 状态更新，studentId={}",
+                            task.getStudentId(), e);
+                }
             } else {
-                log.warn("用户注销清理任务租约已失效，跳过失败状态更新，studentId={}", task.getStudentId(), e);
+                long delaySeconds = Math.min(3600L, 1L << Math.min(retryCount, 11));
+                if (taskMapper.markRetry(task.getId(), leaseToken, retryCount,
+                        LocalDateTime.now().plusSeconds(delaySeconds), error) == 1) {
+                    log.error("用户注销后的资源清理失败，studentId={}，将在 {} 秒后重试",
+                            task.getStudentId(), delaySeconds, e);
+                } else {
+                    log.warn("用户注销清理任务租约已失效，跳过失败状态更新，studentId={}",
+                            task.getStudentId(), e);
+                }
             }
         }
     }

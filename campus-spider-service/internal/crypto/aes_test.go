@@ -37,6 +37,34 @@ func TestAesDecryptKeepsLegacyAES128Compatibility(t *testing.T) {
 	}
 }
 
+func TestAesDecryptFallsBackForLegacyCiphertextStartingWithIV(t *testing.T) {
+	key := "0123456789abcdefghijklmn"
+	base := []byte("legacy-password-that-is-long-enough")
+
+	for i := 0; i < 1<<16; i++ {
+		plaintext := append([]byte(nil), base...)
+		plaintext[0] = byte(i >> 8)
+		plaintext[1] = byte(i)
+		encoded := testEncrypt(string(plaintext), key, false)
+		decodedBytes, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			t.Fatalf("decode test ciphertext: %v", err)
+		}
+		if len(decodedBytes) >= 2 && decodedBytes[0] == 'I' && decodedBytes[1] == 'V' {
+			decoded, decryptErr := AesDecrypt(encoded, key)
+			if decryptErr != nil {
+				t.Fatalf("legacy ciphertext beginning with IV must remain decryptable: %v", decryptErr)
+			}
+			if decoded != string(plaintext) {
+				t.Fatalf("got %q, want %q", decoded, plaintext)
+			}
+			return
+		}
+	}
+
+	t.Fatal("could not construct a legacy ciphertext beginning with IV")
+}
+
 func TestAesDecryptRejectsMalformedCiphertext(t *testing.T) {
 	malformed := []string{
 		base64.StdEncoding.EncodeToString([]byte("IV" + strings.Repeat("x", aes.BlockSize))),

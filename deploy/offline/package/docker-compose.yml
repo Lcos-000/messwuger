@@ -25,6 +25,7 @@ services:
       - .env
     environment:
       MYSQL_DATABASE: campus_db
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Shanghai
     ports:
       - "127.0.0.1:3306:3306"
@@ -35,7 +36,7 @@ services:
     networks:
       - campus-net
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,15 +44,26 @@ services:
   db-migrate:
     image: mysql:8.0
     container_name: campus-db-migrate
-    env_file:
-      - .env
     depends_on:
       mysql:
         condition: service_healthy
+    secrets:
+      - mysql_root_password
     volumes:
       - ./migrations:/migrations:ro
     entrypoint: ["sh", "-c"]
-    command: ["mysql -h mysql -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" campus_db < /migrations/001_course_term_unique.sql"]
+    command:
+      - |
+        set -eu
+        client_cnf=$$(mktemp)
+        trap 'rm -f "$${client_cnf}"' EXIT
+        {
+          printf '%s\n' '[client]'
+          printf '%s\n' 'host=mysql'
+          printf '%s\n' 'user=root'
+          printf 'password=%s\n' "$$(cat /run/secrets/mysql_root_password)"
+        } > "$${client_cnf}"
+        mysql --defaults-extra-file="$${client_cnf}" campus_db < /migrations/001_course_term_unique.sql
     networks:
       - campus-net
     restart: "no"
@@ -248,3 +260,7 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: 1450
+
+secrets:
+  mysql_root_password:
+    environment: MYSQL_ROOT_PASSWORD

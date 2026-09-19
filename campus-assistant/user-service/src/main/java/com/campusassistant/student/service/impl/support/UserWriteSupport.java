@@ -68,7 +68,8 @@ public class UserWriteSupport {
             if (e instanceof BusinessException businessException) {
                 throw businessException;
             }
-            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    ResultCodeEnum.SYSTEM_ERROR.getMessage(), e);
         }
     }
 
@@ -102,7 +103,8 @@ public class UserWriteSupport {
             if (e instanceof BusinessException businessException) {
                 throw businessException;
             }
-            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR);
+            throw new BusinessException(ResultCodeEnum.SYSTEM_ERROR.getCode(),
+                    ResultCodeEnum.SYSTEM_ERROR.getMessage(), e);
         }
     }
 

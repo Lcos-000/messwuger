@@ -28,8 +28,11 @@
 
 ```powershell
 cd deploy/offline/package
-docker compose up -d mysql db-migrate redis nacos sentinel
+docker compose up -d mysql redis nacos sentinel
+docker compose run --rm db-migrate
 ```
+
+数据库迁移命令必须返回成功后再启动后端服务；迁移失败时应停止测试流程并先处理数据库问题。
 
 如需链路追踪：
 

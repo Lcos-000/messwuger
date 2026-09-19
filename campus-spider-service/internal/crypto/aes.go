@@ -23,30 +23,38 @@ func AesDecrypt(encryptedBase64, key string) (string, error) {
 		return "", errors.New("AES key must be 16, 24, or 32 bytes")
 	}
 
-	var blockKey []byte
-	iv := []byte(key)[:aes.BlockSize]
+	originalCiphertext := append([]byte(nil), ciphertext...)
 	if len(ciphertext) >= 2 && ciphertext[0] == 'I' && ciphertext[1] == 'V' {
-		if len(ciphertext) < 2+aes.BlockSize*2 {
-			return "", errors.New("new-format ciphertext too short")
+		if len(ciphertext) >= 2+aes.BlockSize*2 {
+			iv := append([]byte(nil), ciphertext[2:2+aes.BlockSize]...)
+			newCiphertext := append([]byte(nil), ciphertext[2+aes.BlockSize:]...)
+			if plaintext, decryptErr := decryptCBC(newCiphertext, []byte(key), iv); decryptErr == nil {
+				return plaintext, nil
+			}
 		}
-		iv = append([]byte(nil), ciphertext[2:2+aes.BlockSize]...)
-		ciphertext = ciphertext[2+aes.BlockSize:]
-		blockKey = []byte(key)
-	} else {
-		// Legacy Java clients always used AES-128 with the first 16 key bytes.
-		blockKey = []byte(key)[:aes.BlockSize]
 	}
+
+	// Legacy Java clients always used AES-128 with the first 16 key bytes.
+	legacyKey := []byte(key)[:aes.BlockSize]
+	return decryptCBC(originalCiphertext, legacyKey, legacyKey)
+}
+
+func decryptCBC(ciphertext, blockKey, iv []byte) (string, error) {
 	if len(ciphertext) == 0 || len(ciphertext)%aes.BlockSize != 0 {
 		return "", errors.New("ciphertext is not a multiple of the AES block size")
+	}
+	if len(iv) != aes.BlockSize {
+		return "", errors.New("invalid IV length")
 	}
 	block, err := aes.NewCipher(blockKey)
 	if err != nil {
 		return "", err
 	}
 	mode := cipher.NewCBCDecrypter(block, iv)
-	mode.CryptBlocks(ciphertext, ciphertext)
+	decrypted := append([]byte(nil), ciphertext...)
+	mode.CryptBlocks(decrypted, decrypted)
 
-	plaintext, err := pkcs5Unpadding(ciphertext, aes.BlockSize)
+	plaintext, err := pkcs5Unpadding(decrypted, aes.BlockSize)
 	if err != nil {
 		return "", err
 	}
